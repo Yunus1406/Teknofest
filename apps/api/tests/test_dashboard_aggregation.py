@@ -2,9 +2,11 @@
 de 'referanssız azaltım iddiası' hatasının düzeltildiğini doğrular."""
 import pytest
 
+from app.models.company import Company, Facility
 from app.models.infrastructure import ProductionLine
 from app.models.knowledge import Material, Polymer
 from app.models.optimization import OptimizationRun
+from app.models.product_sku import ProductSku
 from app.models.production import PhysicalTest, ProductionLiveData, ProductionOrder
 from app.models.recipe import PackagingRequest, Recipe, RecipeLayer
 from app.services.dashboard_aggregation import (
@@ -14,6 +16,7 @@ from app.services.dashboard_aggregation import (
     TESTTE,
     URETIMDE,
     compute_case_status,
+    compute_company_overview,
     compute_material_usage_totals,
     compute_realized_and_gains,
 )
@@ -45,10 +48,10 @@ def _request(db, packaging_type="esnek film ambalaj", length_mm=400, width_mm=30
     return req
 
 
-def _recipe(db, request, material, total_micron=70.0, is_verified=False, version=1):
+def _recipe(db, request, material, total_micron=70.0, is_verified=False, version=1, line_id=None):
     recipe = Recipe(
         packaging_request_id=request.id, version=version, source="sistem_uretti",
-        status="onerildi", total_micron=total_micron, is_verified=is_verified,
+        status="onerildi", total_micron=total_micron, is_verified=is_verified, line_id=line_id,
     )
     db.add(recipe)
     db.flush()
@@ -58,18 +61,19 @@ def _recipe(db, request, material, total_micron=70.0, is_verified=False, version
     return recipe
 
 
-def _dummy_line(db):
+def _dummy_line(db, energy_kwh_per_kg=0.0, active=True):
     line = ProductionLine(
         name="Test Hattı", layer_structure="A", layer_count=1, min_micron=10, max_micron=1000,
-        supported_packaging_types=[],
+        supported_packaging_types=[], energy_kwh_per_kg=energy_kwh_per_kg, active=active,
     )
     db.add(line)
     db.flush()
     return line
 
 
-def _order_with_live_data(db, recipe, qty=1000, waste_kg=0.5):
-    order = ProductionOrder(recipe_id=recipe.id, line_id=_dummy_line(db).id, status="tamamlandi", scheduled_qty_units=qty)
+def _order_with_live_data(db, recipe, qty=1000, waste_kg=0.5, line=None):
+    line_id = line.id if line is not None else _dummy_line(db).id
+    order = ProductionOrder(recipe_id=recipe.id, line_id=line_id, status="tamamlandi", scheduled_qty_units=qty)
     db.add(order)
     db.flush()
     db.add(ProductionLiveData(production_order_id=order.id, produced_qty_units=qty, waste_kg=waste_kg, energy_kwh=1.0, line_speed_m_min=100.0, source="simulasyon_verisi"))
@@ -171,3 +175,104 @@ def test_with_verified_reference_gains_are_computed(db_session):
     assert result.carbon_reduction_kg_co2 is not None
     assert result.carbon_reduction_kg_co2 > 0  # yeni reçete daha düşük karbonlu malzeme kullanıyor
     assert result.prevented_waste_kg == pytest.approx(2.0, rel=0.05)  # 3.0 - 1.0 kg fire farkı
+
+
+# --- Faz E.5: firma bazlı üst bilgi ----------------------------------------
+
+def test_company_overview_none_when_no_company_registered(db_session):
+    """Firma Profili formu hiç doldurulmadıysa (Company yok) uydurma bir
+    isim gösterilmez, alanlar None kalır."""
+    overview = compute_company_overview(db_session)
+    assert overview.company_name is None
+    assert overview.facility_name is None
+    assert overview.active_line_count == 0
+    assert overview.registered_material_count == 0
+    assert overview.registered_sku_count == 0
+
+
+def test_company_overview_reflects_registered_entities(db_session):
+    company = Company(name="Test Ambalaj A.Ş.")
+    db_session.add(company)
+    db_session.flush()
+    facility = Facility(company_id=company.id, name="Test Tesis-1")
+    db_session.add(facility)
+
+    _dummy_line(db_session, active=True)
+    _dummy_line(db_session, active=True)
+    _dummy_line(db_session, active=False)  # sayılmamalı
+
+    _material(db_session, "PE Virgin Overview", "virgin")
+    db_session.add(ProductSku(sku_code="OVW-1", product_name="X", packaging_type="x", usage_area="x", target_market="AB"))
+    db_session.commit()
+
+    overview = compute_company_overview(db_session)
+    assert overview.company_name == "Test Ambalaj A.Ş."
+    assert overview.facility_name == "Test Tesis-1"
+    assert overview.active_line_count == 2
+    assert overview.registered_material_count == 1
+    assert overview.registered_sku_count == 1
+
+
+# --- Faz E.5: önlenen virgin / enerji kazanımı -----------------------------
+
+def test_prevented_virgin_and_energy_none_without_reference(db_session):
+    line = _dummy_line(db_session, energy_kwh_per_kg=0.4)
+    material = _material(db_session, "PE Virgin E5", "virgin")
+    req = _request(db_session)
+    recipe = _recipe(db_session, req, material, is_verified=True, line_id=line.id)
+    _order_with_live_data(db_session, recipe, qty=1000, waste_kg=2.0, line=line)
+
+    result = compute_realized_and_gains(db_session)
+
+    assert result.prevented_virgin_kg is None
+    assert result.energy_savings_kwh is None
+
+
+def test_prevented_virgin_and_energy_computed_with_reference(db_session):
+    old_line = _dummy_line(db_session, energy_kwh_per_kg=0.5)
+    new_line = _dummy_line(db_session, energy_kwh_per_kg=0.3)
+
+    material_old = _material(db_session, "PE Virgin Eski E5", "virgin", carbon=1.8)
+    material_new = _material(db_session, "PE PCR Yeni E5", "pcr", carbon=0.6)
+
+    req1 = _request(db_session)
+    reference = _recipe(db_session, req1, material_old, is_verified=True, version=1, line_id=old_line.id)
+    _order_with_live_data(db_session, reference, qty=1000, waste_kg=3.0, line=old_line)
+
+    req2 = _request(db_session)
+    recipe = _recipe(db_session, req2, material_new, is_verified=True, version=1, line_id=new_line.id)
+    _order_with_live_data(db_session, recipe, qty=1000, waste_kg=1.0, line=new_line)
+
+    result = compute_realized_and_gains(db_session)
+
+    # Referans %100 virgin, yeni reçete %100 PCR -> önlenen virgin > 0.
+    assert result.prevented_virgin_kg is not None
+    assert result.prevented_virgin_kg > 0
+
+    # Eski hat 0.5 kWh/kg, yeni hat 0.3 kWh/kg -> enerji kazanımı > 0.
+    assert result.energy_savings_kwh is not None
+    assert result.energy_savings_kwh > 0
+
+
+def test_energy_savings_none_when_line_energy_data_missing(db_session):
+    """İki hat da energy_kwh_per_kg=0.0 (varsayılan, "veri girilmedi" anlamına
+    gelir) -- enerji kazanımı hesaplanmamalı, karbon/fire yine de hesaplanabilir."""
+    old_line = _dummy_line(db_session, energy_kwh_per_kg=0.0)
+    new_line = _dummy_line(db_session, energy_kwh_per_kg=0.0)
+
+    material_old = _material(db_session, "PE Virgin Eski E5b", "virgin", carbon=1.8)
+    material_new = _material(db_session, "PE PCR Yeni E5b", "pcr", carbon=0.6)
+
+    req1 = _request(db_session)
+    reference = _recipe(db_session, req1, material_old, is_verified=True, version=1, line_id=old_line.id)
+    _order_with_live_data(db_session, reference, qty=1000, waste_kg=3.0, line=old_line)
+
+    req2 = _request(db_session)
+    recipe = _recipe(db_session, req2, material_new, is_verified=True, version=1, line_id=new_line.id)
+    _order_with_live_data(db_session, recipe, qty=1000, waste_kg=1.0, line=new_line)
+
+    result = compute_realized_and_gains(db_session)
+
+    assert result.energy_savings_kwh is None
+    assert result.carbon_reduction_kg_co2 is not None  # karbon hâlâ hesaplanabiliyor
+    assert result.prevented_virgin_kg is not None

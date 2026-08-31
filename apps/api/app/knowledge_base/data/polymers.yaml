@@ -44,3 +44,64 @@
     food_contact_eligible: true
     rigidity: orta
     biodegradable: true
+
+# --- Faz E.3: Malzeme sınıfları genişlemesi -----------------------------
+# Aşağıdaki satırlar SADECE tanım/kategori verisidir (bir polimer ailesinin
+# var olduğu bilgisi) — Faz B'nin "uydurma miktar" yasağını ihlal etmez.
+# Sayısal özellikler (yoğunluk, erime sıcaklığı vb.) BİLİNÇLİ OLARAK
+# doldurulmadı; kullanıcı kendi gerçek hammaddesini eklerken kendi ölçüm/
+# teknik veri föyünden girecek.
+- code: LDPE
+  name: Alçak Yoğunluklu Polietilen
+  category: poliolefin
+  base_properties: {}
+
+- code: LLDPE
+  name: Doğrusal Alçak Yoğunluklu Polietilen
+  category: poliolefin
+  base_properties: {}
+
+- code: mLLDPE
+  name: Metalosen Doğrusal Alçak Yoğunluklu Polietilen
+  category: poliolefin
+  base_properties: {}
+
+- code: HDPE
+  name: Yüksek Yoğunluklu Polietilen
+  category: poliolefin
+  base_properties: {}
+
+- code: MDPE
+  name: Orta Yoğunluklu Polietilen
+  category: poliolefin
+  base_properties: {}
+
+- code: CPP
+  name: Kalender/Dökme Polipropilen (Cast PP)
+  category: poliolefin
+  base_properties: {}
+
+- code: BOPP
+  name: Biaksiyel Yönlendirilmiş Polipropilen
+  category: poliolefin
+  base_properties: {}
+
+- code: PA
+  name: Poliamid (Naylon)
+  category: poliamid
+  base_properties: {}
+
+- code: EVOH
+  name: Etilen Vinil Alkol
+  category: bariyer_polimeri
+  base_properties: {}
+
+- code: EVA
+  name: Etilen Vinil Asetat
+  category: poliolefin
+  base_properties: {}
+
+- code: TIE
+  name: Bağlayıcı Reçine (Tie-layer)
+  category: baglayici_recine
+  base_properties: {}

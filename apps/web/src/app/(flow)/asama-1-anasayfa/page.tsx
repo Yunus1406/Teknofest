@@ -41,8 +41,33 @@ export default function Stage1Page() {
         </Card>
       )}
 
+      {summary && (
+        <div className="mb-6 flex flex-wrap items-center gap-2 text-sm text-ink/60">
+          {summary.company_name ? (
+            <>
+              <span className="font-heading text-base font-medium text-ink">{summary.company_name}</span>
+              {summary.facility_name && <span>· {summary.facility_name}</span>}
+            </>
+          ) : (
+            <span className="text-ink/40">
+              Firma profili henüz tanımlanmadı —{" "}
+              <Link href="/firma-profili" className="text-petrol underline underline-offset-2">
+                şimdi tanımla
+              </Link>
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="mb-6 grid grid-cols-3 gap-4">
+        <StatTile label="Aktif Hat" value={summary?.active_line_count ?? "—"} />
+        <StatTile label="Kayıtlı Hammadde" value={summary?.registered_material_count ?? "—"} />
+        <StatTile label="Kayıtlı Ürün/SKU" value={summary?.registered_sku_count ?? "—"} />
+      </div>
+
       <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatTile label="Aktif Çalışmalar" value={summary?.active_cases ?? "—"} />
+        <StatTile label="Aktif Optimizasyonlar" value={summary?.active_optimizations ?? "—"} />
         <StatTile label="Tamamlanan Çalışmalar" value={summary?.completed_cases ?? "—"} />
         <StatTile label="Doğrulanmış Reçeteler" value={summary?.verified_recipes ?? "—"} />
         <StatTile
@@ -129,6 +154,18 @@ export default function Stage1Page() {
             <span className="font-mono text-ink/70">{summary.prevented_waste_kg.toFixed(1)} kg</span>
           </p>
         )}
+        {summary?.prevented_virgin_kg != null && (
+          <p className="mt-1 text-xs text-ink/50">
+            Önlenen virgin tüketimi:{" "}
+            <span className="font-mono text-ink/70">{summary.prevented_virgin_kg.toFixed(1)} kg</span>
+          </p>
+        )}
+        {summary?.energy_savings_kwh != null && (
+          <p className="mt-1 text-xs text-ink/50">
+            Enerji kazanımı:{" "}
+            <span className="font-mono text-ink/70">{summary.energy_savings_kwh.toFixed(1)} kWh</span>
+          </p>
+        )}
       </Card>
 
       <div className="flex items-center gap-3">
@@ -136,6 +173,24 @@ export default function Stage1Page() {
           <Button>Yeni Ambalaj Talebi Başlat →</Button>
         </Link>
         <p className="text-xs text-ink/50">Sıfırdan bir ambalaj tanımlayıp 12 aşamalı akışı başlatır.</p>
+      </div>
+
+      <div className="mt-6 border-t border-ink/10 pt-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-ink/40">Firma Ayarları</p>
+        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+          <Link href="/firma-profili" className="text-sm text-petrol underline underline-offset-2">
+            Firma Profili ve Üretim Altyapısı →
+          </Link>
+          <Link href="/makine-parki" className="text-sm text-petrol underline underline-offset-2">
+            Makine Parkı →
+          </Link>
+          <Link href="/hammadde-kutuphanesi" className="text-sm text-petrol underline underline-offset-2">
+            Hammadde ve Malzeme Kütüphanesi →
+          </Link>
+          <Link href="/urun-portfoyu" className="text-sm text-petrol underline underline-offset-2">
+            Ürün Portföyü →
+          </Link>
+        </div>
       </div>
     </div>
   );

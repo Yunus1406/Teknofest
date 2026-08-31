@@ -26,6 +26,19 @@ class DashboardSummaryOut(BaseModel):
     carbon_data_quality: str
     regulatory_alerts: int
 
+    # --- Faz E.5: firma bazlı üst bilgi + ek kazanım metrikleri ----------
+    # Company hiç oluşturulmadıysa None -- uydurma bir isim gösterilmez.
+    company_name: str | None = None
+    facility_name: str | None = None
+    active_line_count: int = 0
+    registered_material_count: int = 0
+    registered_sku_count: int = 0
+    # prevented_waste_kg/carbon_reduction_kg_co2 ile AYNI disiplin: referans
+    # yoksa None.
+    prevented_virgin_kg: float | None = None
+    energy_savings_kwh: float | None = None
+    active_optimizations: int = 0
+
 
 class LayerMaterialRowOut(BaseModel):
     """Bir katmanın İÇİNDEKİ tek bir malzeme satırı — ör. 'Katman B: PCR %30'."""

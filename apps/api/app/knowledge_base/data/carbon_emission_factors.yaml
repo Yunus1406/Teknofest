@@ -174,3 +174,21 @@
   geography: null
   version: "v0-demo"
   is_demo_placeholder: true
+
+- material_key: "Antistatik Masterbatch"
+  ef_value: 2.6
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "İşlem Yardımcısı (Process Aid)"
+  ef_value: 2.4
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true

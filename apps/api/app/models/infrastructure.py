@@ -2,7 +2,14 @@
 katman yapıları, hat-malzeme uyumu. Bu tablo Firma Gerçek Veri Kütüphanesi'ne
 aittir (facility_id ile Company/Facility köküne bağlıdır) — Polymer/
 Regulation gibi sistem referans tablolarının aksine, buradaki her satır
-gerçekten firmanın sahip olduğu bir makineyi temsil eder."""
+gerçekten firmanın sahip olduğu bir makineyi temsil eder.
+
+Faz E.2 — Makine Parkı genişlemesi: yeni sayısal/E-H alanların HEPSİ
+opsiyoneldir ("Veri Girilmedi" ilkesi, bkz. app/models/company.py). Aday
+üretim motoru (app/optimization/candidate_generator.py) bu yeni alanları
+OKUMAZ — sadece mevcut zorunlu alanlara (layer_structure, min/max_micron,
+material_compatibility) bakar, bu yüzden yeni alanlar boş kalsa bile
+optimizasyon akışı bozulmaz."""
 from sqlalchemy import Boolean, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -40,6 +47,37 @@ class ProductionLine(Base, IdMixin, TimestampMixin):
     opc_ua_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     modbus_tcp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     api_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # --- Faz E.2: Makine Parkı teknik kartı -----------------------------
+    manufacturer: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    install_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    nominal_capacity_kg_year: Mapped[float | None] = mapped_column(Float, nullable=True)
+    actual_capacity_kg_year: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Mevcut tekil `line_speed_m_min` geriye dönük uyumluluk için korunur —
+    # bu iki alan onun min/max aralığıdır, onu YENİDEN ADLANDIRMAZ.
+    min_line_speed_m_min: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_line_speed_m_min: Mapped[float | None] = mapped_column(Float, nullable=True)
+    layer_structure_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Mono/ABA/ABC/ABCBA — `layer_structure` (ör. "A/B/A") ile aynı bilgiyi
+    # taşır ama makine kataloğu/dropdown'ı için sabit bir etiket olarak.
+    screw_diameter_mm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ld_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
+    suitable_polymer_codes: Mapped[list] = mapped_column(default=list)
+    # Makinenin GENEL teknik olarak işleyebildiği polimer aileleri —
+    # `material_compatibility`den (spesifik ONAYLANMIŞ malzeme satırları)
+    # farklı, daha geniş bir beyan.
+    pcr_capable: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    pir_capable: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    max_pcr_technical_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_pir_technical_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    gravimetric_dosing_equipped: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    online_thickness_control: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    energy_metering_equipped: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    average_waste_rate_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # `active: bool` basit filtreleme için korunur; bu daha ayrıntılı bir
+    # durum etiketidir (ör. "aktif"/"bakimda"/"devre_disi").
+    availability_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
 
     material_compatibility: Mapped[list["LineMaterialCompatibility"]] = relationship(
         back_populates="line"

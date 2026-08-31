@@ -20,6 +20,9 @@ class ProductSku(Base, IdMixin, TimestampMixin):
     packaging_type: Mapped[str] = mapped_column(String(120))
     usage_area: Mapped[str] = mapped_column(String(160))
     customer: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    # Faz E.4 — `customer` bir MÜŞTERİ ADIdır; bu ise o müşterinin ait olduğu
+    # SEKTÖR (ör. "gıda", "kozmetik", "kimya") — ayrı ve tamamlayıcı bir alan.
+    customer_sector: Mapped[str | None] = mapped_column(String(120), nullable=True)
     target_market: Mapped[str] = mapped_column(String(120))
     food_contact: Mapped[bool] = mapped_column(Boolean, default=False)
     dimensions: Mapped[dict] = mapped_column(default=dict)

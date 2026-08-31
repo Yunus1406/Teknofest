@@ -106,6 +106,14 @@ class Material(Base, IdMixin, TimestampMixin):
     stock_qty_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
     lot_number: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
+    # --- Faz E.3: Hammadde Kütüphanesi genişlemesi ----------------------
+    currency: Mapped[str] = mapped_column(String(10), default="TRY")  # cost_per_kg'ın para birimi
+    origin_country: Mapped[str | None] = mapped_column(String(80), nullable=True)  # menşe
+    technical_datasheet_ref: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    compliance_documents_ref: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # `certification_status` bir DURUM metnidir (ör. "Gıda sınıfı sertifikalı");
+    # bu ise o sertifikanın/belgenin KENDİSİNE bir referans (dosya/link/no).
+
     properties: Mapped[dict] = mapped_column(default=dict)
 
     polymer: Mapped["Polymer"] = relationship(back_populates="materials")
@@ -128,6 +136,11 @@ class PcrMaterial(Material):
     contamination_level: Mapped[str | None] = mapped_column(String(60), nullable=True)
     odor_level: Mapped[str | None] = mapped_column(String(60), nullable=True)
     technical_constraints: Mapped[str | None] = mapped_column(String(400), nullable=True)
+    # Faz E.3 — bu PCR malzemesinin GERÇEKTEN ne kadarı post-consumer
+    # kaynaklı (bir PCR hammaddesi %100 saf olmayabilir, karışım olabilir).
+    # SADECE PcrMaterial'da vardır — PirMaterial'a (pre-consumer/internal)
+    # ASLA sızmaz (STI ayrımı, bkz. modül docstring'i).
+    post_consumer_content_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 class PirMaterial(Material):

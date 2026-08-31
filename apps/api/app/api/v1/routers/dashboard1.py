@@ -25,6 +25,7 @@ def get_summary(db: Session = Depends(get_db)) -> DashboardSummaryOut:
 
     totals = dashboard_aggregation.compute_material_usage_totals(db)
     realized = dashboard_aggregation.compute_realized_and_gains(db)
+    overview = dashboard_aggregation.compute_company_overview(db)
 
     regulatory_alerts = (
         db.query(RegulatoryAssessment)
@@ -47,4 +48,12 @@ def get_summary(db: Session = Depends(get_db)) -> DashboardSummaryOut:
         carbon_reduction_kg_co2=realized.carbon_reduction_kg_co2,
         carbon_data_quality=realized.carbon_data_quality,
         regulatory_alerts=regulatory_alerts,
+        company_name=overview.company_name,
+        facility_name=overview.facility_name,
+        active_line_count=overview.active_line_count,
+        registered_material_count=overview.registered_material_count,
+        registered_sku_count=overview.registered_sku_count,
+        prevented_virgin_kg=realized.prevented_virgin_kg,
+        energy_savings_kwh=realized.energy_savings_kwh,
+        active_optimizations=case_counts[dashboard_aggregation.OPTIMIZASYONDA],
     )

@@ -29,6 +29,7 @@ export interface ProductSkuOut {
   packaging_type: string;
   usage_area: string;
   customer: string | null;
+  customer_sector: string | null;
   target_market: string;
   food_contact: boolean;
   dimensions: Record<string, number | null>;
@@ -40,6 +41,31 @@ export interface ProductSkuOut {
   current_recipe_id: string | null;
   technical_spec_ref: string | null;
   physical_test_criteria: Record<string, unknown>;
+}
+
+export interface ProductSkuCreate {
+  sku_code: string;
+  product_name: string;
+  packaging_type: string;
+  usage_area: string;
+  customer?: string | null;
+  customer_sector?: string | null;
+  target_market: string;
+  food_contact?: boolean;
+  dimensions?: Record<string, number | null>;
+  film_thickness_micron?: number | null;
+  gsm?: number | null;
+  layer_count?: number | null;
+  layer_structure?: string | null;
+  line_id?: string | null;
+  technical_spec_ref?: string | null;
+  physical_test_criteria?: Record<string, unknown>;
+}
+
+export type ProductSkuUpdate = Partial<ProductSkuCreate>;
+
+export interface ProductSkuDetailOut extends ProductSkuOut {
+  traceability: RecipeTraceabilityOut | null;
 }
 
 export interface SpecExtractionOut {
@@ -77,18 +103,91 @@ export interface RegulationOut {
 
 export interface ProductionLineOut {
   id: string;
+  facility_id: string | null;
   name: string;
+  process_type: string | null;
   layer_structure: string;
   layer_count: number;
+  extruder_count: number | null;
   min_micron: number;
   max_micron: number;
   min_gsm: number | null;
   max_gsm: number | null;
+  max_width_mm: number | null;
+  min_dosage_pct: number | null;
+  max_dosage_pct: number | null;
   line_speed_m_min: number;
   supported_packaging_types: string[];
   energy_kwh_per_kg: number;
   active: boolean;
+  plc_enabled: boolean;
+  opc_ua_enabled: boolean;
+  modbus_tcp_enabled: boolean;
+  api_enabled: boolean;
+  // Faz E.2 — Makine Parkı teknik kartı (hepsi opsiyonel).
+  manufacturer: string | null;
+  model: string | null;
+  install_year: number | null;
+  nominal_capacity_kg_year: number | null;
+  actual_capacity_kg_year: number | null;
+  min_line_speed_m_min: number | null;
+  max_line_speed_m_min: number | null;
+  layer_structure_type: string | null;
+  screw_diameter_mm: number | null;
+  ld_ratio: number | null;
+  suitable_polymer_codes: string[];
+  pcr_capable: boolean | null;
+  pir_capable: boolean | null;
+  max_pcr_technical_pct: number | null;
+  max_pir_technical_pct: number | null;
+  gravimetric_dosing_equipped: boolean | null;
+  online_thickness_control: boolean | null;
+  energy_metering_equipped: boolean | null;
+  average_waste_rate_pct: number | null;
+  availability_status: string | null;
 }
+
+export interface ProductionLineCreate {
+  facility_id?: string | null;
+  name: string;
+  process_type?: string | null;
+  layer_structure: string;
+  layer_count?: number;
+  extruder_count?: number | null;
+  min_micron: number;
+  max_micron: number;
+  min_gsm?: number | null;
+  max_gsm?: number | null;
+  max_width_mm?: number | null;
+  min_dosage_pct?: number | null;
+  max_dosage_pct?: number | null;
+  line_speed_m_min?: number;
+  supported_packaging_types?: string[];
+  energy_kwh_per_kg?: number;
+  active?: boolean;
+  manufacturer?: string | null;
+  model?: string | null;
+  install_year?: number | null;
+  nominal_capacity_kg_year?: number | null;
+  actual_capacity_kg_year?: number | null;
+  min_line_speed_m_min?: number | null;
+  max_line_speed_m_min?: number | null;
+  layer_structure_type?: string | null;
+  screw_diameter_mm?: number | null;
+  ld_ratio?: number | null;
+  suitable_polymer_codes?: string[];
+  pcr_capable?: boolean | null;
+  pir_capable?: boolean | null;
+  max_pcr_technical_pct?: number | null;
+  max_pir_technical_pct?: number | null;
+  gravimetric_dosing_equipped?: boolean | null;
+  online_thickness_control?: boolean | null;
+  energy_metering_equipped?: boolean | null;
+  average_waste_rate_pct?: number | null;
+  availability_status?: string | null;
+}
+
+export type ProductionLineUpdate = Partial<ProductionLineCreate>;
 
 export interface LineMatchOut {
   line: ProductionLineOut;
@@ -123,16 +222,103 @@ export interface MaterialOut {
   carbon_ef_id: string | null;
   stock_qty_kg: number | null;
   lot_number: string | null;
+  // Faz E.3 — genişletilmiş teknik kart
+  currency: string;
+  origin_country: string | null;
+  technical_datasheet_ref: string | null;
+  compliance_documents_ref: string | null;
   // PCR'a özgü
   contamination_level: string | null;
   odor_level: string | null;
   technical_constraints: string | null;
+  post_consumer_content_pct: number | null;
   // PIR/Regranül'e özgü (izlenebilirlik)
   source_process: string | null;
   production_date: string | null;
   source_machine_id: string | null;
   source_recipe_id: string | null;
 }
+
+export interface MaterialCreate {
+  polymer_id: string;
+  name: string;
+  material_type: "virgin" | "pcr" | "regranul";
+  source?: string | null;
+  manufacturer?: string | null;
+  supplier?: string | null;
+  color?: string | null;
+  certification_status?: string | null;
+  suitable_layer_position?: string | null;
+  mfi_g_10min?: number | null;
+  density_g_cm3?: number | null;
+  degradation_factor?: number;
+  tensile_strength_mpa?: number | null;
+  elongation_pct?: number | null;
+  dart_impact_g?: number | null;
+  melt_temp_c?: number | null;
+  processing_temp_c?: number | null;
+  additive_content_note?: string | null;
+  food_contact_eligible?: boolean;
+  max_recommended_ratio_pct?: number;
+  cost_per_kg?: number;
+  carbon_factor_kg_co2_per_kg?: number;
+  carbon_ef_id?: string | null;
+  stock_qty_kg?: number | null;
+  lot_number?: string | null;
+  currency?: string;
+  origin_country?: string | null;
+  technical_datasheet_ref?: string | null;
+  compliance_documents_ref?: string | null;
+  contamination_level?: string | null;
+  odor_level?: string | null;
+  technical_constraints?: string | null;
+  post_consumer_content_pct?: number | null;
+  source_process?: string | null;
+  production_date?: string | null;
+  source_machine_id?: string | null;
+  source_recipe_id?: string | null;
+}
+
+export type MaterialUpdate = Partial<Omit<MaterialCreate, "material_type">>;
+
+export interface PolymerOut {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  base_properties: Record<string, unknown>;
+}
+
+export interface AdditiveOut {
+  id: string;
+  name: string;
+  additive_type: string;
+  manufacturer: string | null;
+  carrier_polymer: string | null;
+  regulatory_document_ref: string | null;
+  effects: Record<string, unknown>;
+  dosage_min_pct: number;
+  dosage_max_pct: number;
+  food_contact_eligible: boolean;
+  cost_per_kg: number;
+  carbon_ef_id: string | null;
+}
+
+export interface AdditiveCreate {
+  name: string;
+  additive_type: string;
+  manufacturer?: string | null;
+  carrier_polymer?: string | null;
+  regulatory_document_ref?: string | null;
+  effects?: Record<string, unknown>;
+  dosage_min_pct?: number;
+  dosage_max_pct?: number;
+  food_contact_eligible?: boolean;
+  cost_per_kg?: number;
+  carbon_ef_id?: string | null;
+}
+
+export type AdditiveUpdate = Partial<AdditiveCreate>;
 
 export interface CarbonEmissionFactorOut {
   id: string;
@@ -362,6 +548,17 @@ export interface DashboardSummaryOut {
   carbon_reduction_kg_co2: number | null;
   carbon_data_quality: string;
   regulatory_alerts: number;
+
+  // Faz E.5 — firma bazlı üst bilgi + ek kazanım metrikleri
+  company_name: string | null;
+  facility_name: string | null;
+  active_line_count: number;
+  registered_material_count: number;
+  registered_sku_count: number;
+  // prevented_waste_kg ile AYNI disiplin: referans yoksa null.
+  prevented_virgin_kg: number | null;
+  energy_savings_kwh: number | null;
+  active_optimizations: number;
 }
 
 // Faz B.9 — Firma Hafızası Zinciri (bkz. apps/api/app/schemas/traceability.py).
@@ -576,4 +773,84 @@ export interface DigitalProductPassportOut {
   public: PassportPublicOut;
   authorized: PassportAuthorizedOut | null;
   qr_code_data_uri: string;
+}
+
+// Faz E.1 — Firma Profili. `bool | null` alanlar `null` = "Veri Girilmedi"
+// (asla `false` varsayılmaz, bkz. apps/api/app/models/company.py).
+export interface CompanyOut {
+  id: string;
+  name: string;
+  trade_name: string | null;
+  tax_country: string | null;
+  country: string | null;
+  city: string | null;
+  website: string | null;
+  business_area: string | null;
+  nace_code: string | null;
+  employee_count: number | null;
+  annual_production_capacity_tons: number | null;
+  annual_actual_production_tons: number | null;
+  main_export_markets: string[];
+  exports_to_eu: boolean | null;
+  produces_food_packaging: boolean | null;
+  logo_url: string | null;
+}
+
+export interface CompanyCreate {
+  name: string;
+  trade_name?: string | null;
+  tax_country?: string | null;
+  country?: string | null;
+  city?: string | null;
+  website?: string | null;
+  business_area?: string | null;
+  nace_code?: string | null;
+  employee_count?: number | null;
+  annual_production_capacity_tons?: number | null;
+  annual_actual_production_tons?: number | null;
+  main_export_markets?: string[];
+  exports_to_eu?: boolean | null;
+  produces_food_packaging?: boolean | null;
+  logo_url?: string | null;
+}
+
+export type CompanyUpdate = Partial<CompanyCreate>;
+
+export interface FacilityOut {
+  id: string;
+  company_id: string;
+  name: string;
+  address: string | null;
+  code: string | null;
+  production_area_m2: number | null;
+  annual_capacity_tons: number | null;
+  working_days_per_year: number | null;
+  shift_count: number | null;
+  working_hours_per_day: number | null;
+  main_processes: string[];
+  electricity_consumption_kwh_year: number | null;
+  gas_consumption_m3_year: number | null;
+  renewable_energy_used: boolean | null;
+  renewable_energy_pct: number | null;
+}
+
+export interface FacilityUpsert {
+  name: string;
+  address?: string | null;
+  code?: string | null;
+  production_area_m2?: number | null;
+  annual_capacity_tons?: number | null;
+  working_days_per_year?: number | null;
+  shift_count?: number | null;
+  working_hours_per_day?: number | null;
+  main_processes?: string[];
+  electricity_consumption_kwh_year?: number | null;
+  gas_consumption_m3_year?: number | null;
+  renewable_energy_used?: boolean | null;
+  renewable_energy_pct?: number | null;
+}
+
+export interface CompanyProfileOut {
+  company: CompanyOut;
+  facilities: FacilityOut[];
 }

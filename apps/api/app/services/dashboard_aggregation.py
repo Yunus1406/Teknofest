@@ -21,12 +21,43 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session, selectinload
 
+from app.models.company import Company, Facility
+from app.models.infrastructure import ProductionLine
+from app.models.knowledge import Material
 from app.models.optimization import OptimizationRun
+from app.models.product_sku import ProductSku
 from app.models.production import PhysicalTest, ProductionOrder
 from app.models.recipe import PackagingRequest, Recipe
 from app.services.carbon import TANIMLANMADI, worst_status
 from app.services.common import canonical_packaging_category
 from app.services.mass_balance import compute_mass_breakdown
+
+
+# --- Faz E.5: Dashboard 1 firma bazlı üst bilgi ---------------------------
+
+@dataclass
+class CompanyOverview:
+    company_name: str | None
+    facility_name: str | None
+    active_line_count: int
+    registered_material_count: int
+    registered_sku_count: int
+
+
+def compute_company_overview(db: Session) -> CompanyOverview:
+    """Tek kiracılı MVP (bkz. app/models/company.py) -- ilk (ve tek) Company/
+    Facility kaydı gösterilir. Company hiç oluşturulmadıysa (Firma Profili
+    formu henüz doldurulmadıysa) alanlar None döner, uydurma bir isim
+    gösterilmez."""
+    company = db.query(Company).first()
+    facility = db.query(Facility).filter_by(company_id=company.id).first() if company is not None else None
+    return CompanyOverview(
+        company_name=company.name if company is not None else None,
+        facility_name=facility.name if facility is not None else None,
+        active_line_count=db.query(ProductionLine).filter(ProductionLine.active.is_(True)).count(),
+        registered_material_count=db.query(Material).count(),
+        registered_sku_count=db.query(ProductSku).count(),
+    )
 
 # --- Vaka (case) yaşam döngüsü durumu -------------------------------------
 # PackagingRequest.status (Aşama 2-4 içi ilerleme: taslak/degerlendirildi/...)
@@ -155,6 +186,11 @@ class RealizedAndGains:
     # değilse "tanimli_demo" olması beklenir (bu sistemde şu an kaynaklı/gerçek
     # bir EF yok) ve UI bunu "DEMO/VARSAYIMSAL EF" ile göstermeli.
     carbon_data_quality: str = TANIMLANMADI
+    # Faz E.5 -- carbon/waste ile AYNI referans disiplini: yalnızca aynı
+    # ambalaj türünde önceki bir doğrulanmış+üretilmiş reçete varsa dolar,
+    # aksi halde None (asla 0 ya da uydurma bir "kazanım" gösterilmez).
+    prevented_virgin_kg: float | None = None
+    energy_savings_kwh: float | None = None
 
 
 def compute_realized_and_gains(db: Session) -> RealizedAndGains:
@@ -188,8 +224,12 @@ def compute_realized_and_gains(db: Session) -> RealizedAndGains:
 
     carbon_saved_total = 0.0
     waste_saved_total = 0.0
+    virgin_saved_total = 0.0
+    energy_saved_total = 0.0
     carbon_reference_found = False
     waste_reference_found = False
+    virgin_reference_found = False
+    energy_reference_found = False
     carbon_statuses: list[str] = []
 
     for items in groups.values():
@@ -222,6 +262,21 @@ def compute_realized_and_gains(db: Session) -> RealizedAndGains:
             carbon_statuses.append(curr_breakdown.carbon_ef_status)
             carbon_statuses.append(prev_breakdown.carbon_ef_status)
 
+            virgin_saved_total += prev_breakdown.virgin_kg - curr_breakdown.virgin_kg
+            virgin_reference_found = True
+
+            # Enerji: hattın energy_kwh_per_kg'ı GERÇEKTEN girilmişse (>0 --
+            # bkz. scripts/seed_demo.py, alan henüz tri-state değil ama
+            # pratikte 0 "veri girilmedi" anlamına gelir, gerçek bir
+            # ekstrüzyon hattı asla 0 kWh/kg tüketemez) hesaba katılır.
+            prev_line = db.get(ProductionLine, prev_recipe.line_id) if prev_recipe.line_id else None
+            curr_line = db.get(ProductionLine, curr_recipe.line_id) if curr_recipe.line_id else None
+            if prev_line is not None and curr_line is not None and prev_line.energy_kwh_per_kg > 0 and curr_line.energy_kwh_per_kg > 0:
+                prev_energy_kwh = prev_line.energy_kwh_per_kg * prev_breakdown.total_mass_kg
+                curr_energy_kwh = curr_line.energy_kwh_per_kg * curr_breakdown.total_mass_kg
+                energy_saved_total += prev_energy_kwh - curr_energy_kwh
+                energy_reference_found = True
+
         prev_qty = sum(r.produced_qty_units for r in prev_order.live_data) or 1
         prev_waste_rate = sum(r.waste_kg for r in prev_order.live_data) / prev_qty
         curr_qty = sum(r.produced_qty_units for r in curr_order.live_data) or 1
@@ -234,4 +289,6 @@ def compute_realized_and_gains(db: Session) -> RealizedAndGains:
         carbon_reduction_kg_co2=round(carbon_saved_total, 2) if carbon_reference_found else None,
         prevented_waste_kg=round(waste_saved_total, 2) if waste_reference_found else None,
         carbon_data_quality=worst_status(carbon_statuses) if carbon_statuses else TANIMLANMADI,
+        prevented_virgin_kg=round(virgin_saved_total, 2) if virgin_reference_found else None,
+        energy_savings_kwh=round(energy_saved_total, 2) if energy_reference_found else None,
     )

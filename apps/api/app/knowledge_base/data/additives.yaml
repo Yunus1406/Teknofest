@@ -83,3 +83,31 @@
   food_contact_eligible: true
   cost_per_kg: 110
   carbon_key: "PCR Koku Giderici / Stabilizatör"
+
+# --- Faz E.3: Katkı sınıfları genişlemesi -------------------------------
+- name: Antistatik Masterbatch
+  additive_type: antistatik
+  manufacturer: "Film Katkı San. (varsayımsal)"
+  carrier_polymer: PE
+  regulatory_document_ref: "EU 10/2011 Uygunluk Beyanı Mevcut"
+  effects:
+    statik_yuk_azaltma: true
+  dosage_min_pct: 0.5
+  dosage_max_pct: 2.0
+  food_contact_eligible: true
+  cost_per_kg: 70
+  carbon_key: "Antistatik Masterbatch"
+
+- name: İşlem Yardımcısı (Process Aid)
+  additive_type: islem_yardimcisi
+  manufacturer: "Polimer Katkı A.Ş. (varsayımsal)"
+  carrier_polymer: PE
+  regulatory_document_ref: "EU 10/2011 Uygunluk Beyanı Mevcut"
+  effects:
+    die_build_up_azaltma: true
+    ekstruzyon_basinci_azaltma: true
+  dosage_min_pct: 0.1
+  dosage_max_pct: 0.8
+  food_contact_eligible: true
+  cost_per_kg: 90
+  carbon_key: "İşlem Yardımcısı (Process Aid)"

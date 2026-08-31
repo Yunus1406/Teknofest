@@ -1,19 +1,35 @@
 import type {
+  AdditiveCreate,
+  AdditiveOut,
+  AdditiveUpdate,
+  CompanyCreate,
+  CompanyProfileOut,
+  CompanyUpdate,
   ComparisonOut,
   DashboardSummaryOut,
   DigitalProductPassportOut,
+  FacilityOut,
+  FacilityUpsert,
   FinalResultOut,
   LineMatchOut,
+  MaterialCreate,
   MaterialOut,
+  MaterialUpdate,
   OptimizationRunOut,
+  PolymerOut,
   PackagingRequestCreate,
   PackagingRequestOut,
   PhysicalTestIn,
   PhysicalVerificationResultOut,
   ProductionLiveDataOut,
+  ProductionLineCreate,
   ProductionLineOut,
+  ProductionLineUpdate,
   ProductionOrderOut,
+  ProductSkuCreate,
+  ProductSkuDetailOut,
   ProductSkuOut,
+  ProductSkuUpdate,
   RecipeOut,
   RegulationOut,
   RegulatoryAssessmentSummaryOut,
@@ -63,9 +79,16 @@ export const api = {
 
   // Bilgi Tabanı
   listRegulations: () => request<RegulationOut[]>("/kb/regulations"),
+  listPolymers: () => request<PolymerOut[]>("/kb/polymers"),
   listMaterials: () => request<MaterialOut[]>("/kb/materials"),
+  listAdditives: () => request<AdditiveOut[]>("/kb/additives"),
   listProductionLines: () => request<ProductionLineOut[]>("/kb/production-lines"),
   listProductSkus: () => request<ProductSkuOut[]>("/product-skus"),
+  getProductSkuDetail: (skuId: string) => request<ProductSkuDetailOut>(`/product-skus/${skuId}/detail`),
+  createProductSku: (payload: ProductSkuCreate) =>
+    request<ProductSkuOut>("/product-skus", { method: "POST", body: JSON.stringify(payload) }),
+  updateProductSku: (skuId: string, payload: ProductSkuUpdate) =>
+    request<ProductSkuOut>(`/product-skus/${skuId}`, { method: "PUT", body: JSON.stringify(payload) }),
 
   // Aşama 2
   createPackagingRequest: (payload: PackagingRequestCreate) =>
@@ -193,4 +216,31 @@ export const api = {
     a.remove();
     URL.revokeObjectURL(url);
   },
+
+  // Faz E.1 — Firma Profili (tek kiracılı: Company yoksa getProfile 404 atar)
+  getCompanyProfile: () => request<CompanyProfileOut>("/company/profile"),
+  createCompanyProfile: (payload: CompanyCreate) =>
+    request<CompanyProfileOut>("/company/profile", { method: "POST", body: JSON.stringify(payload) }),
+  updateCompanyProfile: (payload: CompanyUpdate) =>
+    request<CompanyProfileOut>("/company/profile", { method: "PUT", body: JSON.stringify(payload) }),
+  createFacility: (payload: FacilityUpsert) =>
+    request<FacilityOut>("/company/facilities", { method: "POST", body: JSON.stringify(payload) }),
+  updateFacility: (facilityId: string, payload: FacilityUpsert) =>
+    request<FacilityOut>(`/company/facilities/${facilityId}`, { method: "PUT", body: JSON.stringify(payload) }),
+
+  // Faz E.2 — Makine Parkı
+  createProductionLine: (payload: ProductionLineCreate) =>
+    request<ProductionLineOut>("/production-lines", { method: "POST", body: JSON.stringify(payload) }),
+  updateProductionLine: (lineId: string, payload: ProductionLineUpdate) =>
+    request<ProductionLineOut>(`/production-lines/${lineId}`, { method: "PUT", body: JSON.stringify(payload) }),
+
+  // Faz E.3 — Hammadde ve Malzeme Kütüphanesi
+  createMaterial: (payload: MaterialCreate) =>
+    request<MaterialOut>("/materials", { method: "POST", body: JSON.stringify(payload) }),
+  updateMaterial: (materialId: string, payload: MaterialUpdate) =>
+    request<MaterialOut>(`/materials/${materialId}`, { method: "PUT", body: JSON.stringify(payload) }),
+  createAdditive: (payload: AdditiveCreate) =>
+    request<AdditiveOut>("/additives", { method: "POST", body: JSON.stringify(payload) }),
+  updateAdditive: (additiveId: string, payload: AdditiveUpdate) =>
+    request<AdditiveOut>(`/additives/${additiveId}`, { method: "PUT", body: JSON.stringify(payload) }),
 };

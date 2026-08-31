@@ -24,7 +24,7 @@ def test_seeded_additives_are_linked_to_carbon_emission_factors(db_session):
     load_all(db_session)
 
     additives = db_session.query(Additive).all()
-    assert len(additives) == 6  # şişirilmiş değil, mevcut 6 katkı zenginleştirildi
+    assert len(additives) == 8  # Faz B.4'ün 6 katkısı + Faz E.3'te eklenen Antistatik/İşlem Yardımcısı
 
     for a in additives:
         assert a.carbon_ef_id is not None, f"{a.name} bir karbon EF'ine bağlı değil"
@@ -40,4 +40,4 @@ def test_loader_is_idempotent_for_additives(db_session):
     count_first = db_session.query(Additive).count()
     load_all(db_session)
     count_second = db_session.query(Additive).count()
-    assert count_first == count_second == 6
+    assert count_first == count_second == 8
