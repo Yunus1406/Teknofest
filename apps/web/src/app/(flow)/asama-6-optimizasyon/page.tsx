@@ -72,6 +72,24 @@ export default function Stage6Page() {
             <StatTile label="Elenen" value={eliminatedCount} tone={eliminatedCount > 0 ? "warn" : "default"} />
           </div>
 
+          {run.generation_breakdown && (
+            <Card className="mb-6">
+              <CardTitle subtitle="Her katman pozisyonu için uygun hammadde + oran alternatiflerinin kartezyen çarpımı — bu sayı ürünün gerçek hammadde/hat verisi değiştikçe değişir.">
+                Adaylar Nasıl Oluşturuldu?
+              </CardTitle>
+              <p className="text-tabular text-sm font-medium text-ink">{run.generation_breakdown.formula_text}</p>
+              <ul className="mt-3 space-y-1">
+                {run.generation_breakdown.layers.map((l, i) => (
+                  <li key={i} className="text-xs text-ink/60">
+                    Katman {l.layer_label}: {l.virgin_material_name}
+                    {l.recycled_material_names.length > 0 && ` + ${l.recycled_material_names.join(", ")}`} →{" "}
+                    <span className="text-tabular font-medium text-ink">{l.variant_count} seçenek</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
           <Card className="mb-6">
             <CardTitle subtitle="Kesin Teknik Kısıt ve Malzeme-Proses Kısıtı nedeniyle elenen, öne çıkan örnekler.">
               Neden Elendi? (örnekler)

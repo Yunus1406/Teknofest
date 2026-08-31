@@ -210,6 +210,22 @@ export interface EliminatedCandidateOut {
   summary_text: string;
 }
 
+// Faz D.1 — "Adaylar Nasıl Oluşturuldu?". `total`, backend'in gerçekten
+// ürettiği generated_candidate_count ile HER ZAMAN birebir eşittir (aynı
+// hesaplamadan türetilir, bkz. app/optimization/candidate_generator.py).
+export interface GenerationBreakdownLayerOut {
+  layer_label: string;
+  virgin_material_name: string;
+  recycled_material_names: string[];
+  variant_count: number;
+}
+
+export interface GenerationBreakdownOut {
+  layers: GenerationBreakdownLayerOut[];
+  total: number;
+  formula_text: string;
+}
+
 export interface OptimizationRunOut {
   id: string;
   packaging_request_id: string;
@@ -217,6 +233,7 @@ export interface OptimizationRunOut {
   notable_eliminated: EliminatedCandidateOut[];
   generated_candidate_count: number;
   survived_constraint_engine_count: number;
+  generation_breakdown: GenerationBreakdownOut | null;
 }
 
 export interface LayerMaterialRowOut {
@@ -292,8 +309,25 @@ export interface SuggestedTestTargetOut {
   note: string;
 }
 
+// Faz D.2 — basarili/basarisiz/beklemede. `passed` sadece geriye dönük
+// uyumluluk için tutulur; UI Geçti/Kaldı/Test Edilmedi metnini HER ZAMAN
+// `result`tan üretmeli (beklemede'de de `passed` false'dur).
+export interface PhysicalTestOut {
+  id: string;
+  test_type: string;
+  value: number;
+  unit: string;
+  target_min: number | null;
+  target_max: number | null;
+  test_method: string | null;
+  result: string;
+  passed: boolean;
+  source: string;
+}
+
 export interface PhysicalVerificationResultOut {
   all_passed: boolean;
+  results: PhysicalTestOut[];
   new_recipe_version: RecipeOut | null;
 }
 
@@ -411,6 +445,7 @@ export interface TraceabilityPhysicalTestOut {
   test_type: string;
   value: number;
   unit: string;
+  result: string; // Faz D.2 — basarili/basarisiz/beklemede
   passed: boolean;
 }
 
@@ -485,6 +520,7 @@ export interface PassportPhysicalTestOut {
   target_min: number | null;
   target_max: number | null;
   test_method: string | null;
+  result: string; // Faz D.2 — basarili/basarisiz/beklemede
   passed: boolean;
 }
 

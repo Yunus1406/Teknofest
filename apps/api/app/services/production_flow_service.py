@@ -266,20 +266,48 @@ def simulate_live_data(db: Session, order: ProductionOrder, ticks: int = 5) -> l
 
 # --- Aşama 11: Fiziksel Doğrulama -----------------------------------------
 
+def _evaluate_physical_test(t: dict) -> str:
+    """Faz D.2 — `PhysicalTestResult` döner. Sadece hem gerçek bir ölçüm
+    değeri HEM tanımlı bir kabul kriteri (target_min/target_max'tan en az
+    biri) varsa 'basarili'/'basarisiz' kararı verilebilir; ikisi de
+    tanımlı değilse (ör. bilgi tabanında bu malzeme kombinasyonu için
+    mekanik özellik verisi yok — bkz. test_targets.py) sonuç HER ZAMAN
+    'beklemede'dir, ASLA sessizce 'basarili' sayılmaz (eski hata: Tensile=0
+    MPa gibi hiç ölçülmemiş/kriteri olmayan testler 'Geçti' görünüyordu)."""
+    value = t.get("value")
+    target_min = t.get("target_min")
+    target_max = t.get("target_max")
+    if value is None or (target_min is None and target_max is None):
+        return PhysicalTestResult.PENDING.value
+    if target_min is not None and value < target_min:
+        return PhysicalTestResult.FAILED.value
+    if target_max is not None and value > target_max:
+        return PhysicalTestResult.FAILED.value
+    return PhysicalTestResult.PASSED.value
+
+
 def submit_physical_tests(
     db: Session, order: ProductionOrder, tests: list[dict]
 ) -> tuple[list[PhysicalTest], Recipe | None]:
-    """Test sonuçlarını kaydeder. Herhangi biri başarısızsa reçetenin yeni
-    versiyonunu (V(n)->V(n+1)) taslak olarak oluşturur — tüm geçmiş saklanır."""
+    """Test sonuçlarını kaydeder. Herhangi biri gerçekten BAŞARISIZ ise
+    (tanımlı bir aralığın dışında) reçetenin yeni versiyonunu (V(n)->V(n+1))
+    taslak olarak oluşturur — tüm geçmiş saklanır. Hiçbiri başarısız
+    olmayıp bazıları 'beklemede' (kriter tanımsız) ise reçete henüz
+    doğrulanmış SAYILMAZ ama yeni bir versiyon da açılmaz (bu bir reçete
+    kusuru değil, bir veri boşluğu). Boş bir test listesi REDDEDİLİR —
+    hiç test girilmeden 'doğrulandı' durumu OLUŞAMAZ (bkz. Faz D.2)."""
+    if not tests:
+        raise ValueError("En az bir fiziksel test sonucu girilmeden doğrulama gönderilemez.")
+
     rows: list[PhysicalTest] = []
-    all_passed = True
+    any_failed = False
+    any_pending = False
     for t in tests:
-        passed = True
-        if t.get("target_min") is not None and t["value"] < t["target_min"]:
-            passed = False
-        if t.get("target_max") is not None and t["value"] > t["target_max"]:
-            passed = False
-        all_passed = all_passed and passed
+        result = _evaluate_physical_test(t)
+        if result == PhysicalTestResult.FAILED.value:
+            any_failed = True
+        elif result == PhysicalTestResult.PENDING.value:
+            any_pending = True
         row = PhysicalTest(
             recipe_id=order.recipe_id,
             production_order_id=order.id,
@@ -289,7 +317,8 @@ def submit_physical_tests(
             target_min=t.get("target_min"),
             target_max=t.get("target_max"),
             test_method=t.get("test_method"),
-            passed=passed,
+            result=result,
+            passed=(result == PhysicalTestResult.PASSED.value),
             source="laboratuvar_testi",
         )
         db.add(row)
@@ -297,7 +326,7 @@ def submit_physical_tests(
 
     new_version: Recipe | None = None
     recipe = order.recipe
-    if not all_passed:
+    if any_failed:
         recipe.status = "revizyon_gerekli"
         new_version = Recipe(
             packaging_request_id=recipe.packaging_request_id,
@@ -320,6 +349,12 @@ def submit_physical_tests(
                     thickness_micron=layer.thickness_micron,
                 )
             )
+    elif any_pending:
+        # Kusur değil, veri boşluğu -- doğrulanmış sayılmaz ama versiyon da
+        # açılmaz. Bkz. app/services/test_targets.py: hedef otomatik
+        # hesaplanamayan mekanik testler (tensile/elongation/dart/tear/seal)
+        # için bilgi tabanı zenginleştirilene kadar bu durumda kalınır.
+        recipe.status = "fiziksel_dogrulama_bekleniyor"
     else:
         recipe.status = "dogrulandi"
 
@@ -340,7 +375,20 @@ def finalize_result(db: Session, recipe: Recipe) -> SustainabilityResult:
     fizik kullanılır (bkz. app/services/mass_balance.py): alan × kalınlık ×
     yoğunluk × 1000 birim. Ölçü/yoğunluk verisi eksikse alan bazlı figürler
     None döner (uydurma bir sayı asla üretilmez); fire/enerji zaten canlı
-    üretim verisinden gerçek kg/kWh olarak hesaplanıyordu, değişmedi."""
+    üretim verisinden gerçek kg/kWh olarak hesaplanıyordu, değişmedi.
+
+    Faz D.2 — ÖNCEDEN bu fonksiyon `recipe.is_verified`'ı fiziksel test
+    sonucuna HİÇ bakmadan koşulsuz True yapıyordu (gerçek bir bug — Dashboard
+    11'de testler başarısız/beklemede olsa bile Dashboard 12'de 'Doğrulandı'
+    durumu oluşabiliyordu). Artık en az bir `PhysicalTest` kaydı YOKSA veya
+    HERHANGİ biri 'basarili' değilse (başarısız YA DA beklemede) reddedilir."""
+    tests = db.query(PhysicalTest).filter_by(recipe_id=recipe.id).all()
+    if not tests or any(t.result != PhysicalTestResult.PASSED.value for t in tests):
+        raise ValueError(
+            "Reçete, tüm fiziksel testler gerçekten başarıyla geçmeden "
+            "('Doğrulandı') firma hafızasına kaydedilemez."
+        )
+
     live_rows = (
         db.query(ProductionLiveData)
         .join(ProductionOrder)

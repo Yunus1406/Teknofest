@@ -278,6 +278,7 @@ def _physical_verification_section(db: Session, recipe: Recipe) -> dict:
                 "target_min": t.target_min,
                 "target_max": t.target_max,
                 "test_method": t.test_method,
+                "result": t.result,
                 "passed": t.passed,
                 "source": t.source,
             }

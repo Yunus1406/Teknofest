@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.db import get_db
 from app.models.optimization import OptimizationCandidate, OptimizationRun
 from app.models.recipe import Recipe
-from app.schemas.optimization import EliminatedCandidateOut, OptimizationCandidateOut, OptimizationRunOut
+from app.schemas.optimization import (
+    EliminatedCandidateOut,
+    GenerationBreakdownOut,
+    OptimizationCandidateOut,
+    OptimizationRunOut,
+)
 from app.services import optimization_service
 
 router = APIRouter(prefix="/optimization", tags=["Aşama 6-7 - Optimizasyon & Reçete Önerileri"])
@@ -48,6 +53,7 @@ def run_optimization(
         notable_eliminated=[EliminatedCandidateOut(**e) for e in result["notable_eliminated"]],
         generated_candidate_count=result["generated_candidate_count"],
         survived_constraint_engine_count=result["survived_constraint_engine_count"],
+        generation_breakdown=GenerationBreakdownOut(**result["generation_breakdown"]),
     )
 
 
@@ -59,6 +65,7 @@ def get_run(run_id: str, db: Session = Depends(get_db)):
     finalists = [
         _load_candidate_with_recipe(db, c.id) for c in run.candidates if c.is_finalist
     ]
+    breakdown = run.parameters.get("generation_breakdown")
     return OptimizationRunOut(
         id=run.id,
         packaging_request_id=run.packaging_request_id,
@@ -66,4 +73,5 @@ def get_run(run_id: str, db: Session = Depends(get_db)):
         notable_eliminated=[],
         generated_candidate_count=run.parameters.get("candidate_count_generated", 0),
         survived_constraint_engine_count=run.parameters.get("survived_constraint_engine_count", 0),
+        generation_breakdown=GenerationBreakdownOut(**breakdown) if breakdown else None,
     )

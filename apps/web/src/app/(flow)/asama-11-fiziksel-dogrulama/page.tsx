@@ -8,6 +8,7 @@ import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { physicalTestResultLabel, physicalTestResultTone } from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
 const TEST_LABELS: Record<string, string> = {
@@ -134,29 +135,59 @@ export default function Stage11Page() {
       </Card>
 
       {result && (
-        <Card className={`mt-4 ${result.all_passed ? "border-pcr/30 bg-pcr/5" : "border-warn/30 bg-warn/5"}`}>
-          {result.all_passed ? (
-            <>
-              <Badge tone="pcr">Tüm testler başarılı</Badge>
-              <p className="mt-2 text-sm text-ink/70">
-                Reçete doğrulandı. Nihai sonuç ve sürdürülebilirlik kazanımı için sonraki aşamaya geçebilirsiniz.
-              </p>
-            </>
-          ) : (
-            <>
-              <Badge tone="warn">Bir veya daha fazla test hedefin dışında</Badge>
-              <p className="mt-2 text-sm text-ink/70">
-                Reçete <span className="font-mono">V{result.new_recipe_version?.version}</span> olarak yeni bir
-                versiyona alındı ve optimizasyona geri döndü. Önceki versiyon (
-                <span className="font-mono">V{result.new_recipe_version?.version ? result.new_recipe_version.version - 1 : "?"}</span>
-                ) geçmişte saklanıyor.
-              </p>
-              <Button className="mt-3" variant="secondary" onClick={handleContinueWithNewVersion}>
-                Yeni Versiyonla Devam Et
-              </Button>
-            </>
-          )}
-        </Card>
+        <>
+          <Card className="mt-4">
+            <CardTitle>Test Sonucu Detayı</CardTitle>
+            <ul className="space-y-1.5">
+              {result.results.map((r) => (
+                <li key={r.id} className="flex items-center gap-2 text-sm">
+                  <span className="text-ink/70">{TEST_LABELS[r.test_type] ?? r.test_type}</span>
+                  <Badge tone={physicalTestResultTone(r.result)}>{physicalTestResultLabel(r.result)}</Badge>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
+          <Card
+            className={`mt-4 ${
+              result.all_passed
+                ? "border-pcr/30 bg-pcr/5"
+                : result.new_recipe_version
+                  ? "border-warn/30 bg-warn/5"
+                  : "border-virgin/30 bg-virgin/5"
+            }`}
+          >
+            {result.all_passed ? (
+              <>
+                <Badge tone="pcr">Tüm testler başarılı</Badge>
+                <p className="mt-2 text-sm text-ink/70">
+                  Reçete doğrulandı. Nihai sonuç ve sürdürülebilirlik kazanımı için sonraki aşamaya geçebilirsiniz.
+                </p>
+              </>
+            ) : result.new_recipe_version ? (
+              <>
+                <Badge tone="warn">Bir veya daha fazla test hedefin dışında</Badge>
+                <p className="mt-2 text-sm text-ink/70">
+                  Reçete <span className="font-mono">V{result.new_recipe_version.version}</span> olarak yeni bir
+                  versiyona alındı ve optimizasyona geri döndü. Önceki versiyon (
+                  <span className="font-mono">V{result.new_recipe_version.version - 1}</span>) geçmişte saklanıyor.
+                </p>
+                <Button className="mt-3" variant="secondary" onClick={handleContinueWithNewVersion}>
+                  Yeni Versiyonla Devam Et
+                </Button>
+              </>
+            ) : (
+              <>
+                <Badge tone="virgin">Doğrulama Bekleniyor</Badge>
+                <p className="mt-2 text-sm text-ink/70">
+                  Hiçbir test hedef aralığın dışında değil, ama bir veya daha fazla test için bilgi tabanında
+                  tanımlı bir kabul kriteri yok — bu bir reçete kusuru değil, veri boşluğu. Kriter tanımlanana
+                  kadar reçete &quot;Doğrulandı&quot; sayılamaz.
+                </p>
+              </>
+            )}
+          </Card>
+        </>
       )}
 
       <StageNav currentNo={11} nextEnabled={!!result?.all_passed} />

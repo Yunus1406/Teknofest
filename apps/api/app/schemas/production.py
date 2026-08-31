@@ -60,6 +60,12 @@ class PhysicalTestOut(BaseModel):
     target_min: float | None = None
     target_max: float | None = None
     test_method: str | None = None
+    # Faz D.2 — asıl doğruluk kaynağı: basarili/basarisiz/beklemede.
+    # `passed` geriye dönük uyumluluk için tutulur (result=='basarili' ise
+    # True) — UI 'Geçti'/'Kaldı' metnini ASLA sadece `passed`tan üretmemeli,
+    # `result`u kullanmalı (aksi halde 'beklemede' yanlışlıkla 'Kaldı' gibi
+    # okunabilir).
+    result: str = "beklemede"
     passed: bool
     source: str
 

@@ -21,7 +21,16 @@ _LAYER_THICKNESS_WEIGHTS: dict[int, list[float]] = {
 }
 
 RATIO_STEP_PCT = 10  # geri dönüşüm oranı tarama adımı
-MAX_STEPS_PER_MATERIAL = 5  # kombinasyon patlamasını önlemek için malzeme başına üst sınır
+# Kombinasyon patlamasını önlemek için malzeme başına üst sınır — Faz D.1
+# ÖNCESİNDE bu 5'ti; RATIO_STEP_PCT=10 ile bu, bir malzemenin gerçek
+# max_recommended_ratio_pct/hat uyumluluk oranı %50'nin ÜZERİNDE olsa bile
+# taramanın her zaman %50'de kesilmesine yol açıyordu (aday sayısı, %50'nin
+# üzerindeki hiçbir oran değişikliğine duyarsız kalıyordu — GERÇEK BUG,
+# bkz. tests/test_candidate_generation_dynamics.py). 20, tipik
+# ratio_step_pct değerlerinde (>=5) 0-100 aralığının TAMAMININ hiç
+# kesilmeden taranmasını garanti eder; yine de patolojik derecede küçük bir
+# ratio_step_pct (<5) için bir güvenlik sınırı olarak kalır.
+MAX_STEPS_PER_MATERIAL = 20
 
 
 @dataclass
@@ -68,6 +77,16 @@ def _layer_content_variants(
     return variants
 
 
+def _per_layer_variants(
+    line: LineSpec, layer_options: list[LayerMaterialOptions], ratio_step_pct: int
+) -> list[list[list[tuple[MaterialSpec, float]]]]:
+    """`generate_candidates` VE `describe_candidate_generation` AYNI bu
+    fonksiyonu çağırır — aday sayısı ile 'Adaylar Nasıl Oluşturuldu?'
+    açıklamasındaki çarpımın birbirinden SAPMASI matematiksel olarak imkansız
+    (ikisi de tam olarak bu listenin uzunluklarından türetilir, bkz. Faz D.1)."""
+    return [_layer_content_variants(opt, line, ratio_step_pct) for opt in layer_options]
+
+
 def generate_candidates(
     line: LineSpec,
     layer_options: list[LayerMaterialOptions],
@@ -79,9 +98,7 @@ def generate_candidates(
     weights = _thickness_weights(layer_count)
     target_total_micron = (line.min_micron + line.max_micron) / 2
 
-    per_layer_variants = [
-        _layer_content_variants(opt, line, ratio_step_pct) for opt in layer_options
-    ]
+    per_layer_variants = _per_layer_variants(line, layer_options, ratio_step_pct)
 
     candidates: list[RecipeCandidate] = []
     for combo in _cartesian(per_layer_variants):
@@ -107,3 +124,39 @@ def _cartesian(lists: list[list]) -> list[list]:
     for lst in lists:
         result = [r + [item] for r in result for item in lst]
     return result
+
+
+def describe_candidate_generation(
+    line: LineSpec, layer_options: list[LayerMaterialOptions], ratio_step_pct: int = RATIO_STEP_PCT
+) -> dict:
+    """Faz D.1 — 'Adaylar Nasıl Oluşturuldu?' açıklaması. `_per_layer_variants`
+    üzerinden `generate_candidates` ile AYNI hesaplamayı paylaşır; kartezyen
+    çarpımın matematiksel tanımı gereği (`len(_cartesian(xs)) ==
+    prod(len(x) for x in xs)`), buradaki `total` her zaman
+    `len(generate_candidates(line, layer_options, ratio_step_pct))` ile
+    birebir eşittir — iki ayrı hesap değil, aynı girdiden türetilen tek
+    hesap (bkz. tests/test_candidate_generation_dynamics.py)."""
+    per_layer_variants = _per_layer_variants(line, layer_options, ratio_step_pct)
+
+    layers_info = []
+    total = 1
+    for opt, variants in zip(layer_options, per_layer_variants):
+        count = len(variants)
+        total *= count
+        layers_info.append(
+            {
+                "layer_label": opt.layer_label,
+                "virgin_material_name": opt.virgin.name,
+                "recycled_material_names": [r.name for r in opt.recycled_options],
+                "variant_count": count,
+            }
+        )
+
+    formula_text = (
+        " × ".join(f"Katman {info['layer_label']} ({info['variant_count']} seçenek)" for info in layers_info)
+        + f" = {total} benzersiz aday (kısıt motoru öncesi)"
+        if layers_info
+        else "Hiçbir katman seçeneği üretilemedi."
+    )
+
+    return {"layers": layers_info, "total": total, "formula_text": formula_text}

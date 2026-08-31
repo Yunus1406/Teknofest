@@ -5,6 +5,7 @@ import pytest
 
 from app.models.knowledge import Material, Polymer
 from app.models.product_sku import ProductSku
+from app.models.production import PhysicalTest
 from app.models.recipe import PackagingRequest, Recipe, RecipeLayer
 from app.services.packaging_service import find_reference_recipe
 from app.services.production_flow_service import finalize_result
@@ -123,6 +124,14 @@ def test_finalize_result_updates_sku_current_recipe_id(db_session):
     req = _request(db_session, packaging_type="plastik tabak", sku_id=sku.id)
     recipe = _verified_recipe(db_session, req, material)
     recipe.is_verified = False  # finalize_result BUNU True yapacak
+    # Faz D.2 — finalize_result artık en az bir gerçekten BAŞARILI fiziksel
+    # test kaydı olmadan reddediyor (bkz. production_flow_service.py).
+    db_session.add(
+        PhysicalTest(
+            recipe_id=recipe.id, test_type="kalinlik", value=600.0, unit="mikron",
+            target_min=540.0, target_max=660.0, result="basarili", passed=True,
+        )
+    )
     db_session.commit()
 
     assert sku.current_recipe_id is None

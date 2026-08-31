@@ -101,7 +101,21 @@ class PhysicalTest(Base, IdMixin, TimestampMixin):
     target_max: Mapped[float | None] = mapped_column(Float, nullable=True)
     test_method: Mapped[str | None] = mapped_column(String(160), nullable=True)
     # ör. "ISO 4593 - mikrometre ölçümü"; hangi standart/yönteme göre ölçüldüğü
-    passed: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Faz D.2 — ASIL doğruluk kaynağı. Eskiden hedef aralık (target_min/max)
+    # HİÇ tanımlı değilse `passed` sessizce True kalıyordu (Tensile=0 MPa gibi
+    # ölçülmemiş/kriteri olmayan testler 'Geçti' görünüyordu — GERÇEK BUG).
+    # `PhysicalTestResult`: basarili/basarisiz/beklemede. Sadece hem gerçek
+    # bir ölçüm değeri HEM tanımlı bir kabul aralığı (target_min/max'tan en
+    # az biri) varsa 'basarili'/'basarisiz' kararı verilir; aksi halde
+    # 'beklemede' — ASLA sessizce 'basarili' sayılmaz (bkz.
+    # production_flow_service._evaluate_physical_test).
+    result: Mapped[str] = mapped_column(String(20), default="beklemede")
+    # Geriye dönük uyumluluk için tutulan TÜRETİLMİŞ alan (result=='basarili'
+    # ise True) — yeni kod `result`u okumalı, `passed`ı sadece basit
+    # geçti/kaldı KAPISI (gating) için kullanmalı, ASLA tek başına
+    # 'Geçti'/'Kaldı' metni olarak göstermemeli (beklemede durumunda da
+    # False'dur, 'başarısız' ile karıştırılabilir).
+    passed: Mapped[bool] = mapped_column(Boolean, default=False)
     source: Mapped[str] = mapped_column(String(40), default="laboratuvar_testi")
 
     order: Mapped["ProductionOrder"] = relationship(back_populates="physical_tests")

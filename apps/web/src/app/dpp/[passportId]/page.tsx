@@ -10,7 +10,14 @@ import { Badge } from "@/components/ui/Badge";
 import { StatTile } from "@/components/ui/StatTile";
 import { LayeredCompositionBar } from "@/components/visualizations/LayeredCompositionBar";
 import { aggregateToSegments } from "@/lib/composition-segments";
-import { carbonEfStatusLabel, carbonEfStatusTone, materialTypeLabel, materialTypeTone } from "@/lib/labels";
+import {
+  carbonEfStatusLabel,
+  carbonEfStatusTone,
+  materialTypeLabel,
+  materialTypeTone,
+  physicalTestResultLabel,
+  physicalTestResultTone,
+} from "@/lib/labels";
 
 /** Dijital Ürün Pasaportu'nun genel web sayfası (QR hedefi). `(flow)`
  * rota grubunun DIŞINDA, case-store'a bağımlı değil — sadece URL'deki
@@ -227,7 +234,7 @@ export default function DigitalProductPassportPage() {
                     </td>
                     <td className="py-2 pr-4 text-ink/60">{t.test_method ?? "—"}</td>
                     <td className="py-2">
-                      <Badge tone={t.passed ? "pcr" : "warn"}>{t.passed ? "Geçti" : "Kaldı"}</Badge>
+                      <Badge tone={physicalTestResultTone(t.result)}>{physicalTestResultLabel(t.result)}</Badge>
                     </td>
                   </tr>
                 ))}

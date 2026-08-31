@@ -19,7 +19,11 @@ from app.models.knowledge import Material, Regulation
 from app.models.optimization import OptimizationCandidate, OptimizationRun
 from app.models.recipe import PackagingRequest, Recipe, RecipeEvaluation, RecipeLayer, RecipeMetric
 from app.llm.justification import build_elimination_summary, build_finalist_justification
-from app.optimization.candidate_generator import LayerMaterialOptions, generate_candidates
+from app.optimization.candidate_generator import (
+    LayerMaterialOptions,
+    describe_candidate_generation,
+    generate_candidates,
+)
 from app.optimization.scorer import score_candidate
 from app.services.carbon import resolve_carbon_ef
 from app.services.common import canonical_packaging_category, preferred_polymer_codes
@@ -257,6 +261,7 @@ def run_optimization(
 
     line_spec = _line_to_spec(line)
     candidates = generate_candidates(line_spec, layer_options, ratio_step_pct=ratio_step_pct)
+    generation_breakdown = describe_candidate_generation(line_spec, layer_options, ratio_step_pct=ratio_step_pct)
 
     ctx = EvaluationContext(
         packaging=PackagingContext(
@@ -282,6 +287,7 @@ def run_optimization(
             "ratio_step_pct": ratio_step_pct,
             "candidate_count_generated": len(candidates),
             "survived_constraint_engine_count": len(survivors),
+            "generation_breakdown": generation_breakdown,
         },
     )
     db.add(run)
@@ -320,4 +326,5 @@ def run_optimization(
         "notable_eliminated": notable_eliminated,
         "generated_candidate_count": len(candidates),
         "survived_constraint_engine_count": len(survivors),
+        "generation_breakdown": generation_breakdown,
     }

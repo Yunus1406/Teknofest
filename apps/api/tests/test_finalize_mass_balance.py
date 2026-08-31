@@ -3,6 +3,7 @@ gerçek ORM nesneleriyle, kullanıcının bildirdiği somut senaryoya göre."""
 import pytest
 
 from app.models.knowledge import Material, Polymer
+from app.models.production import PhysicalTest
 from app.models.recipe import PackagingRequest, Recipe, RecipeLayer
 from app.services.production_flow_service import finalize_result
 
@@ -51,6 +52,14 @@ def _seed_pe_film_recipe(db_session):
         RecipeLayer(
             recipe_id=recipe.id, layer_index=0, layer_label="A", material_id=material.id,
             ratio_pct=100.0, thickness_micron=70.0,
+        )
+    )
+    # Faz D.2 — finalize_result artık en az bir gerçekten BAŞARILI fiziksel
+    # test kaydı olmadan reddediyor (bkz. production_flow_service.py).
+    db_session.add(
+        PhysicalTest(
+            recipe_id=recipe.id, test_type="kalinlik", value=70.0, unit="mikron",
+            target_min=63.0, target_max=77.0, result="basarili", passed=True,
         )
     )
     db_session.commit()

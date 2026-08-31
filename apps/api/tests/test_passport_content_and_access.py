@@ -131,7 +131,10 @@ def test_physical_performance_is_beklemede_when_no_tests_exist(db_session):
 def test_physical_performance_reflects_failed_test(db_session):
     recipe = _verified_recipe_with_layer(db_session)
     db_session.add(
-        PhysicalTest(recipe_id=recipe.id, test_type="kalinlik", value=50.0, unit="mikron", passed=False)
+        PhysicalTest(
+            recipe_id=recipe.id, test_type="kalinlik", value=50.0, unit="mikron",
+            target_min=63.0, target_max=77.0, result="basarisiz", passed=False,
+        )
     )
     db_session.commit()
     passport = get_or_create_passport(db_session, recipe.id)

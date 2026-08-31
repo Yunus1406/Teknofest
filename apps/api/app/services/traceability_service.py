@@ -120,7 +120,7 @@ def build_recipe_traceability(db: Session, recipe_id: str) -> dict | None:
         "layers": layers,
         "production_orders": orders_out,
         "physical_tests": [
-            {"test_type": t.test_type, "value": t.value, "unit": t.unit, "passed": t.passed}
+            {"test_type": t.test_type, "value": t.value, "unit": t.unit, "result": t.result, "passed": t.passed}
             for t in physical_tests
         ],
         "regulatory_assessments": regulatory_assessments,

@@ -82,6 +82,10 @@ class TraceabilityPhysicalTestOut(BaseModel):
     test_type: str
     value: float
     unit: str
+    # Faz D.2 — basarili/basarisiz/beklemede. `passed` sadece geriye dönük
+    # uyumluluk için tutulur, ASLA tek başına Geçti/Kaldı metni üretmek için
+    # kullanılmamalı (beklemede durumunda da False'dur).
+    result: str = "beklemede"
     passed: bool
 
 

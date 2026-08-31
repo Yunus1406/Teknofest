@@ -123,6 +123,16 @@ def _fmt_pct(v) -> str:
     return f"%{v:.1f}"
 
 
+def _test_result_label(v: str | None) -> str:
+    # Faz D.2 — ASLA sadece 'passed' bool'undan Geçti/Kaldı üretilmez;
+    # 'beklemede' (kriter/ölçüm tanımsız) her zaman ayrı bir etiket alır.
+    return {
+        "basarili": "Geçti",
+        "basarisiz": "Kaldı",
+        "beklemede": "Test Edilmedi",
+    }.get(v, "Test Edilmedi")
+
+
 def _verdict_label(v: str | None) -> str:
     return {
         "uygun_gorunuyor": "Uygun Görünüyor",
@@ -362,7 +372,7 @@ def _section_physical_verification(data: dict) -> list:
                     f"{t['value']} {t['unit']}",
                     target,
                     _dash(t["test_method"]),
-                    "Geçti" if t["passed"] else "Kaldı",
+                    _test_result_label(t.get("result")),
                 ]
             )
         story.append(_table(rows, col_widths=[28 * mm, 28 * mm, 35 * mm, 45 * mm, 20 * mm]))

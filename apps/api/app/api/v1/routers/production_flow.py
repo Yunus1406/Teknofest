@@ -13,6 +13,7 @@ from app.models.production import PhysicalTest, ProductionOrder, WasteRecord
 from app.models.recipe import Recipe
 from app.schemas.dashboard import ComparisonOut, FinalResultOut
 from app.schemas.production import (
+    PhysicalTestOut,
     PhysicalVerificationSubmit,
     ProductionLiveDataOut,
     ProductionOrderOut,
@@ -109,17 +110,22 @@ def get_suggested_test_targets(recipe_id: str, db: Session = Depends(get_db)):
 
 class PhysicalVerificationResultOut(BaseModel):
     all_passed: bool
+    results: list[PhysicalTestOut] = []
     new_recipe_version: RecipeOut | None = None
 
 
 @router.post("/physical-verification", response_model=PhysicalVerificationResultOut)
 def submit_physical_verification(payload: PhysicalVerificationSubmit, db: Session = Depends(get_db)):
     order = _get_order_or_404(db, payload.production_order_id)
-    rows, new_version = production_flow_service.submit_physical_tests(
-        db, order, [t.model_dump() for t in payload.tests]
-    )
+    try:
+        rows, new_version = production_flow_service.submit_physical_tests(
+            db, order, [t.model_dump() for t in payload.tests]
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     return PhysicalVerificationResultOut(
         all_passed=all(r.passed for r in rows),
+        results=[PhysicalTestOut.model_validate(r) for r in rows],
         new_recipe_version=new_version,
     )
 
@@ -129,7 +135,10 @@ def submit_physical_verification(payload: PhysicalVerificationSubmit, db: Sessio
 @router.post("/recipes/{recipe_id}/finalize", response_model=FinalResultOut)
 def finalize_result(recipe_id: str, db: Session = Depends(get_db)):
     recipe = _get_recipe_or_404(db, recipe_id)
-    result = production_flow_service.finalize_result(db, recipe)
+    try:
+        result = production_flow_service.finalize_result(db, recipe)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     tests = db.query(PhysicalTest).filter_by(recipe_id=recipe.id).all()
     tests_passed = all(t.passed for t in tests) if tests else False
     return FinalResultOut(

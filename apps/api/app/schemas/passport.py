@@ -55,6 +55,8 @@ class PassportPhysicalTestOut(BaseModel):
     target_min: float | None = None
     target_max: float | None = None
     test_method: str | None = None
+    # Faz D.2 — basarili/basarisiz/beklemede.
+    result: str = "beklemede"
     passed: bool
 
 

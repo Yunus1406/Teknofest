@@ -87,6 +87,33 @@ export function verdictLabel(v: string): string {
   return v === "elendi" ? "Elendi" : "Geçti";
 }
 
+// Faz D.2 — fiziksel test 3 durumu. ASLA sadece `passed` bool'undan
+// üretilmemeli: hedef/kabul kriteri tanımsız bir test (`beklemede`)
+// "Kaldı" ile karıştırılmamalı, "Test Edilmedi" olarak ayrı gösterilir.
+export function physicalTestResultLabel(v: string | null | undefined): string {
+  switch (v) {
+    case "basarili":
+      return "Geçti";
+    case "basarisiz":
+      return "Kaldı";
+    case "beklemede":
+      return "Test Edilmedi";
+    default:
+      return "Test Edilmedi";
+  }
+}
+
+export function physicalTestResultTone(v: string | null | undefined): Tone {
+  switch (v) {
+    case "basarili":
+      return "pcr";
+    case "basarisiz":
+      return "warn";
+    default:
+      return "virgin";
+  }
+}
+
 export function regulatoryVerdictLabel(v: string): string {
   const map: Record<string, string> = {
     uygun_gorunuyor: "Uygun Görünüyor",

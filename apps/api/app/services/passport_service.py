@@ -147,12 +147,20 @@ def _status_summary(
     trace: dict,
     passport: DigitalProductPassport,
 ) -> dict:
+    # Faz D.2 — 3 durum: beklemede (kriter/ölçüm tanımsız) ASLA "Başarısız"
+    # ile karıştırılmaz. `passport_service.get_or_create_passport` zaten
+    # sadece `recipe.is_verified=True` reçeteler için çağrılabildiğinden (ve
+    # bu artık finalize_result'ın kendisi TÜM testler basarili değilse
+    # reddettiği için) burası pratikte hep "Doğrulandı" olur — yine de
+    # mantık kendi başına doğru olmalı, is_verified'a körü körüne güvenmez.
     if not physical_tests:
         physical_performance = "Beklemede"
-    elif all(t.passed for t in physical_tests):
-        physical_performance = "Doğrulandı"
-    else:
+    elif any(t.result == "basarisiz" for t in physical_tests):
         physical_performance = "Başarısız"
+    elif any(t.result == "beklemede" for t in physical_tests):
+        physical_performance = "Doğrulama Bekleniyor"
+    else:
+        physical_performance = "Doğrulandı"
 
     chain_complete = bool(
         trace.get("company") and trace.get("facility") and trace.get("machine") and trace.get("layers")
@@ -276,6 +284,7 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
                 "target_min": t.target_min,
                 "target_max": t.target_max,
                 "test_method": t.test_method,
+                "result": t.result,
                 "passed": t.passed,
             }
             for t in physical_tests
