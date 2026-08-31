@@ -133,6 +133,19 @@ def _test_result_label(v: str | None) -> str:
     }.get(v, "Test Edilmedi")
 
 
+def _data_source_label(v: str | None) -> str:
+    # Faz H.3 — apps/web/src/lib/labels.ts::dataSourceLabel ile AYNI Türkçe
+    # kelime dağarcığı (DataSourceType); rapor katmanında da tutarlı olsun.
+    return {
+        "hesaplanan": "Hesaplanan",
+        "gecmis_uretim_verisi": "Geçmiş Üretim Verisi",
+        "makineden_alinan": "Makineden Alınan",
+        "laboratuvar_testi": "Laboratuvar Testi",
+        "kullanici_girisi": "Kullanıcı Girişi",
+        "simulasyon_verisi": "Simülasyon Verisi",
+    }.get(v, v or "—")
+
+
 def _verdict_label(v: str | None) -> str:
     return {
         "uygun_gorunuyor": "Uygun Görünüyor",
@@ -259,6 +272,8 @@ def _section_reference(data: dict) -> list:
             ["Karbon", _fmt_num(r["carbon_kg_co2_per_kg"], 3, " kg CO2/kg")],
         ]
         story.append(_table(rows, col_widths=[55 * mm, 110 * mm]))
+        if ref.get("_kaynak"):
+            story.append(_p(f"Veri Kaynağı: {ref['_kaynak']}", STYLE_SMALL))
     story.append(Spacer(1, 10))
     return story
 
@@ -319,6 +334,8 @@ def _section_selected_recipe(data: dict) -> list:
                 ]
             )
         story.append(_table(layer_rows, col_widths=[20 * mm, 75 * mm, 30 * mm, 25 * mm]))
+    if sel.get("_kaynak"):
+        story.append(_p(f"Veri Kaynağı: {sel['_kaynak']}", STYLE_SMALL))
     story.append(Spacer(1, 10))
     return story
 
@@ -331,7 +348,11 @@ def _section_estimated_results(data: dict) -> list:
         ["Maliyet (tahmini)", _fmt_num(est["cost_per_kg"], 2, " TL/kg")],
         ["Karbon (tahmini)", _fmt_num(est["carbon_kg_co2_per_kg"], 3, " kg CO2/kg")],
     ]
-    return [_p("8. Tahmini Sonuçlar (Aşama 8)", STYLE_H1), _table(rows, col_widths=[55 * mm, 110 * mm]), Spacer(1, 10)]
+    story = [_p("8. Tahmini Sonuçlar (Aşama 8)", STYLE_H1), _table(rows, col_widths=[55 * mm, 110 * mm])]
+    if est.get("_kaynak"):
+        story.append(_p(f"Veri Kaynağı: {est['_kaynak']}", STYLE_SMALL))
+    story.append(Spacer(1, 10))
+    return story
 
 
 def _section_production_results(data: dict) -> list:
@@ -365,7 +386,7 @@ def _section_physical_verification(data: dict) -> list:
     if not tests:
         story.append(_p("Bu reçete için henüz kayıtlı bir fiziksel test yok.", STYLE_BODY))
     else:
-        rows = [["Test", "Sonuç", "Hedef Aralık", "Yöntem", "Durum"]]
+        rows = [["Test", "Sonuç", "Hedef Aralık", "Yöntem", "Durum", "Kaynak"]]
         for t in tests:
             target = f"{t['target_min']}–{t['target_max']} {t['unit']}" if t["target_min"] is not None and t["target_max"] is not None else "—"
             rows.append(
@@ -375,9 +396,10 @@ def _section_physical_verification(data: dict) -> list:
                     target,
                     _dash(t["test_method"]),
                     _test_result_label(t.get("result")),
+                    _data_source_label(t.get("source")),
                 ]
             )
-        story.append(_table(rows, col_widths=[28 * mm, 28 * mm, 35 * mm, 45 * mm, 20 * mm]))
+        story.append(_table(rows, col_widths=[24 * mm, 22 * mm, 30 * mm, 38 * mm, 18 * mm, 24 * mm]))
     story.append(Spacer(1, 10))
     return story
 
@@ -399,6 +421,17 @@ def _section_sustainability(data: dict) -> list:
     story.append(_table(rows, col_widths=[70 * mm, 60 * mm]))
     if per_1000.get("karbon_veri_kalitesi"):
         story.append(_p(f"Karbon Veri Kalitesi: {per_1000['karbon_veri_kalitesi']}", STYLE_SMALL))
+    # Faz H.3 — Virgin/PCR/Regranül/Karbon ile Fire/Enerji AYNI "Gerçekleşen"
+    # başlığı altında görünse de FARKLI kaynaklardandır -- ikisi tek bir
+    # etikette karıştırılmaz (bkz. production_flow_service.finalize_result).
+    if per_1000.get("kutle_veri_kaynagi"):
+        story.append(
+            _p(f"Virgin/PCR/PIR-Regranül/Karbon Veri Kaynağı: {_data_source_label(per_1000['kutle_veri_kaynagi'])}", STYLE_SMALL)
+        )
+    if per_1000.get("fire_enerji_veri_kaynagi"):
+        story.append(
+            _p(f"Fire/Enerji Veri Kaynağı: {_data_source_label(per_1000['fire_enerji_veri_kaynagi'])}", STYLE_SMALL)
+        )
     if per_1000.get("_uyari"):
         story.append(_p(per_1000["_uyari"], STYLE_DISCLAIMER))
     story.append(Spacer(1, 10))
@@ -411,10 +444,17 @@ def _section_ppwr(data: dict) -> list:
     if not ppwr["items"]:
         story.append(_p("Bu reçete için mevzuat değerlendirmesi bulunamadı.", STYLE_BODY))
     else:
-        rows = [["Madde", "Sonuç"]]
+        rows = [["Madde", "Sonuç", "Versiyon", "Kaynak"]]
         for item in ppwr["items"]:
-            rows.append([f"{_dash(item['article'])} ({_dash(item['regulation_code'])})", _verdict_label(item["verdict"])])
-        story.append(_table(rows, col_widths=[110 * mm, 50 * mm]))
+            rows.append(
+                [
+                    f"{_dash(item['article'])} ({_dash(item['regulation_code'])})",
+                    _verdict_label(item["verdict"]),
+                    _dash(item.get("requirement_version")),
+                    _dash(item.get("requirement_source")),
+                ]
+            )
+        story.append(_table(rows, col_widths=[55 * mm, 35 * mm, 25 * mm, 45 * mm]))
     story.append(_p(ppwr["disclaimer"], STYLE_DISCLAIMER))
     story.append(Spacer(1, 10))
     return story
@@ -431,6 +471,10 @@ def _section_climate(data: dict) -> list:
         ["Enerji (1.000 ambalaj)", _fmt_num(c["enerji_kwh_per_1000"], 2, " kWh")],
     ]
     story.append(_table(rows, col_widths=[65 * mm, 100 * mm]))
+    if c.get("_kaynak_kompozisyon"):
+        story.append(_p(f"Virgin/PCR/PIR-Regranül/Karbon Veri Kaynağı: {c['_kaynak_kompozisyon']}", STYLE_SMALL))
+    if c.get("_kaynak_fire_enerji"):
+        story.append(_p(f"Fire/Enerji Veri Kaynağı: {c['_kaynak_fire_enerji']}", STYLE_SMALL))
     story.append(Spacer(1, 10))
     return story
 
@@ -470,8 +514,84 @@ def _section_conclusion(data: dict) -> list:
     return [_p("16. Sonuç", STYLE_H1), _p(data["sonuc"]["summary_text"], STYLE_BODY)]
 
 
+# --- Faz H.6 — Optimizasyon Raporuna Ek Bölümler ----------------------------
+
+def _section_methodology(data: dict) -> list:
+    return [
+        _p("17. Hesaplama Metodolojisi", STYLE_H1),
+        _p(data["hesaplama_metodolojisi"]["aciklama"], STYLE_BODY),
+        Spacer(1, 10),
+    ]
+
+
+def _section_bibliography(data: dict) -> list:
+    bib = data["kaynakca"]
+    story = [_p("18. Kaynakça", STYLE_H1)]
+    if bib["mevzuat_versiyonlari"]:
+        story.append(_p("Mevzuat Versiyonları", STYLE_H2))
+        rows = [["Mevzuat", "Versiyon", "Kaynak"]]
+        for r in bib["mevzuat_versiyonlari"]:
+            rows.append([_dash(r.get("regulation_code")), _dash(r.get("version")), _dash(r.get("source"))])
+        story.append(_table(rows, col_widths=[45 * mm, 30 * mm, 90 * mm]))
+        story.append(Spacer(1, 6))
+    if bib["karbon_ef_kaynaklari"]:
+        story.append(_p("Karbon Emisyon Faktörü Kaynakları", STYLE_H2))
+        rows = [["Malzeme", "EF (kg CO2e/kg)", "Kaynak"]]
+        for ef in bib["karbon_ef_kaynaklari"]:
+            rows.append([_dash(ef.get("material_name")), _fmt_num(ef.get("ef_value"), 3), _dash(ef.get("source"))])
+        story.append(_table(rows, col_widths=[55 * mm, 35 * mm, 70 * mm]))
+    if not bib["mevzuat_versiyonlari"] and not bib["karbon_ef_kaynaklari"]:
+        story.append(_p("Bu reçete için henüz derlenmiş bir kaynakça yok.", STYLE_BODY))
+    story.append(Spacer(1, 10))
+    return story
+
+
+def _section_data_quality(data: dict) -> list:
+    dq = data["veri_kalitesi_notu"]
+    story = [_p("19. Veri Kalitesi ve Belirsizlik", STYLE_H1)]
+    conf = dq["data_confidence_dagilimi"]
+    conf_text = ", ".join(f"{k}: {v}" for k, v in conf.items()) if conf else "—"
+    rows = [
+        ["Alan", "Değer"],
+        ["Değerlendirme Güveni Dağılımı", conf_text],
+        ["Karbon Veri Kalitesi", _dash(dq.get("karbon_veri_kalitesi"))],
+        ["Demo/Varsayımsal EF Sayısı", f"{dq['demo_varsayimsal_ef_sayisi']} / {dq['toplam_karbon_ef_sayisi']}"],
+    ]
+    story.append(_table(rows, col_widths=[65 * mm, 100 * mm]))
+    story.append(Spacer(1, 10))
+    return story
+
+
+def _section_assumptions(data: dict) -> list:
+    assumptions = data["kullanilan_varsayimlar"]
+    story = [_p("20. Kullanılan Varsayımlar", STYLE_H1)]
+    if not assumptions["has_assumptions"]:
+        story.append(_p("Bu reçete için kayıtlı bir varsayım bulunmuyor.", STYLE_BODY))
+    else:
+        for item in assumptions["items"]:
+            story.append(_p(f"• {item}", STYLE_BODY))
+    story.append(Spacer(1, 10))
+    return story
+
+
+def _section_source_matrix(data: dict) -> list:
+    matrix = data["veri_kaynagi_matrisi"]
+    story = [_p("21. Veri Kaynağı Matrisi", STYLE_H1)]
+    if not matrix:
+        story.append(_p("Kaynak matrisi için yeterli veri yok.", STYLE_BODY))
+    else:
+        rows = [["Alan", "Kaynak"]]
+        for row in matrix:
+            rows.append([row["alan"], row["kaynak"]])
+        story.append(_table(rows, col_widths=[100 * mm, 65 * mm]))
+    story.append(Spacer(1, 10))
+    return story
+
+
 def render_technical_report(data: dict, passport: dict | None = None) -> bytes:
-    """16 bölümün TAMAMI, detaylı Teknik Rapor."""
+    """Detaylı Teknik Rapor — Faz C.5'in 16 bölümü + Faz H.6'nın 5 ek bölümü
+    (Hesaplama Metodolojisi/Kaynakça/Veri Kalitesi/Varsayımlar/Veri Kaynağı
+    Matrisi), toplam 21 bölüm."""
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4, topMargin=18 * mm, bottomMargin=18 * mm, leftMargin=18 * mm, rightMargin=18 * mm,
@@ -494,6 +614,11 @@ def render_technical_report(data: dict, passport: dict | None = None) -> bytes:
     story += _section_data_traceability(data)
     story += _section_recipe_traceability(data)
     story += _section_conclusion(data)
+    story += _section_methodology(data)
+    story += _section_bibliography(data)
+    story += _section_data_quality(data)
+    story += _section_assumptions(data)
+    story += _section_source_matrix(data)
     story += _qr_flowable(passport)
     doc.build(story)
     return buf.getvalue()

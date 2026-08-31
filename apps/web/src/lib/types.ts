@@ -638,6 +638,13 @@ export interface CompositionSide {
   carbon_data_quality: string;
   is_estimated: boolean;
   layers: LayerCompositionOut[];
+  // Faz H.1 — 1000 birim başına TAHMİNİ mutlak kütle dengesi (sadece
+  // is_estimated=true tarafında dolu; ölçü/hat verisi eksikse null).
+  virgin_kg: number | null;
+  pcr_kg: number | null;
+  regranul_kg: number | null;
+  fire_kg: number | null;
+  enerji_kwh: number | null;
 }
 
 export interface ComparisonOut {
@@ -652,6 +659,41 @@ export interface ProductionOrderOut {
   line_id: string;
   status: string;
   scheduled_qty_units: number;
+  // Faz H.2 — üretim emrini oluşturma anında dolar.
+  order_no: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+}
+
+export interface OrderAdditiveOut {
+  layer_index: number | null;
+  additive_id: string;
+  additive_name: string;
+  dosage_pct: number;
+}
+
+export interface ProcessParameterSuggestionOut {
+  parameter_name: string;
+  typical_min: number | null;
+  typical_max: number | null;
+  unit: string;
+  source: string | null;
+}
+
+// Faz H.2 — Aşama 9'un gerçek bir üretim talimatına dönüşmesi. Hat
+// eşleşmemişse veya F.7 kütüphanesinde eşleşme yoksa ilgili alanlar
+// boş/null kalır (uydurulmaz).
+export interface ProductionOrderSummaryOut {
+  order_no: string | null;
+  recipe_code: string;
+  recipe_version: number;
+  total_micron: number | null;
+  layers: LayerCompositionOut[];
+  additives: OrderAdditiveOut[];
+  target_line_speed_m_min: number | null;
+  target_process_parameters: ProcessParameterSuggestionOut[];
+  approved_by: string | null;
+  approved_at: string | null;
 }
 
 export interface ProductionLiveDataOut {
@@ -708,6 +750,15 @@ export interface PhysicalVerificationResultOut {
   new_recipe_version: RecipeOut | null;
 }
 
+// Faz H.4 — Aşama 12'nin üç sütunlu karşılaştırması. `reference`/`gains`
+// referans yoksa null — asla uydurma bir azaltım yüzdesi gösterilmez.
+export interface TripleComparisonOut {
+  reference: Record<string, number | string | null> | null;
+  tahmini: Record<string, number | string | null>;
+  gerceklesen: Record<string, number | string | null> | null;
+  gains: Record<string, number> | null;
+}
+
 export interface FinalResultOut {
   recipe_id: string;
   // karbon_veri_kalitesi ve _uyari gibi metin alanları da taşıyabilir.
@@ -720,6 +771,7 @@ export interface FinalResultOut {
     is_verified: boolean;
     created_at: string;
   }[];
+  triple_comparison: TripleComparisonOut;
 }
 
 export interface DashboardSummaryOut {

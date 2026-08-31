@@ -35,6 +35,7 @@ import type {
   ProductionLineOut,
   ProductionLineUpdate,
   ProductionOrderOut,
+  ProductionOrderSummaryOut,
   ProductSkuCreate,
   ProductSkuDetailOut,
   ProductSkuOut,
@@ -161,11 +162,13 @@ export const api = {
   getComparison: (recipeId: string) => request<ComparisonOut>(`/production-flow/recipes/${recipeId}/comparison`),
 
   // Aşama 9
-  createProductionOrder: (recipeId: string, qtyUnits: number) =>
+  createProductionOrder: (recipeId: string, qtyUnits: number, approvedBy: string) =>
     request<ProductionOrderOut>(
-      `/production-flow/recipes/${recipeId}/production-orders?qty_units=${qtyUnits}`,
+      `/production-flow/recipes/${recipeId}/production-orders?qty_units=${qtyUnits}&approved_by=${encodeURIComponent(approvedBy)}`,
       { method: "POST" }
     ),
+  getProductionOrderSummary: (orderId: string) =>
+    request<ProductionOrderSummaryOut>(`/production-flow/production-orders/${orderId}/summary`),
 
   // Aşama 10
   simulateLiveData: (orderId: string) =>

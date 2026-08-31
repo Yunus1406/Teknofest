@@ -67,7 +67,10 @@ def recipe_id(db_session):
 
 
 def test_production_order_created_in_stage9_is_reachable_in_stage10(client, recipe_id):
-    create_resp = client.post(f"/api/v1/production-flow/recipes/{recipe_id}/production-orders", params={"qty_units": 5000})
+    create_resp = client.post(
+        f"/api/v1/production-flow/recipes/{recipe_id}/production-orders",
+        params={"qty_units": 5000, "approved_by": "Op. Test"},
+    )
     assert create_resp.status_code == 200, create_resp.text
     order = create_resp.json()
     assert order["recipe_id"] == recipe_id  # Aşama 9 özetindeki reçeteyle eşleşmeli
@@ -107,8 +110,14 @@ def test_stale_order_from_a_different_recipe_is_distinguishable(client, recipe_i
     db_session.add(RecipeLayer(recipe_id=recipe2.id, layer_index=0, layer_label="A", material_id=material2.id, ratio_pct=100.0, thickness_micron=80.0))
     db_session.commit()
 
-    order1 = client.post(f"/api/v1/production-flow/recipes/{recipe_id}/production-orders", params={"qty_units": 1000}).json()
-    order2 = client.post(f"/api/v1/production-flow/recipes/{recipe2.id}/production-orders", params={"qty_units": 1000}).json()
+    order1 = client.post(
+        f"/api/v1/production-flow/recipes/{recipe_id}/production-orders",
+        params={"qty_units": 1000, "approved_by": "Op. A"},
+    ).json()
+    order2 = client.post(
+        f"/api/v1/production-flow/recipes/{recipe2.id}/production-orders",
+        params={"qty_units": 1000, "approved_by": "Op. B"},
+    ).json()
 
     assert order1["id"] != order2["id"]
     assert order1["recipe_id"] == recipe_id

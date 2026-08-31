@@ -14,6 +14,8 @@ from app.models.enums import (
     RecipeSource,
     WasteType,
 )
+from app.models.infrastructure import ProductionLine
+from app.models.technical_reference import ProcessReference
 from app.models.production import (
     PhysicalTest,
     ProductionLiveData,
@@ -52,9 +54,10 @@ def _layer_breakdown(recipe: Recipe) -> list[dict]:
     return list(by_index.values())
 
 
-def _composition_side(label: str, recipe: Recipe, is_estimated: bool) -> dict:
+def _composition_side(label: str, recipe: Recipe, is_estimated: bool, mass: dict | None = None) -> dict:
     metrics = {m.metric_type: m.value for m in recipe.metrics}
     carbon_status = worst_status([resolve_carbon_ef(layer.material)[1] for layer in recipe.layers])
+    mass = mass or {}
     return {
         "label": label,
         "virgin_pct": metrics.get("virgin_kullanimi", 0.0),
@@ -66,7 +69,79 @@ def _composition_side(label: str, recipe: Recipe, is_estimated: bool) -> dict:
         "carbon_data_quality": carbon_status,
         "is_estimated": is_estimated,
         "layers": _layer_breakdown(recipe),
+        "virgin_kg": mass.get("virgin_kg"),
+        "pcr_kg": mass.get("pcr_kg"),
+        "regranul_kg": mass.get("regranul_kg"),
+        "fire_kg": mass.get("fire_kg"),
+        "enerji_kwh": mass.get("enerji_kwh"),
     }
+
+
+def estimate_stage8_breakdown(db: Session, recipe: Recipe) -> dict:
+    """Faz H.1 — Aşama 8 için, üretim başlamadan 1000 birim başına TAHMİNİ
+    kütle dengesi. `compute_mass_breakdown()` Aşama 12'nin de kullandığı
+    GERÇEK fizikle (alan × kalınlık × yoğunluk) virgin/pcr/regranül/karbon
+    üretir -- aynı fonksiyon, aynı birim, böylece H.4'ün üçlü karşılaştırması
+    doğrudan kıyaslanabilir. Fire/enerji burada henüz canlı üretim verisi
+    olmadığından hattın NOMİNAL `average_waste_rate_pct`/`energy_kwh_per_kg`
+    katsayılarından tahmin edilir; hat eşleşmemişse veya fire oranı tanımlı
+    değilse ilgili alan `None` kalır, ASLA uydurulmaz.
+
+    İdempotenttir: bu reçete için zaten bir `is_actual=False` satırı varsa
+    onu döner (sayfa her yenilendiğinde yeni satır birikmez, sonuç sabit
+    kalır); yoksa hesaplayıp kalıcı bir `SustainabilityResult` satırına
+    yazar (H.4'ün üçlü karşılaştırmasının okuyacağı kayıt budur)."""
+    existing = (
+        db.query(SustainabilityResult)
+        .filter_by(recipe_id=recipe.id, is_actual=False)
+        .order_by(SustainabilityResult.created_at.desc())
+        .first()
+    )
+    if existing is not None:
+        return existing.per_1000_units
+
+    packaging_request = recipe.packaging_request
+    category = canonical_packaging_category(packaging_request.packaging_type)
+    dims = packaging_request.dimensions or {}
+    breakdown = compute_mass_breakdown(
+        recipe,
+        length_mm=dims.get("length_mm"),
+        width_mm=dims.get("width_mm"),
+        canonical_category=category,
+        unit_count=1000,
+    )
+    line = db.get(ProductionLine, recipe.line_id) if recipe.line_id else None
+
+    per_1000: dict = {
+        "virgin_kg": round(breakdown.virgin_kg, 3) if breakdown else None,
+        "pcr_kg": round(breakdown.pcr_kg, 3) if breakdown else None,
+        "regranul_kg": round(breakdown.regranul_kg, 3) if breakdown else None,
+        "karbon_kg_co2": round(breakdown.carbon_kg_co2, 3) if breakdown else None,
+        "karbon_veri_kalitesi": breakdown.carbon_ef_status if breakdown else None,
+        "fire_kg": None,
+        "enerji_kwh": None,
+    }
+    if breakdown is not None and line is not None:
+        if line.average_waste_rate_pct is not None:
+            per_1000["fire_kg"] = round(breakdown.total_mass_kg * (line.average_waste_rate_pct / 100.0), 3)
+        per_1000["enerji_kwh"] = round(breakdown.total_mass_kg * line.energy_kwh_per_kg, 3)
+    if breakdown is None:
+        per_1000["_uyari"] = (
+            "Ölçü (uzunluk/genişlik) veya malzeme yoğunluğu verisi eksik olduğu için "
+            "kütle bazlı figürler hesaplanamadı."
+        )
+    # Faz H.3 — Aşama 12'nin AYNI iki kaynak etiketi burada da tutarlı
+    # şekilde taşınır: virgin/pcr/regranül/karbon hesaplanan, fire/enerji
+    # ise henüz üretim olmadığından hattın nominal katsayılarından
+    # HESAPLANAN bir tahmindir (simülasyon DEĞİLDİR — bu ayrım Aşama 12'de
+    # önem kazanır, orada fire/enerji GERÇEKTEN simüle canlı veriden gelir).
+    per_1000["kutle_veri_kaynagi"] = DataSourceType.HESAPLANAN.value if breakdown is not None else None
+    per_1000["fire_enerji_veri_kaynagi"] = DataSourceType.HESAPLANAN.value if per_1000["fire_kg"] is not None else None
+
+    result = SustainabilityResult(recipe_id=recipe.id, per_1000_units=per_1000, is_actual=False)
+    db.add(result)
+    db.commit()
+    return per_1000
 
 
 def build_comparison(db: Session, recommended_recipe: Recipe) -> dict:
@@ -81,7 +156,8 @@ def build_comparison(db: Session, recommended_recipe: Recipe) -> dict:
         .order_by(Recipe.version.desc())
         .first()
     )
-    recommended_side = _composition_side("Önerilen (Tahmini)", recommended_recipe, True)
+    mass = estimate_stage8_breakdown(db, recommended_recipe)
+    recommended_side = _composition_side("Önerilen (Tahmini)", recommended_recipe, True, mass=mass)
     reference_side = _composition_side("Mevcut / Referans", reference, False) if reference else None
 
     gains: dict[str, float] | None = None
@@ -102,17 +178,87 @@ def build_comparison(db: Session, recommended_recipe: Recipe) -> dict:
 
 # --- Aşama 9: Üretime Aktarım ---------------------------------------------
 
-def create_production_order(db: Session, recipe: Recipe, qty_units: int) -> ProductionOrder:
+def _generate_order_no(db: Session) -> str:
+    """İnsan-okunur emir no: `UE-<yıl>-<sıra>`. Yıl içindeki mevcut emir
+    sayısından türetilir (tek yazarlı SQLite'ta MVP için yeterli;
+    çoklu-yazarlı bir ortamda sıra numarası çakışabilir, üretim
+    entegrasyonunda DB seviyesinde bir sequence'e geçirilmeli)."""
+    year = datetime.now(timezone.utc).year
+    prefix = f"UE-{year}-"
+    count = db.query(ProductionOrder).filter(ProductionOrder.order_no.like(f"{prefix}%")).count()
+    return f"{prefix}{count + 1:04d}"
+
+
+def create_production_order(db: Session, recipe: Recipe, qty_units: int, approved_by: str) -> ProductionOrder:
+    """Faz H.2 — üretim emri, onaylayan bir operatör/kullanıcı adı
+    girilmeden oluşturulamaz (sistemde gerçek bir login yok; bu Faz E'nin
+    'Firma Profili' deseniyle aynı serbest-metin+zaman damgası onayıdır,
+    sistem doğrulamaz)."""
+    if not approved_by or not approved_by.strip():
+        raise ValueError("Üretim emri, onaylayan bir operatör/kullanıcı adı girilmeden oluşturulamaz.")
     order = ProductionOrder(
         recipe_id=recipe.id,
         line_id=recipe.line_id,
         status=ProductionOrderStatus.BEKLIYOR.value,
         scheduled_qty_units=qty_units,
+        order_no=_generate_order_no(db),
+        approved_by=approved_by.strip(),
+        approved_at=datetime.now(timezone.utc),
     )
     db.add(order)
     db.commit()
     db.refresh(order)
     return order
+
+
+def build_order_summary(db: Session, order: ProductionOrder) -> dict:
+    """Faz H.2 — Aşama 9'un gerçek bir üretim talimatına dönüşmesi: reçete
+    kodu+versiyon, toplam kalınlık, katman dağılımı+hammadde oranları
+    (`_layer_breakdown`, Aşama 8'de de kullanılan AYNI yardımcı — yeniden
+    icat edilmez), her katmandaki katkı maddeleri+dozaj (RecipeAdditive),
+    hedef hat hızı, hedef proses parametresi önerisi (Faz F.7
+    `ProcessReference`'tan, hattın `process_type`'ıyla eşleşen satırlar).
+    Hat eşleşmemişse veya F.7 kütüphanesinde o proses tipi için satır yoksa
+    ilgili alanlar boş/None kalır — ASLA uydurulmaz."""
+    recipe = order.recipe
+    line = db.get(ProductionLine, order.line_id) if order.line_id else None
+
+    additives = [
+        {
+            "layer_index": a.layer_index,
+            "additive_id": a.additive_id,
+            "additive_name": a.additive.name,
+            "dosage_pct": a.dosage_pct,
+        }
+        for a in recipe.additives
+    ]
+
+    process_parameters: list[dict] = []
+    if line is not None and line.process_type:
+        rows = db.query(ProcessReference).filter_by(process_type=line.process_type).all()
+        process_parameters = [
+            {
+                "parameter_name": r.parameter_name,
+                "typical_min": r.typical_min,
+                "typical_max": r.typical_max,
+                "unit": r.unit,
+                "source": r.source,
+            }
+            for r in rows
+        ]
+
+    return {
+        "order_no": order.order_no,
+        "recipe_code": f"{recipe.id[:8]}-V{recipe.version}",
+        "recipe_version": recipe.version,
+        "total_micron": recipe.total_micron,
+        "layers": _layer_breakdown(recipe),
+        "additives": additives,
+        "target_line_speed_m_min": line.line_speed_m_min if line else None,
+        "target_process_parameters": process_parameters,
+        "approved_by": order.approved_by,
+        "approved_at": order.approved_at,
+    }
 
 
 # --- Aşama 10: Canlı Üretim Takibi (SİMÜLE) -------------------------------
@@ -426,6 +572,13 @@ def finalize_result(db: Session, recipe: Recipe) -> SustainabilityResult:
             "Ölçü (uzunluk/genişlik) veya malzeme yoğunluğu verisi eksik olduğu için "
             "kütle bazlı figürler hesaplanamadı."
         )
+    # Faz H.3 — Virgin/PCR/Regranül/Karbon reçete kompozisyonundan
+    # HESAPLANIR (mass_balance.py); Fire/Enerji ise GERÇEKTEN canlı üretim
+    # verisinden (`ProductionLiveData.source`) gelir -- bugün bu her zaman
+    # simülasyon (gerçek PLC/SCADA entegrasyonu yok). Tek bir "Gerçekleşen"
+    # etiketi altında ikisini karıştırmamak için AYRI kaynak etiketleri.
+    per_1000["kutle_veri_kaynagi"] = DataSourceType.HESAPLANAN.value if breakdown is not None else None
+    per_1000["fire_enerji_veri_kaynagi"] = live_rows[0].source if live_rows else None
 
     result = SustainabilityResult(recipe_id=recipe.id, per_1000_units=per_1000, is_actual=True)
     db.add(result)
@@ -438,6 +591,72 @@ def finalize_result(db: Session, recipe: Recipe) -> SustainabilityResult:
     db.commit()
     db.refresh(result)
     return result
+
+
+def build_triple_comparison(db: Session, recipe: Recipe) -> dict:
+    """Faz H.4 — Aşama 12'nin üç sütunlu karşılaştırması: Referans (geçmiş
+    doğrulanmış üretim) | Tahmini (Aşama 8'in projeksiyonu, bkz.
+    `estimate_stage8_breakdown`) | Gerçekleşen (bu reçetenin GERÇEK üretim +
+    fiziksel doğrulama sonrası kaydı, bkz. `finalize_result`). Üçü de AYNI
+    birimde (1000 birim başına kg) — doğrudan kıyaslanabilir.
+
+    Referans, Aşama 8'in kullandığı AYNI tanımla bulunur (aynı
+    packaging_type, doğrulanmış, en yeni versiyon). `is_verified=True`
+    olan bir reçete KESİNLİKLE `finalize_result()`'tan geçmiştir (bunu True
+    yapan tek yol budur) — bu yüzden kendi `is_actual=True`
+    `SustainabilityResult` satırı zaten vardır, YENİDEN hesaplanmaz,
+    doğrudan okunur (uydurma/tekrar hesaplama yok).
+
+    Referans yoksa: `reference`/`gains` None — azaltım yüzdesi hesaplanmaz,
+    sadece mutlak değerler gösterilir (build_comparison ile aynı disiplin)."""
+    reference_recipe = (
+        db.query(Recipe)
+        .join(PackagingRequest)
+        .filter(
+            PackagingRequest.packaging_type == recipe.packaging_request.packaging_type,
+            Recipe.is_verified.is_(True),
+            Recipe.id != recipe.id,
+        )
+        .order_by(Recipe.version.desc())
+        .first()
+    )
+    reference: dict | None = None
+    if reference_recipe is not None:
+        ref_result = (
+            db.query(SustainabilityResult)
+            .filter_by(recipe_id=reference_recipe.id, is_actual=True)
+            .order_by(SustainabilityResult.created_at.desc())
+            .first()
+        )
+        if ref_result is not None:
+            reference = ref_result.per_1000_units
+
+    tahmini = estimate_stage8_breakdown(db, recipe)
+
+    actual_result = (
+        db.query(SustainabilityResult)
+        .filter_by(recipe_id=recipe.id, is_actual=True)
+        .order_by(SustainabilityResult.created_at.desc())
+        .first()
+    )
+    gerceklesen = actual_result.per_1000_units if actual_result is not None else None
+
+    gains: dict[str, float] | None = None
+    if reference is not None and gerceklesen is not None:
+        computed: dict[str, float] = {}
+        for key, gain_key in [
+            ("karbon_kg_co2", "karbon_azaltimi_pct"),
+            ("virgin_kg", "virgin_azaltimi_pct"),
+            ("fire_kg", "fire_azaltimi_pct"),
+            ("enerji_kwh", "enerji_azaltimi_pct"),
+        ]:
+            base = reference.get(key)
+            new = gerceklesen.get(key)
+            if base and new is not None:
+                computed[gain_key] = round(((base - new) / base) * 100, 1)
+        gains = computed or None
+
+    return {"reference": reference, "tahmini": tahmini, "gerceklesen": gerceklesen, "gains": gains}
 
 
 def version_history(db: Session, recipe: Recipe) -> list[dict]:

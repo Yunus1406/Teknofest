@@ -18,6 +18,7 @@ from app.schemas.production import (
     PhysicalVerificationSubmit,
     ProductionLiveDataOut,
     ProductionOrderOut,
+    ProductionOrderSummaryOut,
     SuggestedTestTargetOut,
     WasteRecordOut,
 )
@@ -58,11 +59,20 @@ def get_comparison(recipe_id: str, db: Session = Depends(get_db)):
 # --- Aşama 9 -----------------------------------------------------------------
 
 @router.post("/recipes/{recipe_id}/production-orders", response_model=ProductionOrderOut)
-def create_production_order(recipe_id: str, qty_units: int, db: Session = Depends(get_db)):
+def create_production_order(recipe_id: str, qty_units: int, approved_by: str, db: Session = Depends(get_db)):
     recipe = _get_recipe_or_404(db, recipe_id)
     if not recipe.line_id:
         raise HTTPException(400, "Reçeteye atanmış bir üretim hattı yok")
-    return production_flow_service.create_production_order(db, recipe, qty_units)
+    try:
+        return production_flow_service.create_production_order(db, recipe, qty_units, approved_by)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/production-orders/{order_id}/summary", response_model=ProductionOrderSummaryOut)
+def get_production_order_summary(order_id: str, db: Session = Depends(get_db)):
+    order = _get_order_or_404(db, order_id)
+    return production_flow_service.build_order_summary(db, order)
 
 
 # --- Aşama 10 (simüle) --------------------------------------------------------
@@ -153,6 +163,7 @@ def finalize_result(recipe_id: str, db: Session = Depends(get_db)):
         per_1000_units=result.per_1000_units,
         physical_tests_passed=tests_passed,
         version_history=production_flow_service.version_history(db, recipe),
+        triple_comparison=production_flow_service.build_triple_comparison(db, recipe),
     )
 
 

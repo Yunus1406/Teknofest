@@ -1,6 +1,7 @@
-"""Faz C.5 — Otomatik Optimizasyon Raporu veri toplama servisi. 16 bölümün
-TAMAMI, çalışmanın DB'de zaten biriken gerçek verisinden derlenir; hiçbir
-sayı burada yeniden hesaplanmaz/uydurulmaz — `production_flow_service.
+"""Faz C.5 — Otomatik Optimizasyon Raporu veri toplama servisi. Faz C.5'in
+16 bölümü + Faz H.6'nın 5 ek bölümü (toplam 21), çalışmanın DB'de zaten
+biriken gerçek verisinden derlenir; hiçbir sayı burada yeniden hesaplanmaz/
+uydurulmaz — `production_flow_service.
 build_comparison`/`version_history`, `traceability_service.
 build_recipe_traceability` (B.9) ve `OptimizationRun.notable_eliminated`
 (C.4) burada sadece ÇAĞRILIR, yeniden kurulmaz.
@@ -16,7 +17,7 @@ from app.models.enums import RecipeSource
 from app.models.knowledge import Regulation
 from app.models.optimization import OptimizationCandidate, OptimizationRun
 from app.models.production import PhysicalTest, ProductionOrder, SustainabilityResult, WasteRecord
-from app.models.recipe import PackagingRequest, Recipe, RegulatoryAssessment
+from app.models.recipe import PackagingRequest, Recipe, RecipeEvaluation, RegulatoryAssessment
 from app.models.regulation_requirement import RegulationRequirement
 from app.services import production_flow_service, traceability_service
 
@@ -30,6 +31,47 @@ _NO_RUN_FOUND_NOTE = "Bu reçete için ilişkili bir optimizasyon koşusu buluna
 _NO_ELIMINATED_DATA_NOTE = (
     "Bu çalışma için elenen aday detayı kaydedilmedi (Faz C.4 öncesi bir koşu olabilir)."
 )
+
+# Faz H.5 — raporun HİÇBİR bölümünde kaynağı belirsiz/boş bir sayı
+# kalmaması için sabit 10 değerli kelime dağarcığı (Firma Verisi/Geçmiş
+# Üretim/Makineden Alınan/Simülasyon/Teknik Veri Föyü/Laboratuvar/Mevzuat/
+# Hesaplanan/Sistem Referansı/Varsayımsal). Bu, mevcut 3 AYRI sözlüğe
+# (DataSourceType/Recipe.data_source_tags/F.12 SourceTier) KARIŞTIRILMAZ --
+# sadece raporun gösterimi için o sözlüklerin değerlerini bu dile çeviren
+# ince bir köprüdür (aşağıdaki takma adlar bunun için).
+_REPORT_SOURCE_LABELS = {
+    # H.5'in kendi 10 değerli kelime dağarcığı (birebir anahtar).
+    "firma_verisi": "Firma Verisi",
+    "gecmis_uretim": "Geçmiş Üretim",
+    "makineden_alinan": "Makineden Alınan",
+    "simulasyon": "Simülasyon",
+    "teknik_veri_foyu": "Teknik Veri Föyü",
+    "laboratuvar": "Laboratuvar",
+    "mevzuat": "Mevzuat",
+    "hesaplanan": "Hesaplanan",
+    "sistem_referansi": "Sistem Referansı",
+    "varsayimsal": "Varsayımsal",
+    # DataSourceType (app/models/enums.py) takma adları.
+    "gecmis_uretim_verisi": "Geçmiş Üretim",
+    "simulasyon_verisi": "Simülasyon",
+    "laboratuvar_testi": "Laboratuvar",
+    "kullanici_girisi": "Firma Verisi",
+    # carbon_ef_status (app/services/carbon.py) takma adları --
+    # "tanimlanmadi" KASITLI OLARAK burada YOK: gerçekten kaynağı bilinmeyen
+    # bir EF, "Varsayımsal" bile değildir, dürüstçe "Veri Yok" kalmalı.
+    "tanimli_gercek": "Sistem Referansı",
+    "tanimli_demo": "Varsayımsal",
+}
+
+
+def report_source_label(kind: str | None) -> str:
+    """Faz H.5 — `kind` (mevcut herhangi bir kaynak sinyali: DataSourceType
+    slug'ı, carbon_ef_status, ya da H.5'in kendi 10 değerli anahtarlarından
+    biri) gerçekten belirlenemiyorsa (None) ya da tanınmıyorsa 'Veri Yok'
+    döner -- ASLA rastgele/varsayılan bir kaynak uydurulmaz."""
+    if kind is None:
+        return "Veri Yok"
+    return _REPORT_SOURCE_LABELS.get(kind, "Veri Yok")
 
 
 def _find_reference_recipe(db: Session, recipe: Recipe) -> Recipe | None:
@@ -184,8 +226,16 @@ def _packaging_info(packaging_request: PackagingRequest) -> dict:
 def _reference_section(comparison: dict) -> dict:
     reference_side = comparison["reference"]
     if reference_side is None:
-        return {"has_reference": False, "note": _NO_REFERENCE_NOTE, "reference": None}
-    return {"has_reference": True, "note": None, "reference": reference_side}
+        return {"has_reference": False, "note": _NO_REFERENCE_NOTE, "reference": None, "_kaynak": None}
+    # Referans, firma hafızasındaki daha önce ÜRETİLMİŞ+doğrulanmış bir
+    # reçetedir (bkz. production_flow_service.build_comparison) -- "Geçmiş
+    # Üretim" gerçek kaynağı, uydurulmuyor.
+    return {
+        "has_reference": True,
+        "note": None,
+        "reference": reference_side,
+        "_kaynak": report_source_label("gecmis_uretim"),
+    }
 
 
 def _optimization_process_section(recipe: Recipe, run: OptimizationRun | None) -> dict:
@@ -222,6 +272,9 @@ def _selected_recipe_section(recipe: Recipe, trace: dict) -> dict:
         "total_gsm": recipe.total_gsm,
         "line_name": trace["machine"]["name"] if trace.get("machine") else None,
         "layers": trace.get("layers", []),
+        # Faz H.5 — katman/kalınlık dağılımı optimizasyon motorunun
+        # deterministik çıktısıdır -- "Hesaplanan".
+        "_kaynak": report_source_label("hesaplanan"),
     }
 
 
@@ -332,6 +385,11 @@ def _climate_circularity_section(comparison: dict, per_1000: dict | None) -> dic
         "has_reference_trend": reference_side is not None,
         "reference_virgin_pct": reference_side["virgin_pct"] if reference_side else None,
         "reference_pcr_pct": reference_side["pcr_pct"] if reference_side else None,
+        # Faz H.5 — kompozisyon/karbon reçeteden HESAPLANIR; fire/enerji
+        # ise Faz H.3'ün per_1000'e zaten kaydettiği GERÇEK kaynağı taşır
+        # (bugün her zaman simülasyon, uydurulmuyor).
+        "_kaynak_kompozisyon": report_source_label("hesaplanan"),
+        "_kaynak_fire_enerji": report_source_label((per_1000 or {}).get("fire_enerji_veri_kaynagi")),
     }
 
 
@@ -370,8 +428,104 @@ def _conclusion_section(executive_summary: dict) -> dict:
     return {"summary_text": executive_summary["narrative"]}
 
 
+# --- Faz H.6 — Optimizasyon Raporuna Ek Bölümler ----------------------------
+
+_METHODOLOGY_TEXT = (
+    "Kütle Dengesi: 1.000 satılabilir ambalaj başına virgin/PCR/PIR-regranül/"
+    "karbon kg -- alan (uzunluk × genişlik) × toplam kalınlık × katman bazlı "
+    "ağırlıklı yoğunluk × birim sayısı (bkz. app/services/mass_balance.py "
+    "compute_mass_breakdown). Karbon: her katmandaki malzemenin emisyon "
+    "faktörü (kg CO2e/kg) katman ağırlığıyla çarpılıp toplanır (bkz. "
+    "app/services/carbon.py resolve_carbon_ef). Optimizasyon Skoru: teknik "
+    "performans, üretilebilirlik, mevzuat marjı, karbon, fire riski ve "
+    "maliyetin ağırlıklı ortalaması (bkz. app/optimization/scorer.py). "
+    "Fiziksel Doğrulama: gerçek laboratuvar ölçümü ile tanımlı hedef aralığın "
+    "karşılaştırılması -- kriter tanımsızsa sonuç asla otomatik 'başarılı' "
+    "sayılmaz, 'beklemede' kalır (bkz. production_flow_service._evaluate_"
+    "physical_test)."
+)
+
+
+def _methodology_section() -> dict:
+    return {"aciklama": _METHODOLOGY_TEXT}
+
+
+def _bibliography_section(data_traceability: dict) -> dict:
+    """Faz H.6 — Faz F kütüphanelerinden otomatik derlenir; `_data_
+    traceability_section`'ın zaten topladığı veriden (yeniden sorgu YOK)."""
+    return {
+        "mevzuat_versiyonlari": data_traceability["regulation_requirement_versions"],
+        "karbon_ef_kaynaklari": data_traceability["carbon_ef_sources"],
+    }
+
+
+def _data_quality_section(db: Session, recipe: Recipe, sustainability_per_1000: dict | None, data_traceability: dict) -> dict:
+    """Faz H.6 — hangi değerlerin yüksek/orta/düşük güvenilirlikte, hangileri
+    varsayımsal olduğuna dair özet. Hiçbir yeni hesap YOK -- var olan
+    `RecipeEvaluation.data_confidence` (kısıt motoru/optimizasyon) ve
+    `is_demo_placeholder`/`karbon_veri_kalitesi` (Faz F/H.3) alanlarının
+    agregasyonu."""
+    evaluations = db.query(RecipeEvaluation).filter_by(recipe_id=recipe.id).all()
+    confidence_dagilimi: dict[str, int] = {}
+    for e in evaluations:
+        if e.data_confidence:
+            confidence_dagilimi[e.data_confidence] = confidence_dagilimi.get(e.data_confidence, 0) + 1
+    demo_ef_sayisi = sum(1 for ef in data_traceability["carbon_ef_sources"] if ef.get("is_demo_placeholder"))
+    return {
+        "data_confidence_dagilimi": confidence_dagilimi,
+        "karbon_veri_kalitesi": (sustainability_per_1000 or {}).get("karbon_veri_kalitesi"),
+        "demo_varsayimsal_ef_sayisi": demo_ef_sayisi,
+        "toplam_karbon_ef_sayisi": len(data_traceability["carbon_ef_sources"]),
+    }
+
+
+def _assumptions_section(data_traceability: dict, sustainability_per_1000: dict | None) -> dict:
+    """Faz H.6 — GERÇEKTEN varsayımsal işaretlenmiş kalemlerin listesi;
+    hiçbiri yoksa boş liste (uydurma bir varsayım ASLA eklenmez)."""
+    items: list[str] = []
+    for ef in data_traceability["carbon_ef_sources"]:
+        if ef.get("is_demo_placeholder"):
+            material_name = ef.get("material_name") or "Bilinmeyen malzeme"
+            items.append(f"{material_name}: karbon emisyon faktörü DEMO/VARSAYIMSAL (kaynaklı bir LCA veritabanı entegrasyonu yok)")
+    if (sustainability_per_1000 or {}).get("karbon_veri_kalitesi") == "tanimli_demo":
+        items.append("Toplam karbon figürü en az bir DEMO/VARSAYIMSAL emisyon faktörüne dayanıyor")
+    return {"items": items, "has_assumptions": len(items) > 0}
+
+
+def _source_matrix_section(data: dict) -> list[dict]:
+    """Faz H.5'in her bölüme eklediği kaynak etiketlerinin TEK bir özet
+    tablosu -- rapordaki her ana rakamın nereden geldiği bir bakışta
+    görünür. `data`, bu fonksiyon çağrılana kadar inşa edilmiş TÜM diğer
+    bölümleri içerir; burada hiçbir yeni sorgu/hesap YAPILMAZ."""
+    rows: list[dict] = []
+    if data["referans_recete"].get("_kaynak"):
+        rows.append({"alan": "Referans Reçete", "kaynak": data["referans_recete"]["_kaynak"]})
+    if data["secilen_recete"].get("_kaynak"):
+        rows.append({"alan": "Seçilen Reçete (katman/kalınlık)", "kaynak": data["secilen_recete"]["_kaynak"]})
+    if data["tahmini_sonuclar"].get("_kaynak"):
+        rows.append({"alan": "Tahmini Sonuçlar (Aşama 8)", "kaynak": data["tahmini_sonuclar"]["_kaynak"]})
+    per_1000 = data["surdurulebilirlik_performansi"]["per_1000_units"] or {}
+    if per_1000.get("kutle_veri_kaynagi"):
+        rows.append({"alan": "Gerçekleşen Virgin/PCR/PIR-Regranül/Karbon", "kaynak": report_source_label(per_1000["kutle_veri_kaynagi"])})
+    if per_1000.get("fire_enerji_veri_kaynagi"):
+        rows.append({"alan": "Gerçekleşen Fire/Enerji", "kaynak": report_source_label(per_1000["fire_enerji_veri_kaynagi"])})
+    if data["iklim_dongusellik"].get("_kaynak_kompozisyon"):
+        rows.append({"alan": "İklim/Döngüsellik Kompozisyon", "kaynak": data["iklim_dongusellik"]["_kaynak_kompozisyon"]})
+    if data["iklim_dongusellik"].get("_kaynak_fire_enerji"):
+        rows.append({"alan": "İklim/Döngüsellik Fire/Enerji", "kaynak": data["iklim_dongusellik"]["_kaynak_fire_enerji"]})
+    for t in data["fiziksel_dogrulama"]["tests"]:
+        rows.append({"alan": f"Fiziksel Test: {t['test_type']}", "kaynak": report_source_label(t.get("source"))})
+    for o in data["gercek_uretim_sonuclari"]["orders"]:
+        if o.get("data_source"):
+            rows.append({"alan": "Gerçek Üretim Sonuçları", "kaynak": report_source_label(o["data_source"])})
+    for i in data["ppwr_on_uyum"]["items"]:
+        if i.get("requirement_source"):
+            rows.append({"alan": f"PPWR {i.get('article') or i.get('regulation_code')}", "kaynak": "Mevzuat"})
+    return rows
+
+
 def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
-    """16 bölümün tamamı. Sadece `recipe.is_verified=True` reçeteler için
+    """Faz C.5'in 16 bölümü + Faz H.6'nın 5 ek bölümü. Sadece `recipe.is_verified=True` reçeteler için
     çağrılabilir (Dashboard 12'nin doğal uzantısı — aynı ön koşul DPP ile
     aynı, bkz. app/services/passport_service.py)."""
     recipe = db.get(Recipe, recipe_id)
@@ -395,8 +549,9 @@ def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
     ppwr_section = _ppwr_section(db, packaging_request)
     sustainability_section = {"per_1000_units": _sustainability_result_for(db, recipe.id)}
     executive_summary = build_executive_summary(db, recipe, comparison)
+    data_traceability = _data_traceability_section(production_section, physical_section, ppwr_section, trace)
 
-    return {
+    result = {
         "kapak": _cover(recipe, packaging_request, run, trace),
         "yonetici_ozeti": executive_summary,
         "ambalaj_bilgileri": _packaging_info(packaging_request) if packaging_request is not None else None,
@@ -404,13 +559,23 @@ def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
         "optimizasyon_sureci": _optimization_process_section(recipe, run),
         "neden_elendi": _elimination_section(recipe, run),
         "secilen_recete": _selected_recipe_section(recipe, trace),
-        "tahmini_sonuclar": comparison["recommended"],
+        # Faz H.5 — comparison["recommended"] paylaşılan bir sözlük (Aşama
+        # 8'in kendi API yanıtında da kullanılıyor); burada YENİ bir kopya
+        # (spread) üzerine `_kaynak` eklenir, orijinal dict MUTATE edilmez.
+        "tahmini_sonuclar": {**comparison["recommended"], "_kaynak": report_source_label("hesaplanan")},
         "gercek_uretim_sonuclari": production_section,
         "fiziksel_dogrulama": physical_section,
         "surdurulebilirlik_performansi": sustainability_section,
         "ppwr_on_uyum": ppwr_section,
         "iklim_dongusellik": _climate_circularity_section(comparison, sustainability_section["per_1000_units"]),
-        "veri_izlenebilirligi": _data_traceability_section(production_section, physical_section, ppwr_section, trace),
+        "veri_izlenebilirligi": data_traceability,
         "recete_izlenebilirligi": production_flow_service.version_history(db, recipe),
         "sonuc": _conclusion_section(executive_summary),
+        # --- Faz H.6 — ek bölümler (mevcut 16 anahtarın hiçbiri değişmedi) ---
+        "hesaplama_metodolojisi": _methodology_section(),
+        "kaynakca": _bibliography_section(data_traceability),
+        "veri_kalitesi_notu": _data_quality_section(db, recipe, sustainability_section["per_1000_units"], data_traceability),
+        "kullanilan_varsayimlar": _assumptions_section(data_traceability, sustainability_section["per_1000_units"]),
     }
+    result["veri_kaynagi_matrisi"] = _source_matrix_section(result)
+    return result

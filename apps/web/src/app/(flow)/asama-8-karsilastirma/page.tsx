@@ -14,6 +14,28 @@ import { aggregateToSegments, layerCompositionOutToTable } from "@/lib/compositi
 import { carbonEfStatusLabel, carbonEfStatusTone } from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
+// Faz H.1 — Aşama 8'in HİÇBİR sayısı "gerçekleşen" ile karıştırılamaz;
+// kart üstündeki tek rozetin yanında her sayının kendi yanında da görünür
+// bir "Tahmini" etiketi taşınır (üretim + fiziksel doğrulama tamamlanmadan
+// bu sayılar Aşama 12'de "Gerçekleşen" olarak DEĞİŞİR, burada değil).
+function EstimateTag({ show }: { show: boolean }) {
+  if (!show) return null;
+  return <span className="ml-1 rounded bg-virgin/10 px-1 py-0.5 text-[9px] font-sans font-medium text-virgin">Tahmini</span>;
+}
+
+function StatRow({ label, value, estimated }: { label: string; value: string | null; estimated: boolean }) {
+  if (value === null) return null;
+  return (
+    <div>
+      <dt className="text-ink/40">{label}</dt>
+      <dd className="flex items-center">
+        {value}
+        <EstimateTag show={estimated} />
+      </dd>
+    </div>
+  );
+}
+
 function SideCard({ side }: { side: CompositionSide }) {
   return (
     <Card>
@@ -24,18 +46,34 @@ function SideCard({ side }: { side: CompositionSide }) {
       <LayeredCompositionBar segments={aggregateToSegments(side.virgin_pct, side.pcr_pct, side.regranule_pct)} />
       {side.layers.length > 0 && <LayerBreakdownTable groups={layerCompositionOutToTable(side.layers)} />}
       <dl className="mt-4 grid grid-cols-3 gap-3 font-mono text-xs">
-        <div>
-          <dt className="text-ink/40">Kalınlık</dt>
-          <dd>{side.total_micron.toFixed(0)} µm</dd>
-        </div>
-        <div>
-          <dt className="text-ink/40">Maliyet</dt>
-          <dd>{side.cost_per_kg.toFixed(1)} TL/kg</dd>
-        </div>
-        <div>
-          <dt className="text-ink/40">Karbon</dt>
-          <dd>{side.carbon_kg_co2_per_kg.toFixed(2)} kg CO₂/kg</dd>
-        </div>
+        <StatRow label="Kalınlık" value={`${side.total_micron.toFixed(0)} µm`} estimated={side.is_estimated} />
+        <StatRow label="Maliyet" value={`${side.cost_per_kg.toFixed(1)} TL/kg`} estimated={side.is_estimated} />
+        <StatRow label="Karbon" value={`${side.carbon_kg_co2_per_kg.toFixed(2)} kg CO₂/kg`} estimated={side.is_estimated} />
+        <StatRow
+          label="Virgin (1000 birim)"
+          value={side.virgin_kg !== null ? `${side.virgin_kg.toFixed(2)} kg` : null}
+          estimated={side.is_estimated}
+        />
+        <StatRow
+          label="PCR (1000 birim)"
+          value={side.pcr_kg !== null ? `${side.pcr_kg.toFixed(2)} kg` : null}
+          estimated={side.is_estimated}
+        />
+        <StatRow
+          label="PIR-Regranül (1000 birim)"
+          value={side.regranul_kg !== null ? `${side.regranul_kg.toFixed(2)} kg` : null}
+          estimated={side.is_estimated}
+        />
+        <StatRow
+          label="Fire (1000 birim)"
+          value={side.fire_kg !== null ? `${side.fire_kg.toFixed(2)} kg` : null}
+          estimated={side.is_estimated}
+        />
+        <StatRow
+          label="Enerji (1000 birim)"
+          value={side.enerji_kwh !== null ? `${side.enerji_kwh.toFixed(2)} kWh` : null}
+          estimated={side.is_estimated}
+        />
       </dl>
       <div className="mt-3">
         <Badge tone={carbonEfStatusTone(side.carbon_data_quality)}>

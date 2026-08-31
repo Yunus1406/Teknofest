@@ -13,6 +13,8 @@ import { aggregateToSegments } from "@/lib/composition-segments";
 import {
   carbonEfStatusLabel,
   carbonEfStatusTone,
+  dataSourceLabel,
+  dataSourceTone,
   materialTypeLabel,
   materialTypeTone,
   physicalTestResultLabel,
@@ -181,13 +183,20 @@ export default function DigitalProductPassportPage() {
         <CardTitle subtitle="1.000 satılabilir ambalaj başına">Çevresel Performans</CardTitle>
         {p1000 ? (
           <>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {/* Faz H.3 — Virgin/PCR/Regranül/Karbon HESAPLANIR; Fire/Enerji
+                GERÇEKTEN canlı üretim verisinden gelir (bugün simülasyon) —
+                tek bir blok altında karıştırılmaz, her grup kendi kaynak
+                rozetini taşır. */}
+            <div className="mb-2 flex items-center gap-2">
+              {typeof p1000.kutle_veri_kaynagi === "string" && (
+                <Badge tone={dataSourceTone(p1000.kutle_veri_kaynagi)}>{dataSourceLabel(p1000.kutle_veri_kaynagi)}</Badge>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <StatTile label="Virgin" value={(p1000.virgin_kg as number) ?? "—"} unit="kg" />
               <StatTile label="PCR" value={(p1000.pcr_kg as number) ?? "—"} unit="kg" />
               <StatTile label="PIR-Regranül" value={(p1000.regranul_kg as number) ?? "—"} unit="kg" />
               <StatTile label="Karbon" value={(p1000.karbon_kg_co2 as number) ?? "—"} unit="kg CO₂" />
-              <StatTile label="Fire" value={(p1000.fire_kg as number) ?? "—"} unit="kg" />
-              <StatTile label="Enerji" value={(p1000.enerji_kwh as number) ?? "—"} unit="kWh" />
             </div>
             {p1000.karbon_veri_kalitesi != null && (
               <div className="mt-3">
@@ -196,6 +205,17 @@ export default function DigitalProductPassportPage() {
                 </Badge>
               </div>
             )}
+            <div className="mb-2 mt-4 flex items-center gap-2">
+              {typeof p1000.fire_enerji_veri_kaynagi === "string" && (
+                <Badge tone={dataSourceTone(p1000.fire_enerji_veri_kaynagi)}>
+                  {dataSourceLabel(p1000.fire_enerji_veri_kaynagi)}
+                </Badge>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <StatTile label="Fire" value={(p1000.fire_kg as number) ?? "—"} unit="kg" />
+              <StatTile label="Enerji" value={(p1000.enerji_kwh as number) ?? "—"} unit="kWh" />
+            </div>
           </>
         ) : (
           <p className="text-sm text-ink/50">Sürdürülebilirlik verisi henüz hesaplanmadı.</p>

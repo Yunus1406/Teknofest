@@ -9,8 +9,31 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { StatTile } from "@/components/ui/StatTile";
-import { carbonEfStatusLabel, carbonEfStatusTone } from "@/lib/labels";
+import { carbonEfStatusLabel, carbonEfStatusTone, dataSourceLabel, dataSourceTone } from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
+
+// Faz H.4 — Referans | Tahmini | Gerçekleşen, üçü de 1.000 birim başına AYNI
+// birimde (kg) — doğrudan kıyaslanabilir.
+const TRIPLE_ROWS: { key: string; label: string; unit: string }[] = [
+  { key: "virgin_kg", label: "Virgin", unit: "kg" },
+  { key: "pcr_kg", label: "PCR", unit: "kg" },
+  { key: "regranul_kg", label: "PIR-Regranül", unit: "kg" },
+  { key: "karbon_kg_co2", label: "Karbon", unit: "kg CO₂" },
+  { key: "fire_kg", label: "Fire", unit: "kg" },
+  { key: "enerji_kwh", label: "Enerji", unit: "kWh" },
+];
+
+const GAIN_LABELS: Record<string, string> = {
+  karbon_azaltimi_pct: "Karbon Azaltımı",
+  virgin_azaltimi_pct: "Virgin Azaltımı",
+  fire_azaltimi_pct: "Fire Azaltımı",
+  enerji_azaltimi_pct: "Enerji Azaltımı",
+};
+
+function formatTripleCell(v: number | string | null | undefined, unit: string): string {
+  if (typeof v !== "number") return "—";
+  return `${v.toFixed(2)} ${unit}`;
+}
 
 export default function Stage12Page() {
   const recipeId = useCaseStore((s) => s.recipeId);
@@ -110,22 +133,102 @@ export default function Stage12Page() {
             </p>
           </Card>
 
-          <CardTitle>1.000 Satılabilir Ambalaj Başına Kaynak Kullanımı</CardTitle>
-          <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-3">
-            <StatTile label="Virgin" value={p.virgin_kg ?? "—"} unit="kg" />
-            <StatTile label="PCR" value={p.pcr_kg ?? "—"} unit="kg" />
-            <StatTile label="PIR-Regranül" value={p.regranul_kg ?? "—"} unit="kg" />
-            <StatTile label="Karbon" value={p.karbon_kg_co2 ?? "—"} unit="kg CO₂" />
-            <StatTile label="Fire" value={p.fire_kg ?? "—"} unit="kg" />
-            <StatTile label="Enerji" value={p.enerji_kwh ?? "—"} unit="kWh" />
-          </div>
-          {p.karbon_kg_co2 != null && (
-            <div className="-mt-5 mb-8">
-              <Badge tone={carbonEfStatusTone(p.karbon_veri_kalitesi as string)}>
-                {carbonEfStatusLabel(p.karbon_veri_kalitesi as string)}
-              </Badge>
+          <Card className="mb-8">
+            <CardTitle subtitle="1.000 satılabilir ambalaj başına — üç sütun da AYNI birimde (kg), doğrudan kıyaslanabilir.">
+              Referans | Tahmini | Gerçekleşen
+            </CardTitle>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-ink/40">
+                    <th className="py-1 pr-4 font-normal"></th>
+                    <th className="py-1 pr-4 font-normal">Referans</th>
+                    <th className="py-1 pr-4 font-normal">
+                      Tahmini <Badge tone="virgin">Aşama 8</Badge>
+                    </th>
+                    <th className="py-1 pr-4 font-normal">
+                      Gerçekleşen <Badge tone="pcr">Aşama 12</Badge>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {TRIPLE_ROWS.map((row) => (
+                    <tr key={row.key} className="border-t border-ink/5">
+                      <td className="py-1.5 pr-4 text-ink/50">{row.label}</td>
+                      <td className="py-1.5 pr-4 font-mono">
+                        {result.triple_comparison.reference ? (
+                          formatTripleCell(result.triple_comparison.reference[row.key], row.unit)
+                        ) : (
+                          <span className="text-ink/30">Referans yok</span>
+                        )}
+                      </td>
+                      <td className="py-1.5 pr-4 font-mono">
+                        {formatTripleCell(result.triple_comparison.tahmini[row.key], row.unit)}
+                      </td>
+                      <td className="py-1.5 pr-4 font-mono">
+                        {result.triple_comparison.gerceklesen
+                          ? formatTripleCell(result.triple_comparison.gerceklesen[row.key], row.unit)
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
+            {p.karbon_kg_co2 != null && (
+              <div className="mt-3">
+                <Badge tone={carbonEfStatusTone(p.karbon_veri_kalitesi as string)}>
+                  {carbonEfStatusLabel(p.karbon_veri_kalitesi as string)}
+                </Badge>
+              </div>
+            )}
+            {result.triple_comparison.gains && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {Object.entries(result.triple_comparison.gains).map(([k, v]) => (
+                  <Badge key={k} tone={v >= 0 ? "pcr" : "warn"}>
+                    {GAIN_LABELS[k] ?? k}: {v}%
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {!result.triple_comparison.reference && (
+              <p className="mt-3 text-xs text-ink/40">
+                Bu ambalaj türü için firma hafızasında doğrulanmış bir referans reçete henüz yok; azaltım
+                yüzdeleri bu nedenle gösterilmiyor.
+              </p>
+            )}
+          </Card>
+
+          <CardTitle>1.000 Satılabilir Ambalaj Başına Kaynak Kullanımı (Gerçekleşen Ayrıntı)</CardTitle>
+          {/* Faz H.3 — Virgin/PCR/Regranül/Karbon reçete kompozisyonundan
+              HESAPLANIR; Fire/Enerji GERÇEKTEN canlı üretim verisinden gelir
+              (bugün her zaman simülasyon, gerçek PLC/SCADA yok) — tek bir
+              "Gerçekleşen" etiketi altında ASLA karıştırılmaz, her grup
+              kendi kaynak rozetini taşır. */}
+          <div className="mb-4">
+            <div className="mb-2 flex items-center gap-2">
+              {p.kutle_veri_kaynagi != null && typeof p.kutle_veri_kaynagi === "string" && (
+                <Badge tone={dataSourceTone(p.kutle_veri_kaynagi)}>{dataSourceLabel(p.kutle_veri_kaynagi)}</Badge>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <StatTile label="Virgin" value={p.virgin_kg ?? "—"} unit="kg" />
+              <StatTile label="PCR" value={p.pcr_kg ?? "—"} unit="kg" />
+              <StatTile label="PIR-Regranül" value={p.regranul_kg ?? "—"} unit="kg" />
+              <StatTile label="Karbon" value={p.karbon_kg_co2 ?? "—"} unit="kg CO₂" />
+            </div>
+          </div>
+          <div className="mb-8">
+            <div className="mb-2 flex items-center gap-2">
+              {p.fire_enerji_veri_kaynagi != null && typeof p.fire_enerji_veri_kaynagi === "string" && (
+                <Badge tone={dataSourceTone(p.fire_enerji_veri_kaynagi)}>{dataSourceLabel(p.fire_enerji_veri_kaynagi)}</Badge>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+              <StatTile label="Fire" value={p.fire_kg ?? "—"} unit="kg" />
+              <StatTile label="Enerji" value={p.enerji_kwh ?? "—"} unit="kWh" />
+            </div>
+          </div>
 
           <Card>
             <CardTitle>Reçete İzlenebilirlik Geçmişi</CardTitle>

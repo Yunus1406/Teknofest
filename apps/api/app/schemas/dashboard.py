@@ -72,6 +72,16 @@ class CompositionSide(BaseModel):
     carbon_data_quality: str
     is_estimated: bool
     layers: list[LayerCompositionOut] = []
+    # Faz H.1 — 1000 birim başına TAHMİNİ mutlak kütle dengesi (sadece
+    # `is_estimated=True` tarafında dolar; Aşama 12'nin `compute_mass_
+    # breakdown()`'ı ile AYNI fizik/birim kullanılır ki H.4'ün üçlü
+    # karşılaştırması doğrudan kıyaslanabilsin). Ölçü/hat verisi eksikse
+    # ilgili alan None kalır, ASLA uydurulmaz.
+    virgin_kg: float | None = None
+    pcr_kg: float | None = None
+    regranul_kg: float | None = None
+    fire_kg: float | None = None
+    enerji_kwh: float | None = None
 
 
 class ComparisonOut(BaseModel):
@@ -83,6 +93,19 @@ class ComparisonOut(BaseModel):
     gains: dict[str, float] | None  # {"karbon_azaltimi_pct":.., "maliyet_azaltimi_pct":..}
 
 
+class TripleComparisonOut(BaseModel):
+    """Faz H.4 — Aşama 12'nin üç sütunlu karşılaştırması: Referans (geçmiş
+    doğrulanmış üretim) | Tahmini (Aşama 8'in projeksiyonu) | Gerçekleşen.
+    Üçü de AYNI birimde (1000 birim başına kg) — doğrudan kıyaslanabilir.
+    Referans yoksa `reference`/`gains` None — asla uydurma bir azaltım
+    yüzdesi gösterilmez, sadece mutlak değerler kalır."""
+
+    reference: dict | None
+    tahmini: dict
+    gerceklesen: dict | None
+    gains: dict[str, float] | None
+
+
 class FinalResultOut(BaseModel):
     """Aşama 12 — Nihai sonuç (Gerçekleşen)."""
 
@@ -90,3 +113,4 @@ class FinalResultOut(BaseModel):
     per_1000_units: dict
     physical_tests_passed: bool
     version_history: list[dict]
+    triple_comparison: TripleComparisonOut

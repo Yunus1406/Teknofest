@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.dashboard import LayerCompositionOut
+
 
 class ProductionOrderOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -10,6 +12,11 @@ class ProductionOrderOut(BaseModel):
     line_id: str
     status: str
     scheduled_qty_units: int
+    # Faz H.2 — üretim emrini oluşturma anında dolar (operatör onayı olmadan
+    # emir oluşturulamaz, bkz. production_flow_service.create_production_order).
+    order_no: str | None = None
+    approved_by: str | None = None
+    approved_at: datetime | None = None
     # Faz B.6 — simülasyon tamamlanana kadar hepsi None kalır.
     operator: str | None = None
     actual_start: datetime | None = None
@@ -17,6 +24,45 @@ class ProductionOrderOut(BaseModel):
     downtime_minutes: float | None = None
     avg_micron: float | None = None
     actual_layer_ratios: dict = {}
+
+
+class OrderAdditiveOut(BaseModel):
+    layer_index: int | None
+    additive_id: str
+    additive_name: str
+    dosage_pct: float
+
+
+class ProcessParameterSuggestionOut(BaseModel):
+    """Faz F.7 kütüphanesinden, hattın `process_type`'ıyla eşleşen TİPİK
+    parametre aralığı — bir ÖNERİDİR, otomatik bir hedef/kabul kriteri
+    DEĞİLDİR (bkz. SuggestedTestTargetOut'un aynı disiplini)."""
+
+    parameter_name: str
+    typical_min: float | None
+    typical_max: float | None
+    unit: str
+    source: str | None
+
+
+class ProductionOrderSummaryOut(BaseModel):
+    """Faz H.2 — Aşama 9'un gerçek bir üretim talimatına dönüşmesi: reçete
+    kodu+versiyon, toplam kalınlık, katman dağılımı+hammadde oranları
+    (RecipeLayer/RecipeAdditive, Faz B'den — yeniden hesaplanmaz, doğrudan
+    okunur), hedef hat hızı, hedef proses parametresi önerisi. Hat
+    eşleşmemişse veya F.7 kütüphanesinde o proses tipi için satır yoksa
+    ilgili alanlar boş/None kalır — ASLA uydurulmaz."""
+
+    order_no: str | None
+    recipe_code: str
+    recipe_version: int
+    total_micron: float | None
+    layers: list[LayerCompositionOut]
+    additives: list[OrderAdditiveOut]
+    target_line_speed_m_min: float | None
+    target_process_parameters: list[ProcessParameterSuggestionOut]
+    approved_by: str | None
+    approved_at: datetime | None
 
 
 class WasteRecordOut(BaseModel):

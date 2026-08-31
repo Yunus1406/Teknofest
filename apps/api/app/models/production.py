@@ -22,6 +22,18 @@ class ProductionOrder(Base, IdMixin, TimestampMixin):
     # tamamlandığında doldurulur, gerçek PLC/MES entegrasyonunda da aynı
     # alanlar operatör girişi/PLC'den beslenecek şekilde tasarlanmıştır.
     operator: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+    # Faz H.2 — Aşama 9'un gerçek bir üretim talimatına dönüşmesi: insan
+    # okunur emir no + kimin onayladığı + ne zaman onaylandığı. `operator`
+    # (yukarıda) ÜRETİMİ FİİLEN YAPANI temsil eder (bugün sadece simülasyon
+    # sonrası doluyor); `approved_by` ise üretim emrini oluşturma anında
+    # ONAYLAYAN kişidir -- farklı bir rol/adım olabileceğinden ayrı tutulur.
+    # Sistemde gerçek bir login/kullanıcı kimliği YOK -- Faz E'nin "Firma
+    # Profili" deseniyle aynı: serbest metin giriş, sistem doğrulamaz.
+    order_no: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     actual_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     actual_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     downtime_minutes: Mapped[float | None] = mapped_column(Float, nullable=True)
