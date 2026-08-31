@@ -1,0 +1,64 @@
+# Mekanik Test Standartları Kütüphanesi (Faz F.6, Sistem Referans). `unit`
+# alanları app/services/test_targets.py'nin _MECHANICAL_TEST_UNITS
+# sözlüğüyle AYNI olmalıdır (tensile=MPa, elongation=%, dart_impact=J,
+# tear=N, seal=N/15mm) -- aksi halde önerilen aralık yanlış birimde görünür.
+#
+# ÖNEMLİ — DEMO/VARSAYIMSAL VERİ UYARISI: aşağıdaki aralıklar genel esnek
+# ambalaj filmi literatüründen TEMSİLİ değerlerdir, madde/kalınlığa göre
+# gerçekte büyük ölçüde değişir -- kaynaklı bir veritabanı entegrasyonu YOK.
+# Bu kütüphane SADECE bir ÖNERİ sağlar; Faz D.2'nin gerçek Geçti/Kaldı kararı
+# HER ZAMAN kullanıcının kendi girdiği target_min/target_max'a bakar.
+- test_type: tensile
+  standard_name: "ASTM D882"
+  unit: MPa
+  packaging_category: null
+  typical_min: 15
+  typical_max: 40
+  source: "Genel esnek film literatürü (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- test_type: elongation
+  standard_name: "ASTM D882"
+  unit: "%"
+  packaging_category: null
+  typical_min: 100
+  typical_max: 600
+  source: "Genel esnek film literatürü (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- test_type: dart_impact
+  standard_name: "ASTM D1709"
+  unit: J
+  packaging_category: null
+  typical_min: 0.5
+  typical_max: 3.0
+  source: "Genel esnek film literatürü (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- test_type: tear
+  standard_name: "ASTM D1922 (Elmendorf)"
+  unit: N
+  packaging_category: null
+  typical_min: 0.5
+  typical_max: 5.0
+  source: "Genel esnek film literatürü (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- test_type: seal
+  standard_name: "ASTM F88"
+  unit: N/15mm
+  packaging_category: null
+  typical_min: 15
+  typical_max: 40
+  source: "Genel esnek film literatürü (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true

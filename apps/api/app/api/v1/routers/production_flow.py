@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.models.digital_product_passport import DigitalProductPassport
+from app.models.mechanical_test_standard import MechanicalTestStandard
 from app.models.production import PhysicalTest, ProductionOrder, WasteRecord
 from app.models.recipe import Recipe
 from app.schemas.dashboard import ComparisonOut, FinalResultOut
@@ -105,7 +106,13 @@ def list_waste_records(order_id: str, db: Session = Depends(get_db)):
 @router.get("/recipes/{recipe_id}/suggested-test-targets", response_model=list[SuggestedTestTargetOut])
 def get_suggested_test_targets(recipe_id: str, db: Session = Depends(get_db)):
     recipe = _get_recipe_or_404(db, recipe_id)
-    return suggested_physical_test_targets(recipe)
+    # Faz F.6 — kategoriye özgü satır varsa onu, yoksa genel (None) satırı
+    # kullan; DB sorgusu burada yapılır çünkü suggested_physical_test_targets
+    # kasıtlı olarak saf/DB'siz kalır (bkz. test_targets.py docstring'i).
+    mechanical_references: dict[str, MechanicalTestStandard] = {}
+    for row in db.query(MechanicalTestStandard).filter(MechanicalTestStandard.packaging_category.is_(None)).all():
+        mechanical_references[row.test_type] = row
+    return suggested_physical_test_targets(recipe, mechanical_references)
 
 
 class PhysicalVerificationResultOut(BaseModel):

@@ -79,11 +79,21 @@ export interface SpecExtractionOut {
   field_confidence: Record<string, "yuksek" | "orta" | "dusuk">;
 }
 
+export interface RecyclabilityDimensionOut {
+  dimension: string;
+  criterion_text: string;
+  weight_pct: number | null;
+  packaging_category: string | null;
+}
+
 export interface RegulatoryAssessmentOut {
   id: string;
   regulation_id: string;
   verdict: "uygun_gorunuyor" | "inceleme_gerekli" | "uygun_degil";
   reasoning: string;
+  // Faz F.9 — SADECE PPWR Md.6 (geri dönüştürülebilirlik) değerlendirmesinde
+  // dolu, diğer maddelerde null.
+  recyclability_breakdown: { dimensions: RecyclabilityDimensionOut[] } | null;
 }
 
 export interface RegulatoryAssessmentSummaryOut {
@@ -323,12 +333,150 @@ export type AdditiveUpdate = Partial<AdditiveCreate>;
 export interface CarbonEmissionFactorOut {
   id: string;
   material_key: string;
+  factor_type: string;
   ef_value: number;
   unit: string;
   source: string;
   year: number | null;
   geography: string | null;
   version: string | null;
+  is_demo_placeholder: boolean;
+}
+
+// --- Faz F — Ambalaj Referans Veri Kütüphanesi (app/schemas/reference_library.py) ---
+
+export interface RegulationRequirementOut {
+  id: string;
+  regulation_id: string;
+  regulation_no: string;
+  article: string;
+  packaging_category: string | null;
+  target_year: number | null;
+  requirement_text: string;
+  pcr_only: boolean;
+  exception_text: string | null;
+  version: string;
+  source: string | null;
+  default_verdict: string;
+  threshold_value: number | null;
+  threshold_unit: string | null;
+}
+
+export interface ChemicalRestrictionOut {
+  id: string;
+  substance_group: string;
+  restriction_type: string;
+  limit_value: number;
+  limit_unit: string;
+  food_contact_only: boolean;
+  regulation_id: string | null;
+  source: string | null;
+  year: number | null;
+  version: string;
+  is_demo_placeholder: boolean;
+}
+
+export interface FoodContactRequirementOut {
+  id: string;
+  regulation_id: string;
+  requirement_type: string;
+  substance: string | null;
+  limit_value: number | null;
+  limit_unit: string | null;
+  applies_to_pcr: boolean;
+  notes: string | null;
+  source: string | null;
+  year: number | null;
+  version: string;
+  is_demo_placeholder: boolean;
+}
+
+export interface PolymerTechnicalReferenceOut {
+  id: string;
+  polymer_id: string;
+  property_name: string;
+  typical_min: number | null;
+  typical_max: number | null;
+  unit: string;
+  source: string | null;
+  year: number | null;
+  version: string;
+  is_demo_placeholder: boolean;
+}
+
+export interface ProcessReferenceOut {
+  id: string;
+  process_type: string;
+  parameter_name: string;
+  typical_min: number | null;
+  typical_max: number | null;
+  unit: string;
+  source: string | null;
+  year: number | null;
+  version: string;
+  is_demo_placeholder: boolean;
+}
+
+export interface LayerStructureReferenceOut {
+  id: string;
+  structure_pattern: string;
+  typical_usage: string;
+  barrier_properties: string;
+  source: string | null;
+  year: number | null;
+  version: string;
+  is_demo_placeholder: boolean;
+}
+
+export interface MechanicalTestStandardOut {
+  id: string;
+  test_type: string;
+  standard_name: string;
+  unit: string;
+  packaging_category: string | null;
+  typical_min: number | null;
+  typical_max: number | null;
+  source: string | null;
+  year: number | null;
+  version: string;
+  is_demo_placeholder: boolean;
+}
+
+export interface RecyclabilityCriterionOut {
+  id: string;
+  packaging_category: string | null;
+  dimension: string;
+  criterion_text: string;
+  weight_pct: number | null;
+  source: string | null;
+  year: number | null;
+  version: string;
+  is_demo_placeholder: boolean;
+}
+
+export interface CostReferenceFactorOut {
+  id: string;
+  cost_type: string;
+  typical_min: number | null;
+  typical_max: number | null;
+  unit: string;
+  currency: string;
+  source: string | null;
+  year: number | null;
+  geography: string | null;
+  version: string;
+  is_demo_placeholder: boolean;
+}
+
+export interface BenchmarkReferenceOut {
+  id: string;
+  packaging_category: string | null;
+  metric_name: string;
+  typical_value: number | null;
+  unit: string;
+  source: string | null;
+  year: number | null;
+  version: string;
   is_demo_placeholder: boolean;
 }
 

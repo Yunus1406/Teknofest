@@ -12,6 +12,7 @@ from app.api.v1.routers import (
     passport,
     product_sku,
     production_flow,
+    reference_library,
     traceability,
 )
 
@@ -28,3 +29,4 @@ api_router.include_router(passport.router)
 api_router.include_router(company.router)
 api_router.include_router(machine_park.router)
 api_router.include_router(material_library.router)
+api_router.include_router(reference_library.router)

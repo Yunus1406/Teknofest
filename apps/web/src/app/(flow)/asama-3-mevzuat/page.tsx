@@ -7,7 +7,7 @@ import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { regulatoryVerdictLabel, regulatoryVerdictTone } from "@/lib/labels";
+import { recyclabilityDimensionLabel, regulatoryVerdictLabel, regulatoryVerdictTone } from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
 export default function Stage3Page() {
@@ -80,6 +80,21 @@ export default function Stage3Page() {
                     </ul>
                   ) : (
                     <p className="mt-2 text-sm text-ink/60">{a.reasoning}</p>
+                  )}
+                  {a.recyclability_breakdown && (
+                    <div className="mt-3 border-t border-ink/10 pt-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                        Geri Dönüştürülebilirlik Kırılımı
+                      </p>
+                      <ul className="mt-1.5 space-y-1.5">
+                        {a.recyclability_breakdown.dimensions.map((d, i) => (
+                          <li key={i} className="text-sm text-ink/60">
+                            <span className="font-medium text-ink/70">{recyclabilityDimensionLabel(d.dimension)}</span>
+                            {d.weight_pct != null ? ` (%${d.weight_pct})` : ""}: {d.criterion_text}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </Card>
               );

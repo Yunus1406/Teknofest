@@ -1,0 +1,76 @@
+# Maliyet Referans Kütüphanesi (Faz F.10, Sistem Referans). `cost_type`,
+# app/models/cost.py'nin CostFactor alanlarıyla BİREBİR eşleşir (elektrik ->
+# electricity_rate, dogalgaz -> gas_rate, iscilik -> labor_rate,
+# atik_bertaraf -> waste_disposal_cost, geri_kazanim -> recovery_cost,
+# makine_saati -> machine_hour_rate) -- bkz. app/services/cost_reference_service.py.
+#
+# ÖNEMLİ — DEMO/VARSAYIMSAL VERİ UYARISI: aşağıdaki aralıklar temsili
+# tahminlerdir, kaynaklı bir piyasa veritabanı entegrasyonu YOK. Optimizasyon
+# skorlaması bu tabloyu OKUMAZ (Faz B.7'nin CostFactor için koyduğu aynı
+# sınır burada da geçerli) -- sadece firma kendi CostFactor'ını GİRMEDİĞİNDE
+# bir yedek/gösterge olarak kullanılabilir.
+- cost_type: elektrik
+  typical_min: 2.5
+  typical_max: 3.5
+  unit: TRY_kWh
+  currency: TRY
+  source: "Genel piyasa referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  geography: "TR"
+  version: "1.0"
+  is_demo_placeholder: true
+
+- cost_type: dogalgaz
+  typical_min: 15
+  typical_max: 25
+  unit: TRY_m3
+  currency: TRY
+  source: "Genel piyasa referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  geography: "TR"
+  version: "1.0"
+  is_demo_placeholder: true
+
+- cost_type: iscilik
+  typical_min: 150
+  typical_max: 250
+  unit: TRY_saat
+  currency: TRY
+  source: "Genel piyasa referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  geography: "TR"
+  version: "1.0"
+  is_demo_placeholder: true
+
+- cost_type: atik_bertaraf
+  typical_min: 2
+  typical_max: 5
+  unit: TRY_kg
+  currency: TRY
+  source: "Genel piyasa referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  geography: "TR"
+  version: "1.0"
+  is_demo_placeholder: true
+
+- cost_type: geri_kazanim
+  typical_min: 3
+  typical_max: 8
+  unit: TRY_kg
+  currency: TRY
+  source: "Genel piyasa referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  geography: "TR"
+  version: "1.0"
+  is_demo_placeholder: true
+
+- cost_type: makine_saati
+  typical_min: 200
+  typical_max: 500
+  unit: TRY_saat
+  currency: TRY
+  source: "Genel piyasa referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  geography: "TR"
+  version: "1.0"
+  is_demo_placeholder: true

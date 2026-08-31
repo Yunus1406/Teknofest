@@ -13,7 +13,9 @@ birim önerilir, target_min/max None bırakılır ve bunun neden böyle olduğu
 açıkça belirtilir."""
 from dataclasses import dataclass
 
+from app.models.mechanical_test_standard import MechanicalTestStandard
 from app.models.recipe import Recipe
+from app.services.data_resolution import Candidate, SourceTier, resolve_value
 from app.services.mass_balance import weighted_density_kg_m3
 
 # Nominal kalınlık/gramaj etrafında varsayılan kabul toleransı. Gerçek
@@ -48,9 +50,26 @@ class SuggestedTestTarget:
     target_min: float | None
     target_max: float | None
     note: str
+    # Faz F.6 — Mekanik Test Standartları Kütüphanesi'nden gelen bir ÖNERİ
+    # aralığı. `target_min`/`target_max`'tan KASITLI OLARAK AYRI: bunlar
+    # asla otomatik olarak gerçek geçme/kalma kriterine (target_min/max)
+    # dönüştürülmez -- sadece kullanıcı kriter girerken referans önerisi
+    # sunar (bkz. app/models/mechanical_test_standard.py modül docstring'i,
+    # Faz D.2'nin "gerçek ölçüm + tanımlı kriter olmadan Geçti diyemezsin"
+    # kuralı burada da geçerli).
+    suggested_min: float | None = None
+    suggested_max: float | None = None
+    suggestion_source: str | None = None
 
 
-def suggested_physical_test_targets(recipe: Recipe) -> list[SuggestedTestTarget]:
+def suggested_physical_test_targets(
+    recipe: Recipe, mechanical_references: dict[str, MechanicalTestStandard] | None = None
+) -> list[SuggestedTestTarget]:
+    """`mechanical_references` opsiyoneldir ve DB'den ÇAĞIRAN TARAFTA
+    (bkz. app/api/v1/routers/production_flow.py) sorgulanıp geçirilir --
+    bu fonksiyon kasıtlı olarak DB'ye dokunmaz (saf/test edilebilir kalır,
+    bkz. tests/test_test_targets.py)."""
+    mechanical_references = mechanical_references or {}
     targets: list[SuggestedTestTarget] = []
 
     if recipe.total_micron:
@@ -90,6 +109,37 @@ def suggested_physical_test_targets(recipe: Recipe) -> list[SuggestedTestTarget]
             )
 
     for test_type, unit in _MECHANICAL_TEST_UNITS.items():
+        ref = mechanical_references.get(test_type)
+        suggested_min = suggested_max = None
+        suggestion_source = None
+        note = (
+            "Bilgi tabanında bu malzeme kombinasyonu için mekanik özellik verisi "
+            "olmadığından hedef otomatik hesaplanamıyor; laboratuvar/şartname "
+            "referans değeri elle girilmelidir."
+        )
+        if ref is not None:
+            min_candidate = Candidate(
+                tier=SourceTier.SISTEM_REFERANS, value=ref.typical_min, unit=ref.unit,
+                source_text=ref.source, year=ref.year, version=ref.version,
+                is_demo_placeholder=ref.is_demo_placeholder,
+            )
+            max_candidate = Candidate(
+                tier=SourceTier.SISTEM_REFERANS, value=ref.typical_max, unit=ref.unit,
+                source_text=ref.source, year=ref.year, version=ref.version,
+                is_demo_placeholder=ref.is_demo_placeholder,
+            )
+            resolved_min = resolve_value([min_candidate])
+            resolved_max = resolve_value([max_candidate])
+            suggested_min = resolved_min.value if resolved_min else None
+            suggested_max = resolved_max.value if resolved_max else None
+            if resolved_min or resolved_max:
+                suggestion_source = ref.standard_name
+                placeholder_note = " (DEMO/VARSAYIMSAL — kaynak doğrulaması yapılmadı)" if ref.is_demo_placeholder else ""
+                note = (
+                    f"Sistem Referans Kütüphanesi'nden ({ref.standard_name}) TİPİK bir öneri "
+                    f"aralığı{placeholder_note}: bu bir laboratuvar sonucu DEĞİLDİR, gerçek "
+                    "geçme/kalma kriteri (hedef) kullanıcı tarafından girilmelidir."
+                )
         targets.append(
             SuggestedTestTarget(
                 test_type=test_type,
@@ -98,11 +148,10 @@ def suggested_physical_test_targets(recipe: Recipe) -> list[SuggestedTestTarget]
                 nominal_value=None,
                 target_min=None,
                 target_max=None,
-                note=(
-                    "Bilgi tabanında bu malzeme kombinasyonu için mekanik özellik verisi "
-                    "olmadığından hedef otomatik hesaplanamıyor; laboratuvar/şartname "
-                    "referans değeri elle girilmelidir."
-                ),
+                note=note,
+                suggested_min=suggested_min,
+                suggested_max=suggested_max,
+                suggestion_source=suggestion_source,
             )
         )
 

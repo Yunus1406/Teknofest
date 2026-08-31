@@ -165,6 +165,7 @@ class CarbonEmissionFactorOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     material_key: str
+    factor_type: str
     ef_value: float
     unit: str
     source: str

@@ -1,0 +1,42 @@
+# Kimyasal Kısıtlar Kütüphanesi (Faz F.4, Sistem Referans). PFAS satırları
+# `regulations.yaml`'daki PPWR-ART-5 satırının `criteria` dict'inden TAŞINDI
+# -- aynı sayılar, sadece artık gerçekten sorgulanabilir bir tabloda (eskiden
+# hiçbir Python kodu o dict'i okumuyordu). `regulation_code` ile
+# `regulations.yaml`'a bağlanır (regulation_requirements.yaml'daki desenin
+# aynısı).
+#
+# ÖNEMLİ — DEMO/VARSAYIMSAL VERİ UYARISI: bu rakamlar bilinen bir AB tüzük
+# değeri olsa bile, sistemde hukuki/laboratuvar doğrulama süreci YOK — carbon
+# EF kütüphanesinin aynı temkinli disiplini burada da uygulanır.
+- substance_group: PFAS
+  restriction_type: tekil_madde_siniri
+  limit_value: 25
+  limit_unit: ppb
+  food_contact_only: true
+  regulation_code: PPWR-ART-5
+  source: "PPWR (EU) 2025/40 Md.5(5) — sadeleştirilmiş temsil, hukuki doğrulama yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- substance_group: PFAS
+  restriction_type: toplam_hedef
+  limit_value: 250
+  limit_unit: ppb
+  food_contact_only: true
+  regulation_code: PPWR-ART-5
+  source: "PPWR (EU) 2025/40 Md.5(5) — sadeleştirilmiş temsil, hukuki doğrulama yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- substance_group: PFAS
+  restriction_type: toplam_sinir
+  limit_value: 50
+  limit_unit: ppm
+  food_contact_only: true
+  regulation_code: PPWR-ART-5
+  source: "PPWR (EU) 2025/40 Md.5(5), yürürlük 2026-08-12 — sadeleştirilmiş temsil, hukuki doğrulama yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true

@@ -11,7 +11,7 @@ olabilir — ör. PPWR Md.7'nin kategori+yıl başına ayrı satırı (2030->%10
 2040->%25); tek bir madde tek satırla da temsil edilebilir (ör. Md.6)."""
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, IdMixin, TimestampMixin
@@ -39,5 +39,13 @@ class RegulationRequirement(Base, IdMixin, TimestampMixin):
     # dalı olarak kalmaya devam ederdi (bkz. packaging_service.py
     # _assess_single_regulation genel yol).
     default_verdict: Mapped[str] = mapped_column(String(30), default="inceleme_gerekli")
+
+    # --- Faz F.2: yapılandırılmış sayısal eşik ---------------------------
+    # Eskiden bu sayılar (ör. "%10 -> 2030, %25 -> 2040") SADECE
+    # requirement_text prozasında gömülüydü, sorgulanabilir değildi. Bu iki
+    # alan AYNI kaynaktan (requirement_text'in zaten taşıdığı sayı) türetilir
+    # -- uydurma yeni bir rakam DEĞİL, mevcut prozanın yapılandırılmış hali.
+    threshold_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    threshold_unit: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
     regulation: Mapped["Regulation"] = relationship()  # noqa: F821

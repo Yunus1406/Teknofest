@@ -7,6 +7,9 @@ from pathlib import Path
 import yaml
 from sqlalchemy.orm import Session
 
+from app.models.chemical_restriction import ChemicalRestriction
+from app.models.cost_reference import BenchmarkReference, CostReferenceFactor
+from app.models.food_contact_requirement import FoodContactRequirement
 from app.models.knowledge import (
     Additive,
     CarbonEmissionFactor,
@@ -16,7 +19,14 @@ from app.models.knowledge import (
     Polymer,
     Regulation,
 )
+from app.models.mechanical_test_standard import MechanicalTestStandard
+from app.models.recyclability_criterion import RecyclabilityCriterion
 from app.models.regulation_requirement import RegulationRequirement
+from app.models.technical_reference import (
+    LayerStructureReference,
+    PolymerTechnicalReference,
+    ProcessReference,
+)
 
 _MATERIAL_CLASS_BY_TYPE: dict[str, type[Material]] = {
     "virgin": Material,
@@ -71,6 +81,7 @@ def load_carbon_emission_factors(db: Session) -> dict[str, str]:
         existing = db.query(CarbonEmissionFactor).filter_by(material_key=row["material_key"]).one_or_none()
         fields = dict(
             material_key=row["material_key"],
+            factor_type=row.get("factor_type", "malzeme"),
             ef_value=row["ef_value"],
             unit=row.get("unit", "kg_co2e_per_kg"),
             source=row["source"],
@@ -189,6 +200,261 @@ def load_additives(db: Session, carbon_ef_key_to_id: dict[str, str] | None = Non
     return name_to_id
 
 
+def load_food_contact_requirements(db: Session, regulation_ids: dict[str, str]) -> int:
+    """Faz F.3 — Gıda Temas Mevzuatı Kütüphanesi. Doğal anahtar
+    (regulation_id, requirement_type, substance) ile upsert edilir."""
+    rows = _load_yaml("food_contact_requirements.yaml")
+    count = 0
+    for row in rows:
+        regulation_id = regulation_ids.get(row["regulation_code"])
+        if regulation_id is None:
+            continue
+        existing = (
+            db.query(FoodContactRequirement)
+            .filter_by(regulation_id=regulation_id, requirement_type=row["requirement_type"], substance=row.get("substance"))
+            .one_or_none()
+        )
+        fields = dict(
+            regulation_id=regulation_id,
+            requirement_type=row["requirement_type"],
+            substance=row.get("substance"),
+            limit_value=row.get("limit_value"),
+            limit_unit=row.get("limit_unit"),
+            applies_to_pcr=row.get("applies_to_pcr", False),
+            notes=row.get("notes", "").strip() if row.get("notes") else None,
+            source=row.get("source"),
+            year=row.get("year"),
+            version=row.get("version", "1.0"),
+            is_demo_placeholder=row.get("is_demo_placeholder", True),
+        )
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+        else:
+            db.add(FoodContactRequirement(**fields))
+        count += 1
+    db.flush()
+    return count
+
+
+def load_polymer_technical_references(db: Session, polymer_code_to_id: dict[str, str]) -> int:
+    """Faz F.5 — Polimer Teknik Referans Kütüphanesi. Doğal anahtar
+    (polymer_id, property_name) ile upsert edilir."""
+    rows = _load_yaml("polymer_technical_reference.yaml")
+    count = 0
+    for row in rows:
+        polymer_id = polymer_code_to_id.get(row["polymer_code"])
+        if polymer_id is None:
+            continue
+        existing = (
+            db.query(PolymerTechnicalReference)
+            .filter_by(polymer_id=polymer_id, property_name=row["property_name"])
+            .one_or_none()
+        )
+        fields = dict(
+            polymer_id=polymer_id,
+            property_name=row["property_name"],
+            typical_min=row.get("typical_min"),
+            typical_max=row.get("typical_max"),
+            unit=row["unit"],
+            source=row.get("source"),
+            year=row.get("year"),
+            version=row.get("version", "1.0"),
+            is_demo_placeholder=row.get("is_demo_placeholder", True),
+        )
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+        else:
+            db.add(PolymerTechnicalReference(**fields))
+        count += 1
+    db.flush()
+    return count
+
+
+def load_process_references(db: Session) -> int:
+    """Faz F.7 — Proses Referans Kütüphanesi. Doğal anahtar
+    (process_type, parameter_name) ile upsert edilir."""
+    rows = _load_yaml("process_reference.yaml")
+    count = 0
+    for row in rows:
+        existing = (
+            db.query(ProcessReference)
+            .filter_by(process_type=row["process_type"], parameter_name=row["parameter_name"])
+            .one_or_none()
+        )
+        fields = dict(
+            process_type=row["process_type"],
+            parameter_name=row["parameter_name"],
+            typical_min=row.get("typical_min"),
+            typical_max=row.get("typical_max"),
+            unit=row["unit"],
+            source=row.get("source"),
+            year=row.get("year"),
+            version=row.get("version", "1.0"),
+            is_demo_placeholder=row.get("is_demo_placeholder", True),
+        )
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+        else:
+            db.add(ProcessReference(**fields))
+        count += 1
+    db.flush()
+    return count
+
+
+def load_layer_structure_references(db: Session) -> int:
+    """Faz F.8 — Ambalaj Yapısı Referans Kütüphanesi. Doğal anahtar
+    `structure_pattern` (model üzerinde zaten unique) ile upsert edilir."""
+    rows = _load_yaml("layer_structure_reference.yaml")
+    count = 0
+    for row in rows:
+        existing = db.query(LayerStructureReference).filter_by(structure_pattern=row["structure_pattern"]).one_or_none()
+        fields = dict(
+            structure_pattern=row["structure_pattern"],
+            typical_usage=row["typical_usage"].strip(),
+            barrier_properties=row["barrier_properties"].strip(),
+            source=row.get("source"),
+            year=row.get("year"),
+            version=row.get("version", "1.0"),
+            is_demo_placeholder=row.get("is_demo_placeholder", True),
+        )
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+        else:
+            db.add(LayerStructureReference(**fields))
+        count += 1
+    db.flush()
+    return count
+
+
+def load_mechanical_test_standards(db: Session) -> int:
+    """Faz F.6 — Mekanik Test Standartları Kütüphanesi. Doğal anahtar
+    (test_type, packaging_category) ile upsert edilir."""
+    rows = _load_yaml("mechanical_test_standard.yaml")
+    count = 0
+    for row in rows:
+        existing = (
+            db.query(MechanicalTestStandard)
+            .filter_by(test_type=row["test_type"], packaging_category=row.get("packaging_category"))
+            .one_or_none()
+        )
+        fields = dict(
+            test_type=row["test_type"],
+            standard_name=row["standard_name"],
+            unit=row["unit"],
+            packaging_category=row.get("packaging_category"),
+            typical_min=row.get("typical_min"),
+            typical_max=row.get("typical_max"),
+            source=row.get("source"),
+            year=row.get("year"),
+            version=row.get("version", "1.0"),
+            is_demo_placeholder=row.get("is_demo_placeholder", True),
+        )
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+        else:
+            db.add(MechanicalTestStandard(**fields))
+        count += 1
+    db.flush()
+    return count
+
+
+def load_recyclability_criteria(db: Session) -> int:
+    """Faz F.9 — Geri Dönüştürülebilirlik Değerlendirme Kriterleri. Doğal
+    anahtar (packaging_category, dimension) ile upsert edilir."""
+    rows = _load_yaml("recyclability_criteria.yaml")
+    count = 0
+    for row in rows:
+        existing = (
+            db.query(RecyclabilityCriterion)
+            .filter_by(packaging_category=row.get("packaging_category"), dimension=row["dimension"])
+            .one_or_none()
+        )
+        fields = dict(
+            packaging_category=row.get("packaging_category"),
+            dimension=row["dimension"],
+            criterion_text=row["criterion_text"].strip(),
+            weight_pct=row.get("weight_pct"),
+            source=row.get("source"),
+            year=row.get("year"),
+            version=row.get("version", "1.0"),
+            is_demo_placeholder=row.get("is_demo_placeholder", True),
+        )
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+        else:
+            db.add(RecyclabilityCriterion(**fields))
+        count += 1
+    db.flush()
+    return count
+
+
+def load_cost_reference_factors(db: Session) -> int:
+    """Faz F.10 — Maliyet Referans Kütüphanesi. Doğal anahtar `cost_type`
+    (model üzerinde zaten unique) ile upsert edilir."""
+    rows = _load_yaml("cost_reference_factor.yaml")
+    count = 0
+    for row in rows:
+        existing = db.query(CostReferenceFactor).filter_by(cost_type=row["cost_type"]).one_or_none()
+        fields = dict(
+            cost_type=row["cost_type"],
+            typical_min=row.get("typical_min"),
+            typical_max=row.get("typical_max"),
+            unit=row["unit"],
+            currency=row.get("currency", "TRY"),
+            source=row.get("source"),
+            year=row.get("year"),
+            geography=row.get("geography"),
+            version=row.get("version", "1.0"),
+            is_demo_placeholder=row.get("is_demo_placeholder", True),
+        )
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+        else:
+            db.add(CostReferenceFactor(**fields))
+        count += 1
+    db.flush()
+    return count
+
+
+def load_benchmark_references(db: Session) -> int:
+    """Faz F.11 — Benchmark/Sektör Karşılaştırma Verisi. Dosya KASITLI OLARAK
+    boş -- gerçek bir sektör kaynağı bulunana kadar 0 satır yüklenir (bkz.
+    knowledge_base/data/benchmark_reference.yaml)."""
+    rows = _load_yaml("benchmark_reference.yaml")
+    count = 0
+    for row in rows:
+        existing = (
+            db.query(BenchmarkReference)
+            .filter_by(packaging_category=row.get("packaging_category"), metric_name=row["metric_name"])
+            .one_or_none()
+        )
+        fields = dict(
+            packaging_category=row.get("packaging_category"),
+            metric_name=row["metric_name"],
+            typical_value=row.get("typical_value"),
+            unit=row["unit"],
+            source=row.get("source"),
+            year=row.get("year"),
+            version=row.get("version", "1.0"),
+            is_demo_placeholder=row.get("is_demo_placeholder", True),
+        )
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+        else:
+            db.add(BenchmarkReference(**fields))
+        count += 1
+    db.flush()
+    return count
+
+
 def load_regulations(db: Session) -> dict[str, str]:
     code_to_id: dict[str, str] = {}
     for row in _load_yaml("regulations.yaml"):
@@ -248,8 +514,44 @@ def load_regulation_requirements(db: Session, regulation_ids: dict[str, str]) ->
                 version=row.get("version", "1.0"),
                 source=row.get("source"),
                 default_verdict=row.get("default_verdict", "inceleme_gerekli"),
+                threshold_value=row.get("threshold_value"),
+                threshold_unit=row.get("threshold_unit"),
             )
         )
+        count += 1
+    db.flush()
+    return count
+
+
+def load_chemical_restrictions(db: Session, regulation_ids: dict[str, str]) -> int:
+    """Faz F.4 — Kimyasal Kısıtlar Kütüphanesi. Doğal anahtar
+    (substance_group, restriction_type) ile upsert edilir (ör. PFAS'ın
+    "tekil_madde_siniri" satırı her zaman aynı satırdır)."""
+    rows = _load_yaml("chemical_restrictions.yaml")
+    count = 0
+    for row in rows:
+        existing = (
+            db.query(ChemicalRestriction)
+            .filter_by(substance_group=row["substance_group"], restriction_type=row["restriction_type"])
+            .one_or_none()
+        )
+        fields = dict(
+            substance_group=row["substance_group"],
+            restriction_type=row["restriction_type"],
+            limit_value=row["limit_value"],
+            limit_unit=row["limit_unit"],
+            food_contact_only=row.get("food_contact_only", True),
+            regulation_id=regulation_ids.get(row.get("regulation_code")),
+            source=row.get("source"),
+            year=row.get("year"),
+            version=row.get("version", "1.0"),
+            is_demo_placeholder=row.get("is_demo_placeholder", True),
+        )
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+        else:
+            db.add(ChemicalRestriction(**fields))
         count += 1
     db.flush()
     return count
@@ -262,6 +564,15 @@ def load_all(db: Session) -> dict[str, dict[str, str]]:
     additive_ids = load_additives(db, carbon_ef_ids)
     regulation_ids = load_regulations(db)
     load_regulation_requirements(db, regulation_ids)
+    load_chemical_restrictions(db, regulation_ids)
+    load_food_contact_requirements(db, regulation_ids)
+    load_polymer_technical_references(db, polymer_ids)
+    load_process_references(db)
+    load_layer_structure_references(db)
+    load_mechanical_test_standards(db)
+    load_recyclability_criteria(db)
+    load_cost_reference_factors(db)
+    load_benchmark_references(db)
     db.commit()
     return {
         "polymers": polymer_ids,

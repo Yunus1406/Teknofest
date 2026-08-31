@@ -49,6 +49,9 @@ class RegulatoryAssessmentOut(BaseModel):
     regulation_id: str
     verdict: str
     reasoning: str
+    # Faz F.9 — SADECE PPWR Md.6 (geri dönüştürülebilirlik) değerlendirmesinde
+    # dolu, diğer maddelerde None. verdict/reasoning DEĞİŞMEDİ.
+    recyclability_breakdown: dict | None = None
 
 
 class RegulatoryAssessmentSummaryOut(BaseModel):

@@ -168,3 +168,26 @@ export function scoreCriterionLabel(v: string): string {
 export function formatPct(v: number): string {
   return `%${v.toFixed(0)}`;
 }
+
+// Faz F.9 — geri dönüştürülebilirlik değerlendirmesinin çok boyutlu kırılımı
+// (SADECE PPWR Md.6 kartında görünür, bkz. RegulatoryAssessmentOut.recyclability_breakdown).
+// Faz F.13 — Referans Merkezi Ekranı'nda TÜM kategoriler için tek, ortak
+// bir "bu rakamı nereden aldın?" rozeti. Karbon EF'inin 3 durumlu
+// (tanimli_gercek/tanimli_demo/tanimlanmadi) modelinden FARKLI olarak
+// F.1-F.11'in referans tabloları sadece is_demo_placeholder taşır (bkz.
+// app/models/*.py — hepsi aynı boolean disiplini kullanır).
+export function referenceDataQualityLabel(isDemoPlaceholder: boolean): string {
+  return isDemoPlaceholder ? "DEMO / VARSAYIMSAL" : "Kaynaklı";
+}
+export function referenceDataQualityTone(isDemoPlaceholder: boolean): Tone {
+  return isDemoPlaceholder ? "virgin" : "pcr";
+}
+
+export function recyclabilityDimensionLabel(v: string): string {
+  const map: Record<string, string> = {
+    tasarim_uyumu: "Tasarım Uyumu",
+    ayirma_altyapisi: "Ayrıştırma Altyapısı",
+    toplama_altyapisi: "Toplama Altyapısı",
+  };
+  return map[v] ?? v;
+}

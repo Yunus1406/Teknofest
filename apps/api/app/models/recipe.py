@@ -41,6 +41,11 @@ class RegulatoryAssessment(Base, IdMixin, TimestampMixin):
     regulation_id: Mapped[str] = mapped_column(ForeignKey("regulations.id"))
     verdict: Mapped[str] = mapped_column(String(30))  # RegulatoryVerdict
     reasoning: Mapped[str] = mapped_column(String(1000))
+    # Faz F.9 — SADECE PPWR Md.6 (geri dönüştürülebilirlik) değerlendirmesinde
+    # doldurulur; diğer tüm maddelerde None kalır. verdict/reasoning'in
+    # hesaplanma mantığı bu alanla HİÇ değişmedi (bkz. packaging_service.py
+    # _recyclability_breakdown) -- bu tamamen ek/opsiyonel bir zenginleştirme.
+    recyclability_breakdown: Mapped[dict | None] = mapped_column(nullable=True)
 
     packaging_request: Mapped["PackagingRequest"] = relationship(
         back_populates="regulatory_assessments"

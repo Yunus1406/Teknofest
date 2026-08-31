@@ -7,7 +7,9 @@ from app.constraint_engine.types import EvaluationTier, EvaluationVerdict
 from app.llm.spec_extraction import extract_fields_from_spec_text
 from app.models.enums import PackagingStatus, RecipeSource, RegulatoryVerdict
 from app.models.infrastructure import LineMaterialCompatibility, ProductionLine
+from app.models.chemical_restriction import ChemicalRestriction
 from app.models.knowledge import Material, Polymer, Regulation
+from app.models.recyclability_criterion import RecyclabilityCriterion
 from app.models.recipe import (
     PackagingRequest,
     Recipe,
@@ -95,6 +97,7 @@ def assess_regulations(db: Session, packaging_request: PackagingRequest) -> tupl
             regulation_id=reg.id,
             verdict=verdict,
             reasoning=reasoning,
+            recyclability_breakdown=_recyclability_breakdown(db, reg),
         )
         db.add(row)
         assessments.append(row)
@@ -113,6 +116,30 @@ def _overall_verdict(verdicts: list[str]) -> str:
     if any(v == RegulatoryVerdict.REVIEW.value for v in verdicts):
         return RegulatoryVerdict.REVIEW.value
     return RegulatoryVerdict.OK.value
+
+
+def _recyclability_breakdown(db: Session, reg: Regulation) -> dict | None:
+    """Faz F.9 — SADECE PPWR Md.6 (PPWR-ART-6, geri dönüştürülebilirlik)
+    değerlendirmesi için doldurulur; diğer TÜM maddelerde None kalır. Md.6'nın
+    kendi verdict/reasoning hesaplaması (generic yol, RegulationRequirement
+    satırından, bkz. _assess_single_regulation) BU FONKSİYONLA HİÇ
+    ETKİLEŞMEZ -- bu tamamen ayrı, opsiyonel bir zenginleştirme katmanıdır."""
+    if reg.code != "PPWR-ART-6":
+        return None
+    criteria = db.query(RecyclabilityCriterion).all()
+    if not criteria:
+        return None
+    return {
+        "dimensions": [
+            {
+                "dimension": c.dimension,
+                "criterion_text": c.criterion_text,
+                "weight_pct": c.weight_pct,
+                "packaging_category": c.packaging_category,
+            }
+            for c in criteria
+        ]
+    }
 
 
 def _assess_single_regulation(
@@ -140,6 +167,8 @@ def _assess_single_regulation(
         return _assess_pcr_content(requirements, req, food_grade_pcr_exists)
     if reg.code == "EU-FCM-1935-2004":
         return _assess_fcm(requirements, req, food_grade_pcr_exists)
+    if reg.code == "PPWR-ART-5":
+        return _assess_pfas(db, reg, requirements)
 
     # Genel yol: tek satırlık maddeler DOĞRUDAN DB'deki karar+metni döner.
     if requirements:
@@ -191,6 +220,49 @@ def _assess_fcm(
         "hammaddenin sertifikalı olması, nihai ürünün migrasyon/uygunluk testlerinden "
         f"geçtiği anlamına gelmez ({regulation_no}).",
     )
+
+
+_VERDICT_LABELS: dict[str, str] = {
+    RegulatoryVerdict.OK.value: "Uygun Görünüyor",
+    RegulatoryVerdict.REVIEW.value: "İnceleme Gerekli",
+    RegulatoryVerdict.NOT_OK.value: "Uygun Değil",
+}
+
+
+def _assess_pfas(
+    db: Session, reg: Regulation, requirements: list[RegulationRequirement]
+) -> tuple[str, str]:
+    """PFAS (PPWR Md.5(5)) limitleri artık `ChemicalRestriction` tablosundan
+    okunur (Faz F.4) -- eskiden bu sayılar SADECE requirement_text
+    prozasında gömülüydü, hiçbir kod okumuyordu. Verdict mantığı DEĞİŞMEDİ
+    (hâlâ requirement satırının default_verdict'i), sadece reasoning artık
+    gerçek, sorgulanabilir limit değerlerini alıntılıyor."""
+    verdict = requirements[0].default_verdict if requirements else RegulatoryVerdict.REVIEW.value
+    article = requirements[0].article if requirements else "Md.5(5)"
+
+    restrictions = db.query(ChemicalRestriction).filter_by(regulation_id=reg.id, substance_group="PFAS").all()
+    if not restrictions:
+        # Referans veri hiç yüklenmemişse (ör. eski bir DB) genel yola düş --
+        # sessizce uydurma bir sayı gösterilmez.
+        text = requirements[0].requirement_text if requirements else "PFAS limitleri tanımlı değil."
+        return verdict, text
+
+    by_type = {r.restriction_type: r for r in restrictions}
+    parts = []
+    if single := by_type.get("tekil_madde_siniri"):
+        parts.append(f"tekil PFAS ≤{single.limit_value:g} {single.limit_unit}")
+    if total_target := by_type.get("toplam_hedef"):
+        parts.append(f"toplam PFAS ≤{total_target.limit_value:g} {total_target.limit_unit} hedef")
+    if total_limit := by_type.get("toplam_sinir"):
+        parts.append(f"toplam PFAS ≤{total_limit.limit_value:g} {total_limit.limit_unit} sınır")
+
+    reasoning = (
+        f"PFAS Kontrolü — PPWR {article} | "
+        f"Gıda temaslı ambalaj olduğu için uygulanır ({', '.join(parts)}) | "
+        "Kanıt durumu: Belge/Test Verisi Gerekli | "
+        f"Sonuç: {_VERDICT_LABELS.get(verdict, verdict)}"
+    )
+    return verdict, reasoning
 
 
 _PCR_CATEGORY_DISPLAY_NAMES: dict[str, str] = {

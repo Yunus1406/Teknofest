@@ -1,0 +1,14 @@
+# Benchmark/Sektör Karşılaştırma Verisi (Faz F.11, Sistem Referans).
+#
+# ÖNEMLİ: bu dosya KASITLI OLARAK BOŞTUR. Ambalaj türü bazında tipik virgin/
+# PCR oranı, tipik kalınlık, tipik karbon yoğunluğu gibi sektör ortalaması
+# rakamları için sistemde GERÇEK/kaynaklı bir sektör veritabanı entegrasyonu
+# YOK -- uydurma bir "sektör ortalaması" üretmek, bu sistemin genelindeki
+# "kaynaksız değer = TANIMLANMADI" disiplinini ihlal eder (bkz.
+# app/services/carbon.py'nin aynı ilkesi). Gerçek bir kaynak (ör. Plastics
+# Europe, ulusal istatistik kurumu) bağlandığında buraya satır eklenmelidir.
+#
+# GET /reference/benchmarks bu dosya boş olduğu sürece [] döner -- bu bir
+# HATA DEĞİLDİR, F.13'ün Referans Merkezi Ekranı bu kategoriyi "Henüz
+# referans veri girilmedi" olarak göstermelidir.
+[]

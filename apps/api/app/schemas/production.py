@@ -83,6 +83,11 @@ class SuggestedTestTargetOut(BaseModel):
     target_min: float | None
     target_max: float | None
     note: str
+    # Faz F.6 — ayrı, açıkça "öneri" etiketli alan; target_min/target_max
+    # DEĞİLDİR, otomatik bir geçme/kalma kriterine dönüşmez.
+    suggested_min: float | None = None
+    suggested_max: float | None = None
+    suggestion_source: str | None = None
 
 
 class SustainabilityResultOut(BaseModel):

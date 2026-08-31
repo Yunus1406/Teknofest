@@ -192,3 +192,27 @@
   geography: null
   version: "v0-demo"
   is_demo_placeholder: true
+
+# --- Faz F.1: Enerji EF'leri (elektrik/doğalgaz) --------------------------
+# Nakliye EF'i için burada BİLİNÇLİ OLARAK satır YOK — gerçek/tahmini bir
+# kaynak henüz seçilmedi, satırın olmaması `Material`/`carbon.py` deseniyle
+# aynı şekilde "TANIMLANMADI" anlamına gelir; uydurma bir sayı eklenmedi.
+- material_key: "Elektrik (TR Şebeke Karışımı)"
+  factor_type: elektrik
+  ef_value: 0.42
+  unit: kg_co2e_per_kwh
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: "TR"
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "Doğalgaz (Yakma)"
+  factor_type: dogalgaz
+  ef_value: 0.20
+  unit: kg_co2e_per_kwh
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true

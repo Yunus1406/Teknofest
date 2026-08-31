@@ -190,6 +190,9 @@ export default function Stage1Page() {
           <Link href="/urun-portfoyu" className="text-sm text-petrol underline underline-offset-2">
             Ürün Portföyü →
           </Link>
+          <Link href="/referans-merkezi" className="text-sm text-petrol underline underline-offset-2">
+            Referans Merkezi →
+          </Link>
         </div>
       </div>
     </div>

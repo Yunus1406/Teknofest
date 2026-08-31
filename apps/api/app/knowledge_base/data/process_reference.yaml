@@ -1,0 +1,87 @@
+# Proses Referans Kütüphanesi (Faz F.7, Sistem Referans). Yaygın ambalaj
+# üretim proseslerinin TİPİK parametre aralığı -- Faz E.2'deki firma-özel
+# makine kaydından (ProductionLine) FARKLI, genel referans. `process_type`
+# Faz E.2'nin MACHINE_CLASSES sözlüğüyle aynı serbest metin değerleri
+# kullanır (DB kısıtı yok).
+#
+# ÖNEMLİ — DEMO/VARSAYIMSAL VERİ UYARISI: aşağıdaki aralıklar genel
+# mühendislik/literatür bilgisidir, kaynaklı bir veritabanı entegrasyonu YOK.
+- process_type: "Blown Film Extrusion"
+  parameter_name: melt_temperature_c
+  typical_min: 160
+  typical_max: 220
+  unit: "°C"
+  source: "Genel ekstrüzyon prosesi referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- process_type: "Blown Film Extrusion"
+  parameter_name: line_speed_m_min
+  typical_min: 30
+  typical_max: 150
+  unit: m_min
+  source: "Genel ekstrüzyon prosesi referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- process_type: "Cast Film Extrusion"
+  parameter_name: melt_temperature_c
+  typical_min: 200
+  typical_max: 280
+  unit: "°C"
+  source: "Genel ekstrüzyon prosesi referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- process_type: "Cast Film Extrusion"
+  parameter_name: line_speed_m_min
+  typical_min: 100
+  typical_max: 400
+  unit: m_min
+  source: "Genel ekstrüzyon prosesi referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- process_type: "Thermoforming"
+  parameter_name: forming_temperature_c
+  typical_min: 120
+  typical_max: 180
+  unit: "°C"
+  source: "Genel termoform prosesi referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- process_type: "Thermoforming"
+  parameter_name: cycle_time_sec
+  typical_min: 3
+  typical_max: 15
+  unit: saniye
+  source: "Genel termoform prosesi referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- process_type: "Injection Molding"
+  parameter_name: melt_temperature_c
+  typical_min: 200
+  typical_max: 280
+  unit: "°C"
+  source: "Genel enjeksiyon prosesi referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- process_type: "Injection Molding"
+  parameter_name: injection_pressure_bar
+  typical_min: 500
+  typical_max: 1500
+  unit: bar
+  source: "Genel enjeksiyon prosesi referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true

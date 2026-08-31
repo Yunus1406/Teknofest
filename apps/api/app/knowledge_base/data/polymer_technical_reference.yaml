@@ -1,0 +1,158 @@
+# Polimer Teknik Referans Kütüphanesi (Faz F.5, Sistem Referans). Bir
+# polimer AİLESİNİN (Polymer, polymers.yaml) TİPİK mekanik/fiziksel özellik
+# aralığı -- Faz E'deki firma-özel hammadde kartından (Material) FARKLI,
+# genel bir kıyaslama kütüphanesi. `polymer_code` ile polymers.yaml'a bağlanır.
+#
+# ÖNEMLİ — DEMO/VARSAYIMSAL VERİ UYARISI: aşağıdaki aralıklar genel
+# mühendislik/literatür bilgisidir (kaynaklı bir veritabanı entegrasyonu
+# YOK) -- carbon EF kütüphanesinin aynı temkinli disiplini burada da
+# uygulanır.
+- polymer_code: PP
+  property_name: tensile_strength_mpa
+  typical_min: 25
+  typical_max: 40
+  unit: MPa
+  source: "Genel polimer mühendisliği referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PP
+  property_name: elongation_at_break_pct
+  typical_min: 100
+  typical_max: 600
+  unit: "%"
+  source: "Genel polimer mühendisliği referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PP
+  property_name: density_g_cm3
+  typical_min: 0.90
+  typical_max: 0.91
+  unit: g_cm3
+  source: "Genel polimer mühendisliği referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PE
+  property_name: tensile_strength_mpa
+  typical_min: 8
+  typical_max: 30
+  unit: MPa
+  source: "Genel polimer mühendisliği referansı (temsili, LDPE-HDPE ailesi geniş aralık) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PE
+  property_name: elongation_at_break_pct
+  typical_min: 100
+  typical_max: 800
+  unit: "%"
+  source: "Genel polimer mühendisliği referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PE
+  property_name: density_g_cm3
+  typical_min: 0.91
+  typical_max: 0.97
+  unit: g_cm3
+  source: "Genel polimer mühendisliği referansı (temsili, LDPE-HDPE ailesi geniş aralık) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PET
+  property_name: tensile_strength_mpa
+  typical_min: 55
+  typical_max: 75
+  unit: MPa
+  source: "Genel polimer mühendisliği referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PET
+  property_name: elongation_at_break_pct
+  typical_min: 30
+  typical_max: 300
+  unit: "%"
+  source: "Genel polimer mühendisliği referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PET
+  property_name: density_g_cm3
+  typical_min: 1.29
+  typical_max: 1.40
+  unit: g_cm3
+  source: "Genel polimer mühendisliği referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PS
+  property_name: tensile_strength_mpa
+  typical_min: 35
+  typical_max: 50
+  unit: MPa
+  source: "Genel polimer mühendisliği referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PS
+  property_name: elongation_at_break_pct
+  typical_min: 1
+  typical_max: 4
+  unit: "%"
+  source: "Genel polimer mühendisliği referansı (temsili, kırılgan yapı) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PS
+  property_name: density_g_cm3
+  typical_min: 1.04
+  typical_max: 1.06
+  unit: g_cm3
+  source: "Genel polimer mühendisliği referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PLA
+  property_name: tensile_strength_mpa
+  typical_min: 45
+  typical_max: 70
+  unit: MPa
+  source: "Genel polimer mühendisliği referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PLA
+  property_name: elongation_at_break_pct
+  typical_min: 2
+  typical_max: 6
+  unit: "%"
+  source: "Genel polimer mühendisliği referansı (temsili, kırılgan yapı) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- polymer_code: PLA
+  property_name: density_g_cm3
+  typical_min: 1.21
+  typical_max: 1.25
+  unit: g_cm3
+  source: "Genel polimer mühendisliği referansı (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true

@@ -1,0 +1,42 @@
+# Geri Dönüştürülebilirlik Değerlendirme Kriterleri (Faz F.9, Sistem
+# Referans). PPWR Md.6'nın çok boyutlu yaklaşımı: tasarım kriteri +
+# ayrıştırma altyapısı + toplama altyapısı -- Faz A'nın basitleştirdiği
+# tek "uygun/uygun değil" kutusunu değiştirmez, sadece Dashboard 3'te Md.6
+# kartının altına EK bir nüanslı kırılım sağlar.
+#
+# ÖNEMLİ — DEMO/VARSAYIMSAL VERİ UYARISI: weight_pct değerleri temsilidir,
+# kaynaklı/resmi bir metodoloji YOK.
+- packaging_category: null
+  dimension: tasarim_uyumu
+  criterion_text: >
+    Katman yapısı ve polimer kombinasyonu ayrıştırmayı zorlaştırmamalı --
+    uyumsuz çok-malzemeli/çok-polimerli yapılardan ve geri dönüşümü
+    engelleyen katkı seviyelerinden kaçınılmalı.
+  weight_pct: 40
+  source: "PPWR (EU) 2025/40 Md.6 — sadeleştirilmiş temsil, kaynaklı metodoloji yok"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- packaging_category: null
+  dimension: ayirma_altyapisi
+  criterion_text: >
+    Ambalaj, mevcut ayrıştırma/geri kazanım tesislerinde (MRF) makine ile
+    tanınabilir ve doğru akışa yönlendirilebilir olmalı.
+  weight_pct: 30
+  source: "PPWR (EU) 2025/40 Md.6 — sadeleştirilmiş temsil, kaynaklı metodoloji yok"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- packaging_category: null
+  dimension: toplama_altyapisi
+  criterion_text: >
+    Ambalajın hedef pazarda kurulu bir toplama sistemine (ör. belediye ayrı
+    toplama, depozito sistemi) fiilen erişimi olmalı -- tasarım uygun olsa
+    bile toplama altyapısı yoksa gerçek geri dönüşüm oranı düşük kalır.
+  weight_pct: 30
+  source: "PPWR (EU) 2025/40 Md.6 — sadeleştirilmiş temsil, kaynaklı metodoloji yok"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true

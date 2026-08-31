@@ -1,0 +1,49 @@
+# Ambalaj Yapısı Referans Kütüphanesi (Faz F.8, Sistem Referans). Yaygın
+# katman yapılarının TİPİK kullanım alanı ve bariyer özelliği -- sayısal bir
+# aralık değil, niteliksel bir referans metni.
+#
+# ÖNEMLİ — DEMO/VARSAYIMSAL VERİ UYARISI: genel ambalaj mühendisliği
+# bilgisidir, kaynaklı bir veritabanı entegrasyonu YOK.
+- structure_pattern: A
+  typical_usage: >
+    Tek katman basit ambalajlar (torba, tabak, kesme film) — nem/gaz
+    bariyeri kritik olmayan ürünler.
+  barrier_properties: >
+    Düşük bariyer; oksijen/nem geçirgenliği yüksek, bariyer katmanı yok.
+  source: "Genel ambalaj mühendisliği bilgisi (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- structure_pattern: A/B/A
+  typical_usage: >
+    Orta bariyer gerektiren esnek film ambalaj — iç/dış katman aynı
+    polimerden (ör. PE), orta katman farklı bir fonksiyonel malzemeden.
+  barrier_properties: >
+    Orta seviye nem/oksijen bariyeri; maliyet-performans dengesi iyi.
+  source: "Genel ambalaj mühendisliği bilgisi (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- structure_pattern: ABC
+  typical_usage: >
+    Yüksek bariyer gerektiren gıda ambalajı — üç farklı fonksiyonel katman
+    (ör. mühür katmanı, bariyer katmanı, dış koruma katmanı).
+  barrier_properties: >
+    Yüksek bariyer; genellikle EVOH/PA gibi ayrı bir bariyer katmanı içerir.
+  source: "Genel ambalaj mühendisliği bilgisi (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- structure_pattern: ABCBA
+  typical_usage: >
+    Çok yüksek bariyer + mekanik dayanım gerektiren özel ürünler — 5
+    katmanlı simetrik yapı (ör. et/peynir gibi hassas gıdalar).
+  barrier_properties: >
+    En yüksek bariyer seviyesi; karmaşık/pahalı üretim, tie-layer gerektirir.
+  source: "Genel ambalaj mühendisliği bilgisi (temsili) — kaynak doğrulaması yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true

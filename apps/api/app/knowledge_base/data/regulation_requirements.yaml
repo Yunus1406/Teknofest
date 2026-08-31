@@ -51,6 +51,9 @@
   version: "1.0"
   source: "PPWR (EU) 2025/40 Md.7 — sadeleştirilmiş temsil, tek referans senaryo"
   default_verdict: inceleme_gerekli
+  # Faz F.2 — requirement_text'teki "%10" sayısının yapılandırılmış hali.
+  threshold_value: 10.0
+  threshold_unit: "%_pcr_icerik"
 
 - regulation_code: PPWR-ART-7
   regulation_no: "EU 2025/40"
@@ -66,6 +69,8 @@
   version: "1.0"
   source: "PPWR (EU) 2025/40 Md.7 — sadeleştirilmiş temsil, tek referans senaryo"
   default_verdict: inceleme_gerekli
+  threshold_value: 25.0
+  threshold_unit: "%_pcr_icerik"
 
 - regulation_code: PPWR-ART-5
   regulation_no: "EU 2025/40"

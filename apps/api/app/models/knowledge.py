@@ -47,6 +47,11 @@ class CarbonEmissionFactor(Base, IdMixin, TimestampMixin):
     # okunabilirlik için tanımlayıcı etiket (ör. "PP Virgin") — bağlayıcı olan
     # Material.carbon_ef_id FK'sidir, bu alan sadece EF kütüphanesi tablosunu
     # tek başına anlamlı kılmak için.
+    # Faz F.1 — bu satırın HANGİ TÜR emisyon faktörü olduğu: malzeme/elektrik/
+    # dogalgaz/nakliye. Eskiden hepsi aynı "torba"daydı (material_key serbest
+    # metin); artık F.13'ün Referans Merkezi'nde kategoriye göre ayrıştırmak
+    # ve ileride "elektrik EF'i" gibi türe özgü bir sorgu yazabilmek için.
+    factor_type: Mapped[str] = mapped_column(String(20), default="malzeme")
     ef_value: Mapped[float] = mapped_column(Float)
     unit: Mapped[str] = mapped_column(String(40), default="kg_co2e_per_kg")
     source: Mapped[str] = mapped_column(String(300))

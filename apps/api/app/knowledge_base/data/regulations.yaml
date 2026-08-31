@@ -90,3 +90,24 @@
     requires_food_grade_certification_for_direct_contact: true
     pcr_requires_decontamination_process: true
   applicable_packaging_types: [plastik_tabak, esnek_film_ambalaj, sise, kapak, plastik_bardak, plastik_kap]
+
+# Faz F.3 — EU 1935/2004'ün plastik malzemelere özgü uygulama tüzüğü. SADECE
+# `FoodContactRequirement` (food_contact_requirements.yaml) ve F.13'ün
+# Referans Merkezi'nde bir CITATION/referans satırı olarak kullanılır --
+# applicable_packaging_types BİLİNÇLİ OLARAK BOŞ: assess_regulations
+# (Aşama 3) kategori eşleşmesiyle otomatik süpürüp bu madde için henüz
+# tanımlı bir RegulationRequirement satırı olmadığından "kural tanımlı
+# değil" gibi düşük kaliteli bir kart üretmesin diye (bkz. packaging_service.py).
+- code: EU-10-2011
+  title: Plastik Gıda Temas Malzemeleri Tüzüğü (EU 10/2011)
+  category: gida_temasi
+  description: >
+    EU 1935/2004 çerçeve tüzüğünün plastik gıda temas malzemelerine özgü
+    uygulama tüzüğü — genel migrasyon limiti (GML), madde bazlı spesifik
+    migrasyon limitleri (SML) ve geri dönüştürülmüş plastiğin gıda temaslı
+    kullanımı için ek onay/dekontaminasyon süreci gereklilikleri taşır.
+  criteria:
+    overall_migration_limit_mg_dm2: 10
+    specific_migration_limits_are_substance_based: true
+    pcr_requires_authorised_decontamination_process: true
+  applicable_packaging_types: []

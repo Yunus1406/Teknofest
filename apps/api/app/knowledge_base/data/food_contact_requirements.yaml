@@ -1,0 +1,57 @@
+# Gıda Temas Mevzuatı Kütüphanesi (Faz F.3, Sistem Referans). `regulation_code`
+# ile regulations.yaml'a bağlanır (regulation_requirements.yaml'daki desenin
+# aynısı). requirement_type: genel_migrasyon / spesifik_migrasyon /
+# pcr_dekontaminasyon.
+#
+# ÖNEMLİ — DEMO/VARSAYIMSAL VERİ UYARISI: Genel Migrasyon Limiti (10 mg/dm²)
+# EU 10/2011'in bilinen bir rakamıdır, ama bu sistemde hukuki/laboratuvar
+# doğrulama süreci YOK — carbon EF kütüphanesinin aynı temkinli disiplini
+# burada da uygulanır, is_demo_placeholder: true.
+
+- regulation_code: EU-10-2011
+  requirement_type: genel_migrasyon
+  substance: null
+  limit_value: 10
+  limit_unit: mg_dm2
+  applies_to_pcr: false
+  notes: >
+    Genel Migrasyon Limiti (GML) — gıda simülanına toplam madde geçişi için
+    üst sınır; tüm plastik gıda temas malzemeleri için geçerlidir (Md.12).
+  source: "EU 10/2011 Md.12 — sadeleştirilmiş temsil, hukuki doğrulama yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+# Spesifik migrasyon limitleri (SML) madde bazlıdır -- TEK bir "temsili"
+# sayı gerçeği yansıtmaz, bu yüzden limit_value/limit_unit BİLİNÇLİ OLARAK
+# null bırakıldı; sadece prosedürel bilgi notes'ta.
+- regulation_code: EU-10-2011
+  requirement_type: spesifik_migrasyon
+  substance: null
+  limit_value: null
+  limit_unit: null
+  applies_to_pcr: false
+  notes: >
+    Spesifik Migrasyon Limitleri (SML) madde bazlıdır -- Ek I Birlik
+    Listesi'ndeki her madde için ayrı bir limit tanımlanır; tek bir genel
+    sayıya indirgenemez. Sistemde şu an madde-madde bir SML veritabanı YOK.
+  source: "EU 10/2011 Ek I — sadeleştirilmiş temsil, madde bazlı veri yok"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
+
+- regulation_code: EU-10-2011
+  requirement_type: pcr_dekontaminasyon
+  substance: null
+  limit_value: null
+  limit_unit: null
+  applies_to_pcr: true
+  notes: >
+    Gıda temaslı katmanda kullanılacak PCR, EFSA onaylı bir dekontaminasyon
+    prosesiyle üretilmiş olmalıdır (temsili referans: (EU) 2022/1616).
+    Sistemde hangi tedarikçi/prosesin onaylı olduğunu doğrulayan bir
+    entegrasyon YOK -- bu, kullanıcının kendi belge kontrolüne bırakılmıştır.
+  source: "(EU) 2022/1616 (temsili referans) — sadeleştirilmiş temsil, hukuki doğrulama yapılmadı"
+  year: null
+  version: "1.0"
+  is_demo_placeholder: true
