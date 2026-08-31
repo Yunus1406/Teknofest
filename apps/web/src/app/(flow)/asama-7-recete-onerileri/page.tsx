@@ -17,6 +17,9 @@ import {
   carbonEfStatusTone,
   dataConfidenceLabel,
   dataConfidenceTone,
+  dataSourceTagLabel,
+  dataSourceTagTone,
+  referenceSearchTierLabel,
   scoreCriterionLabel,
 } from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
@@ -117,13 +120,52 @@ export default function Stage7Page() {
                 <p className="mt-1 text-sm text-ink/80">{f.justification_text}</p>
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-ink/50">
-                <span>
-                  Mevzuat maddeleri: <span className="font-mono">{f.decision_basis.mevzuat_maddeleri.join(", ") || "—"}</span>
-                </span>
-                <span>
-                  Hat: <span className="font-mono">{f.decision_basis.hat_parametreleri?.hat ?? "—"}</span>
-                </span>
+              {f.recipe.data_source_tags && f.recipe.data_source_tags.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {f.recipe.data_source_tags.map((tag) => (
+                    <Badge key={tag} tone={dataSourceTagTone(tag)}>
+                      {dataSourceTagLabel(tag)}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-3 rounded-lg bg-ink/[0.03] p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-ink/50">Karar Dayanağı</p>
+                <div className="mt-1.5 space-y-1 text-xs text-ink/60">
+                  <p>
+                    Geçmiş doğrulanmış üretim:{" "}
+                    <span className="font-mono">
+                      {f.decision_basis.gecmis_receteler.length > 0
+                        ? `${f.decision_basis.gecmis_receteler.length} doğrulanmış benzer üretim (${referenceSearchTierLabel(f.decision_basis.gecmis_recete_kademe ?? "")})`
+                        : "firma hafızasında doğrulanmış benzer reçete bulunamadı"}
+                    </span>
+                  </p>
+                  <p>
+                    Hat teknik sınırları:{" "}
+                    <span className="font-mono">
+                      {f.decision_basis.hat_parametreleri?.hat ?? "—"}
+                      {f.decision_basis.hat_parametreleri?.katman_yapisi
+                        ? ` · ${f.decision_basis.hat_parametreleri.katman_yapisi}`
+                        : ""}
+                      {f.decision_basis.hat_parametreleri?.mikron_araligi
+                        ? ` · ${f.decision_basis.hat_parametreleri.mikron_araligi} μm`
+                        : ""}
+                    </span>
+                  </p>
+                  <p>
+                    Hammadde teknik veri föyü sayısı:{" "}
+                    <span className="font-mono">{f.decision_basis.hammadde_veri_foyu_sayisi}</span>
+                  </p>
+                  <p>
+                    Mevzuat maddeleri:{" "}
+                    <span className="font-mono">{f.decision_basis.mevzuat_maddeleri.join(", ") || "—"}</span>
+                  </p>
+                  <p>
+                    Karbon EF versiyonu:{" "}
+                    <span className="font-mono">{f.decision_basis.karbon_ef_versiyonu ?? "Belirtilmedi"}</span>
+                  </p>
+                </div>
               </div>
             </Card>
           );

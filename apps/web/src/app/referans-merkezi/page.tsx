@@ -245,23 +245,27 @@ export default function ReferansMerkeziPage() {
             <EmptyCategory />
           ) : (
             <div>
-              {regulation.map((r) => (
-                <ReferenceRow
-                  key={r.id}
-                  title={`${r.regulation_no} — ${r.article}`}
-                  subtitle={r.requirement_text}
-                  extra={
-                    r.threshold_value != null
-                      ? `Eşik: %${r.threshold_value} ${r.threshold_unit ?? ""}${r.target_year ? ` (${r.target_year})` : ""}`
-                      : r.packaging_category
-                        ? `Kategori: ${r.packaging_category}`
-                        : null
-                  }
-                  source={r.source}
-                  year={r.target_year}
-                  version={r.version}
-                />
-              ))}
+              {regulation.map((r) => {
+                const extraParts: string[] = [];
+                if (r.threshold_value != null) {
+                  extraParts.push(`Eşik: %${r.threshold_value} ${r.threshold_unit ?? ""}${r.target_year ? ` (${r.target_year})` : ""}`);
+                }
+                if (r.packaging_category) extraParts.push(`Kategori: ${r.packaging_category}`);
+                if (r.exception_text) extraParts.push(`İstisna: ${r.exception_text}`);
+                extraParts.push(`Uygulanma Tarihi: ${r.effective_date ? new Date(r.effective_date).toLocaleDateString("tr-TR") : "Belirtilmedi"}`);
+                extraParts.push(`Son Güncelleme: ${r.last_reviewed_at ? new Date(r.last_reviewed_at).toLocaleDateString("tr-TR") : "Belirtilmedi"}`);
+                return (
+                  <ReferenceRow
+                    key={r.id}
+                    title={`${r.regulation_no} — ${r.article}${r.sub_article ? ` (${r.sub_article})` : ""}`}
+                    subtitle={r.requirement_text}
+                    extra={extraParts.join(" · ")}
+                    source={r.source}
+                    year={r.target_year}
+                    version={r.version}
+                  />
+                );
+              })}
             </div>
           ))}
 

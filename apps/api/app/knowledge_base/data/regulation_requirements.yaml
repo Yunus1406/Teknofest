@@ -5,7 +5,8 @@
 
 - regulation_code: PPWR-ART-10
   regulation_no: "EU 2025/40"
-  article: "Md.10 / Ek IV"
+  article: "Md.10"
+  sub_article: "Ek IV"
   packaging_category: null
   target_year: null
   requirement_text: >
@@ -18,10 +19,12 @@
   version: "1.0"
   source: "PPWR (EU) 2025/40 — sadeleştirilmiş temsil"
   default_verdict: inceleme_gerekli
+  last_reviewed_at: "2026-08-31"
 
 - regulation_code: PPWR-ART-6
   regulation_no: "EU 2025/40"
   article: "Md.6"
+  sub_article: null
   packaging_category: null
   target_year: null
   requirement_text: >
@@ -33,6 +36,7 @@
   version: "1.0"
   source: "PPWR (EU) 2025/40 — sadeleştirilmiş temsil"
   default_verdict: inceleme_gerekli
+  last_reviewed_at: "2026-08-31"
 
 # PPWR Md.7 — kategori+yıl başına AYRI satır (tek bir referans senaryo: gıda
 # temaslı + PET dışı plastik). Diğer kategoriler (ör. PET şişeler) henüz
@@ -40,6 +44,7 @@
 - regulation_code: PPWR-ART-7
   regulation_no: "EU 2025/40"
   article: "Md.7"
+  sub_article: null
   packaging_category: gida_temasli_pet_disi_plastik
   target_year: 2030
   requirement_text: >
@@ -54,10 +59,12 @@
   # Faz F.2 — requirement_text'teki "%10" sayısının yapılandırılmış hali.
   threshold_value: 10.0
   threshold_unit: "%_pcr_icerik"
+  last_reviewed_at: "2026-08-31"
 
 - regulation_code: PPWR-ART-7
   regulation_no: "EU 2025/40"
   article: "Md.7"
+  sub_article: null
   packaging_category: gida_temasli_pet_disi_plastik
   target_year: 2040
   requirement_text: >
@@ -71,27 +78,31 @@
   default_verdict: inceleme_gerekli
   threshold_value: 25.0
   threshold_unit: "%_pcr_icerik"
+  last_reviewed_at: "2026-08-31"
 
 - regulation_code: PPWR-ART-5
   regulation_no: "EU 2025/40"
-  article: "Md.5(5)"
+  article: "Md.5"
+  sub_article: "Fıkra 5"
   packaging_category: null
   target_year: null
   requirement_text: >
     PFAS Kontrolü — PPWR Md.5(5) | Gıda temaslı ambalaj olduğu için uygulanır
     (12 Ağustos 2026'dan itibaren yürürlükte: tekil PFAS ≤25 ppb, toplam PFAS
     ≤250 ppb hedef, toplam PFAS ≤50 ppm sınır) | Kanıt durumu: Belge/Test
-    Verisi Gerekli | Sonuç: İnceleme Gerekli
+    Verisi Gerekli — otomatik doğrulama için laboratuvar/test verisi gerekir.
   pcr_only: false
   exception_text: null
   effective_date: "2026-08-12"
   version: "1.0"
   source: "PPWR (EU) 2025/40 Md.5(5)"
   default_verdict: inceleme_gerekli
+  last_reviewed_at: "2026-08-31"
 
 - regulation_code: PPWR-ART-9
   regulation_no: "EU 2025/40"
   article: "Md.9"
+  sub_article: null
   packaging_category: null
   target_year: null
   requirement_text: >
@@ -103,19 +114,24 @@
   version: "1.0"
   source: "PPWR (EU) 2025/40 — sadeleştirilmiş temsil"
   default_verdict: uygun_gorunuyor
+  last_reviewed_at: "2026-08-31"
 
 - regulation_code: EU-FCM-1935-2004
   regulation_no: "EU 1935/2004"
   article: "Çerçeve Tüzüğü"
+  sub_article: null
   packaging_category: null
   target_year: null
   requirement_text: >
     Gıda ile doğrudan temas eden ambalaj malzemeleri, migrasyon limitleri ve
     gıda sınıfı sertifikasyonu şartlarını sağlamalıdır; sertifikasız PCR/
-    regranül gıda temaslı katmanda kullanılamaz.
+    regranül gıda temaslı katmanda kullanılamaz. Nihai ambalajın migrasyon/
+    uygunluk testlerinden geçtiğinin doğrulanması otomatikleştirilemez,
+    laboratuvar testi gerekir.
   pcr_only: false
   exception_text: null
   effective_date: null
   version: "1.0"
   source: "EU 1935/2004 — sadeleştirilmiş temsil"
   default_verdict: inceleme_gerekli
+  last_reviewed_at: "2026-08-31"

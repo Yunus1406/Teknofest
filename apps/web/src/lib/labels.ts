@@ -114,11 +114,17 @@ export function physicalTestResultTone(v: string | null | undefined): Tone {
   }
 }
 
+// Faz G.2 — eskiden 3 durumdu (uygun_gorunuyor/inceleme_gerekli/uygun_degil).
+// veri_eksik/henuz_metodoloji_yok bir onay/red İDDİASI taşımaz -- sadece
+// "bunu otomatik değerlendiremedik" bilgisidir (bkz. app/services/
+// packaging_service.py _overall_verdict).
 export function regulatoryVerdictLabel(v: string): string {
   const map: Record<string, string> = {
     uygun_gorunuyor: "Uygun Görünüyor",
     inceleme_gerekli: "İnceleme Gerekli",
     uygun_degil: "Uygun Değil",
+    veri_eksik: "Veri Eksik",
+    henuz_metodoloji_yok: "Henüz Uygulanabilir Metodoloji Bulunmuyor",
   };
   return map[v] ?? v;
 }
@@ -128,6 +134,8 @@ export function regulatoryVerdictTone(v: string): Tone {
     uygun_gorunuyor: "pcr",
     inceleme_gerekli: "virgin",
     uygun_degil: "warn",
+    veri_eksik: "neutral",
+    henuz_metodoloji_yok: "regranul",
   };
   return map[v] ?? "neutral";
 }
@@ -148,6 +156,54 @@ export function materialTypeTone(v: string): Tone {
 
 export function recipeSourceLabel(v: string): string {
   return v === "referans_receteden" ? "Referans Reçeteden" : "Sistem Üretti";
+}
+
+// Faz G.4 — Aşama 5'in 5 kademeli firma hafızası taraması hangi kademede
+// eşleşme bulduğunu gösterir (bkz. app/services/packaging_service.py
+// find_reference_recipe_with_evidence).
+export function referenceSearchTierLabel(tier: string): string {
+  const map: Record<string, string> = {
+    ayni_sku: "Aynı SKU'nun Doğrulanmış Reçetesi",
+    ayni_ambalaj_turu: "Aynı Ambalaj Türü",
+    benzer_kullanim_alani: "Benzer Kullanım Alanı",
+    benzer_teknik_sartlar: "Benzer Teknik Şartlar (±%20 tolerans)",
+    ayni_hat: "Aynı Üretim Hattı",
+  };
+  return map[tier] ?? tier;
+}
+
+// Faz G.5 — Aşama 7'nin ÇOKLU-etiket "Veri Kaynağı" listesi
+// (`Recipe.data_source_tags`). Mevcut TEK-değerli `dataSourceLabel`/
+// `DataSourceType` ile KARIŞTIRILMAZ — o modelin (PhysicalTest.source vb.)
+// üzerinde, bu ise bir reçeteye katkıda bulunan TÜM kaynakların kümesi
+// üzerinde çalışır. Sabit 8 değerli kelime dağarcığı, bkz.
+// app/models/recipe.py Recipe.data_source_tags modül yorumu.
+export function dataSourceTagLabel(v: string): string {
+  const map: Record<string, string> = {
+    firma_verisi: "Firma Verisi",
+    gecmis_uretim: "Geçmiş Üretim",
+    makineden_alinan: "Makineden Alınan",
+    teknik_veri_foyu: "Teknik Veri Föyü",
+    laboratuvar: "Laboratuvar",
+    mevzuat: "Mevzuat",
+    hesaplanan: "Hesaplanan",
+    varsayimsal: "Varsayımsal",
+  };
+  return map[v] ?? v;
+}
+
+export function dataSourceTagTone(v: string): Tone {
+  const map: Record<string, Tone> = {
+    firma_verisi: "pcr",
+    gecmis_uretim: "pcr",
+    makineden_alinan: "pcr",
+    teknik_veri_foyu: "petrol",
+    laboratuvar: "petrol",
+    mevzuat: "petrol",
+    hesaplanan: "neutral",
+    varsayimsal: "warn",
+  };
+  return map[v] ?? "neutral";
 }
 
 export function scoreCriterionLabel(v: string): string {

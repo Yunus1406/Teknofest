@@ -47,6 +47,8 @@ def _material_to_spec(m: Material) -> MaterialSpec:
         carbon_factor_kg_co2_per_kg=carbon_value,
         carbon_ef_status=carbon_status,
         carbon_ef_source=carbon_source,
+        carbon_ef_version=m.carbon_ef.version if m.carbon_ef is not None else None,
+        technical_datasheet_ref=m.technical_datasheet_ref,
     )
 
 
@@ -111,16 +113,53 @@ def _build_layer_options(
     return options
 
 
-def _decision_basis(line: ProductionLine, regulations: list[RegulationSpec]) -> dict:
+def _decision_basis(
+    line: ProductionLine,
+    regulations: list[RegulationSpec],
+    candidate: RecipeCandidate,
+    reference_evidence: dict | None,
+) -> dict:
+    """Faz G.5 — `gecmis_receteler` artık GERÇEKTEN doluyor (Faz G.4'ün
+    Aşama 5'te bu ambalaj talebi için bulduğu kanıttan, bkz. run_optimization);
+    eskiden burada her zaman sabit `[]` vardı ("Faz 1: geçmiş doğrulanmış
+    reçete yok" yorumuyla). `hammadde_veri_foyu_sayisi`/`karbon_ef_versiyonu`
+    YENİ alanlar -- ADAYIN GERÇEK katmanlarından türetilir, uydurulmaz."""
+    datasheet_count = sum(1 for layer in candidate.layers if layer.material.technical_datasheet_ref)
+    carbon_versions = sorted({
+        layer.material.carbon_ef_version for layer in candidate.layers if layer.material.carbon_ef_version
+    })
     return {
-        "gecmis_receteler": [],  # Faz 1: geçmiş doğrulanmış reçete yok
+        "gecmis_receteler": reference_evidence["candidate_recipe_ids"] if reference_evidence else [],
+        "gecmis_recete_kademe": reference_evidence["tier"] if reference_evidence else None,
         "mevzuat_maddeleri": [r.code for r in regulations],
         "hat_parametreleri": {
             "hat": line.name,
             "katman_yapisi": line.layer_structure,
             "mikron_araligi": f"{line.min_micron:.0f}-{line.max_micron:.0f}",
         },
+        "hammadde_veri_foyu_sayisi": datasheet_count,
+        "karbon_ef_versiyonu": carbon_versions[0] if carbon_versions else None,
     }
+
+
+def compute_data_source_tags(candidate: RecipeCandidate, decision_basis: dict) -> list[str]:
+    """Faz G.5 — bir reçetenin GERÇEKTEN hangi veri kaynaklarından
+    beslendiğini işaretler. `firma_verisi`/`makineden_alinan`/`laboratuvar`
+    bu fonksiyonda KASITLI OLARAK asla eklenmez -- Aşama 7'nin adayları henüz
+    üretilmemiştir, bu üç etiket ancak Aşama 10-12'de gerçek üretim/lab
+    verisi bağlandığında anlamlı olur (bkz. app/models/enums.py
+    DataSourceType'ın aynı disiplini)."""
+    tags: list[str] = ["hesaplanan"]  # skorlama hesaplaması her zaman bir katkı
+    if decision_basis.get("gecmis_receteler"):
+        tags.append("gecmis_uretim")
+    if any(layer.material.technical_datasheet_ref for layer in candidate.layers):
+        tags.append("teknik_veri_foyu")
+    if decision_basis.get("mevzuat_maddeleri"):
+        tags.append("mevzuat")
+    carbon_statuses = {layer.material.carbon_ef_status for layer in candidate.layers}
+    if carbon_statuses & {"tanimlanmadi", "tanimli_demo"}:
+        tags.append("varsayimsal")
+    return tags
 
 
 def _persist_finalist(
@@ -133,7 +172,11 @@ def _persist_finalist(
     score,
     regulations: list[RegulationSpec],
     target_volume_units: int,
+    reference_evidence: dict | None,
 ) -> OptimizationCandidate:
+    decision_basis = _decision_basis(line, regulations, candidate, reference_evidence)
+    data_source_tags = compute_data_source_tags(candidate, decision_basis)
+
     recipe = Recipe(
         packaging_request_id=packaging_request.id,
         version=1,
@@ -141,6 +184,7 @@ def _persist_finalist(
         source=RecipeSource.URETILDI.value,
         status="onerildi",
         total_micron=candidate.total_micron,
+        data_source_tags=data_source_tags,
     )
     db.add(recipe)
     db.flush()
@@ -198,7 +242,7 @@ def _persist_finalist(
         "score": score.total,
         "score_breakdown": score.breakdown,
         "data_confidence": score.data_confidence,
-        "decision_basis": _decision_basis(line, regulations),
+        "decision_basis": decision_basis,
     }
     justification_text = build_finalist_justification(justification_data)
 
@@ -211,7 +255,7 @@ def _persist_finalist(
         score_breakdown=score.breakdown,
         carbon_data_quality=score.carbon_ef_status,
         justification_text=justification_text,
-        decision_basis=_decision_basis(line, regulations),
+        decision_basis=decision_basis,
     )
     db.add(opt_candidate)
     db.flush()
@@ -259,6 +303,19 @@ def run_optimization(
             "Bu hat için bilgi tabanında uygun hammadde bulunamadı; önce KB/hat eşleştirmesi kontrol edin."
         )
 
+    # Faz G.5 — Aşama 5'te bu ambalaj talebi için zaten kurulmuş firma
+    # hafızası kanıtını (Faz G.4) yeniden kullan; kaskadı burada TEKRAR
+    # ÇALIŞTIRMAZ, Aşama 5'in seed reçetesinin `reference_search_evidence`
+    # alanını okur (o reçete zaten bu talep için en yeni/en kesin kanıtı
+    # taşıyor). Hiç Aşama-5 reçetesi yoksa (ör. testler) None kalır.
+    seed_recipe = (
+        db.query(Recipe)
+        .filter_by(packaging_request_id=packaging_request.id)
+        .order_by(Recipe.created_at)
+        .first()
+    )
+    reference_evidence = seed_recipe.reference_search_evidence if seed_recipe is not None else None
+
     line_spec = _line_to_spec(line)
     candidates = generate_candidates(line_spec, layer_options, ratio_step_pct=ratio_step_pct)
     generation_breakdown = describe_candidate_generation(line_spec, layer_options, ratio_step_pct=ratio_step_pct)
@@ -305,6 +362,7 @@ def run_optimization(
             score,
             regulations,
             packaging_request.target_volume_units,
+            reference_evidence,
         )
         finalist_rows.append(row)
 

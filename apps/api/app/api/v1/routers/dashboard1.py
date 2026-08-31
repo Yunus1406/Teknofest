@@ -27,9 +27,17 @@ def get_summary(db: Session = Depends(get_db)) -> DashboardSummaryOut:
     realized = dashboard_aggregation.compute_realized_and_gains(db)
     overview = dashboard_aggregation.compute_company_overview(db)
 
+    # Faz G.2 — 5 durumlu modelde SADECE "uygun_degil"/"inceleme_gerekli"
+    # gerçek bir alarm sayılır; "veri_eksik"/"henuz_metodoloji_yok" bir
+    # onay/red iddiası taşımaz, ayrı bir bilgi durumudur (kullanıcının acilen
+    # tepki vermesi gereken bir uyarı değil).
     regulatory_alerts = (
         db.query(RegulatoryAssessment)
-        .filter(RegulatoryAssessment.verdict != RegulatoryVerdict.OK.value)
+        .filter(
+            RegulatoryAssessment.verdict.in_(
+                [RegulatoryVerdict.NOT_OK.value, RegulatoryVerdict.REVIEW.value]
+            )
+        )
         .count()
     )
 

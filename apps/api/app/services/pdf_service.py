@@ -138,6 +138,8 @@ def _verdict_label(v: str | None) -> str:
         "uygun_gorunuyor": "Uygun Görünüyor",
         "inceleme_gerekli": "İnceleme Gerekli",
         "uygun_degil": "Uygun Değil",
+        "veri_eksik": "Veri Eksik",
+        "henuz_metodoloji_yok": "Henüz Uygulanabilir Metodoloji Bulunmuyor",
     }.get(v, v or "—")
 
 

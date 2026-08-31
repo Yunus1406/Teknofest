@@ -79,6 +79,16 @@ class ProductionLine(Base, IdMixin, TimestampMixin):
     # durum etiketidir (ör. "aktif"/"bakimda"/"devre_disi").
     availability_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
 
+    # --- Faz G.3: Aşama 4'ten "Kayıtlı Makineden Hat Oluştur" ------------
+    # Bu satır, makine parkındaki BAŞKA ProductionLine satırlarının (her biri
+    # tek bir fiziksel ünite/makine olarak da kaydedilebilir) bir araya
+    # getirilmesiyle oluşturulmuşsa, o bileşenlerin id'lerini taşır. Yeni bir
+    # Equipment/BOM tablosu KURULMADI (bkz. plan G.3 kararı) -- mevcut
+    # ProductionLine hem tekil makineyi hem birleşik hattı temsil eder, bu
+    # alan sadece "bu hat hangi kayıtlı satırlardan türetildi" izini tutar.
+    # None/[] = bu satır bileşik değil, doğrudan tanımlandı.
+    component_line_ids: Mapped[list | None] = mapped_column(nullable=True)
+
     material_compatibility: Mapped[list["LineMaterialCompatibility"]] = relationship(
         back_populates="line"
     )

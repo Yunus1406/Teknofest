@@ -1,6 +1,8 @@
 """Faz F — Ambalaj Referans Veri Kütüphanesi yanıt şemaları. Tüm alt
 kütüphaneler (F.1-F.11) buraya eklenir; salt-okunur GET uçları
 `app/api/v1/routers/reference_library.py`'de tanımlıdır."""
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -10,17 +12,21 @@ class RegulationRequirementOut(BaseModel):
     regulation_id: str
     regulation_no: str
     article: str
+    sub_article: str | None = None
     packaging_category: str | None = None
     target_year: int | None = None
     requirement_text: str
     pcr_only: bool
     exception_text: str | None = None
+    effective_date: datetime | None = None
     version: str
     source: str | None = None
     default_verdict: str
     # Faz F.2
     threshold_value: float | None = None
     threshold_unit: str | None = None
+    # Faz G.2
+    last_reviewed_at: datetime | None = None
 
 
 class ChemicalRestrictionOut(BaseModel):

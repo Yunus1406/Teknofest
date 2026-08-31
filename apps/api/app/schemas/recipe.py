@@ -12,6 +12,11 @@ class PackagingRequestCreate(BaseModel):
     sku_id: str | None = None
     # Bu case var olan bir Ürün/SKU'yu mu hedefliyor (bkz. app/models/product_sku.py)?
     # None ise tek seferlik/deneysel bir talep.
+    # Faz G.1 — Aşama 2'nin "Çıkarılan Bilgileri Kontrol Edin" ekranının
+    # gösterdiği ek alanlar (hepsi opsiyonel, uydurma değer yok).
+    target_thickness_micron: float | None = None
+    target_gsm: float | None = None
+    physical_performance_notes: str | None = None
 
 
 class PackagingRequestOut(BaseModel):
@@ -24,6 +29,9 @@ class PackagingRequestOut(BaseModel):
     food_contact: bool
     target_volume_units: int
     dimensions: dict
+    target_thickness_micron: float | None = None
+    target_gsm: float | None = None
+    physical_performance_notes: str | None = None
     spec_file_name: str | None = None
     extracted_fields: dict
     status: str
@@ -40,6 +48,9 @@ class SpecExtractionOut(BaseModel):
     food_contact: bool | None = None
     target_volume_units: int | None = None
     dimensions: dict = {}
+    target_thickness_micron: float | None = None
+    target_gsm: float | None = None
+    physical_performance_notes: str | None = None
     field_confidence: dict[str, str] = {}
 
 
@@ -105,6 +116,13 @@ class RecipeOut(BaseModel):
     is_verified: bool
     total_gsm: float | None = None
     total_micron: float | None = None
+    # Faz G.4 — firma hafızası taramasının kanıtı: {tier, evidence_count,
+    # candidate_recipe_ids}. Referans bulunamadıysa (virgin-only üretim) None.
+    reference_search_evidence: dict | None = None
+    # Faz G.5 — bu reçetenin GERÇEKTEN beslendiği veri kaynakları (birden
+    # fazla olabilir). Sabit 8 değerli kelime dağarcığı, bkz.
+    # app/models/recipe.py Recipe.data_source_tags modül yorumu.
+    data_source_tags: list[str] | None = None
     layers: list[RecipeLayerOut] = []
     additives: list[RecipeAdditiveOut] = []
     evaluations: list[RecipeEvaluationOut] = []

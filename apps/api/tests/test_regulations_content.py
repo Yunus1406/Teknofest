@@ -74,7 +74,11 @@ def test_pfas_card_present_when_food_contact(db_session):
     )
     assert pfas is not None
     assert "PFAS" in pfas.reasoning
-    assert "İnceleme Gerekli" in pfas.reasoning
+    # Faz G.2 — gerçek PFAS ppb/ppm ölçümü otomatikleştirilemez, laboratuvar
+    # testi gerekir -- bu artık "kullanıcı karar versin" (REVIEW) değil,
+    # "henüz uygulanabilir metodoloji yok" (NO_METHODOLOGY).
+    assert "Henüz Uygulanabilir Metodoloji Bulunmuyor" in pfas.reasoning
+    assert pfas.verdict == "henuz_metodoloji_yok"
 
 
 def test_pfas_card_absent_when_not_food_contact(db_session):
@@ -102,6 +106,10 @@ def test_fcm_never_returns_plain_ok_for_food_contact_packaging(db_session):
         a for a in assessments
         if db_session.get(Regulation, a.regulation_id).code == "EU-FCM-1935-2004"
     )
-    assert fcm.verdict == "inceleme_gerekli"
+    # Faz G.2 — nihai ambalajın migrasyon testinden geçtiğini doğrulamak
+    # yapısal olarak otomatikleştirilemez; bu artık "kullanıcı karar versin"
+    # (REVIEW) değil, "henüz uygulanabilir metodoloji yok" (NO_METHODOLOGY) --
+    # ama test adının garantisi (asla düz bir "Uygun" dönmez) hâlâ geçerli.
+    assert fcm.verdict == "henuz_metodoloji_yok"
     assert "Hammadde Belgesi" in fcm.reasoning
     assert "Nihai Ambalaj Uygunluğu: Doğrulama Gerekli" in fcm.reasoning

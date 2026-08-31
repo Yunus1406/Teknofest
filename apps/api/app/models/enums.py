@@ -18,6 +18,13 @@ class RegulatoryVerdict(StrEnum):
     OK = "uygun_gorunuyor"
     REVIEW = "inceleme_gerekli"
     NOT_OK = "uygun_degil"
+    # Faz G.2 — eskiden bu iki durum da REVIEW'e düşüyordu; ayrıştırılınca
+    # "kullanıcı karar vermeli" (REVIEW) ile "sistemin eksik verisi var"
+    # (MISSING_DATA) ve "bu madde otomatik doğrulanamaz, insan/lab gerekir"
+    # (NO_METHODOLOGY) birbirinden ayrışır -- ikisi de bir "onay/red" iddiası
+    # DEĞİLDİR, bkz. app/services/packaging_service.py.
+    MISSING_DATA = "veri_eksik"
+    NO_METHODOLOGY = "henuz_metodoloji_yok"
 
 
 class EvaluationTier(StrEnum):

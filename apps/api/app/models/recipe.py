@@ -17,6 +17,14 @@ class PackagingRequest(Base, IdMixin, TimestampMixin):
     target_volume_units: Mapped[int] = mapped_column(Integer, default=0)
     dimensions: Mapped[dict] = mapped_column(default=dict)  # {"length_mm":..,"width_mm":..}
 
+    # --- Faz G.1: Aşama 2'nin "Çıkarılan Bilgileri Kontrol Edin" ekranının
+    # göstermesi gereken ama daha önce hiçbir zaman saklanmayan alanlar.
+    # Hepsi nullable -- kullanıcı/LLM doldurmadıysa uydurma bir sayı ASLA
+    # atanmaz (Faz F'nin aynı disiplini).
+    target_thickness_micron: Mapped[float | None] = mapped_column(Float, nullable=True)
+    target_gsm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    physical_performance_notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+
     spec_file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     extracted_fields: Mapped[dict] = mapped_column(default=dict)
     # LLM tabanlı şartname çıkarımının çıktısı + kullanıcı tarafından düzeltilen alanlar
@@ -70,6 +78,22 @@ class Recipe(Base, IdMixin, TimestampMixin):
 
     total_gsm: Mapped[float | None] = mapped_column(Float, nullable=True)
     total_micron: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Faz G.4 — Aşama 5'in firma hafızası taraması bu reçete için GERÇEKTEN
+    # ne bulduğunu kaydeder: {"tier": "...", "evidence_count": N,
+    # "candidate_recipe_ids": [...]}. Referans bulunamadıysa (virgin-only
+    # üretim) None kalır -- uydurma bir kanıt sayısı ASLA yazılmaz.
+    reference_search_evidence: Mapped[dict | None] = mapped_column(nullable=True)
+
+    # Faz G.5 — Aşama 7'nin "Veri Kaynağı" etiketleri. Sabit 8 değerli
+    # kelime dağarcığından (firma_verisi/gecmis_uretim/makineden_alinan/
+    # teknik_veri_foyu/laboratuvar/mevzuat/hesaplanan/varsayimsal) BİRDEN
+    # FAZLASI aynı anda geçerli olabilir (ör. hem geçmiş üretim hem mevzuat
+    # kriterleri katkıda bulunmuş olabilir) -- bu yüzden TEK değerli mevcut
+    # `DataSourceType`'a (RecipeMetric/PhysicalTest'te kullanılan) EKLENMEZ,
+    # ayrı bir çoklu-etiket listesidir. Sadece GERÇEKTEN o reçetenin
+    # üretiminde rol oynayan kaynaklar eklenir -- uydurma etiket yok.
+    data_source_tags: Mapped[list | None] = mapped_column(nullable=True)
 
     packaging_request: Mapped["PackagingRequest"] = relationship(back_populates="recipes")
     layers: Mapped[list["RecipeLayer"]] = relationship(

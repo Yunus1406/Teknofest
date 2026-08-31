@@ -1,0 +1,97 @@
+"""Faz G.1 — Aşama 2 "Çıkarılan Bilgileri Kontrol Edin" ekranının backend
+tarafı: yeni kalınlık/gramaj/fiziksel performans alanları create/update'te
+doğru taşınıyor mu, LLM çıkarım şeması bu alanları da kapsıyor mu."""
+import pytest
+from fastapi.testclient import TestClient
+
+from app.core.db import get_db
+from app.llm.spec_extraction import extract_fields_from_spec_text
+from app.main import app
+from app.models.recipe import PackagingRequest
+from app.services.packaging_service import create_packaging_request, update_packaging_request
+
+
+@pytest.fixture()
+def client(db_session):
+    def _override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = _override_get_db
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_create_packaging_request_stores_new_review_fields(db_session):
+    req = create_packaging_request(
+        db_session,
+        {
+            "packaging_type": "plastik tabak", "usage_area": "test", "product": "test",
+            "target_market": "AB", "food_contact": True, "target_volume_units": 1000,
+            "dimensions": {}, "target_thickness_micron": 600.0, "target_gsm": 45.0,
+            "physical_performance_notes": "Sıcak dolum, -18°C dondurucuya dayanıklı olmalı.",
+        },
+    )
+    assert req.target_thickness_micron == 600.0
+    assert req.target_gsm == 45.0
+    assert "dondurucuya" in req.physical_performance_notes
+
+
+def test_update_packaging_request_can_set_review_fields(db_session):
+    req = create_packaging_request(
+        db_session,
+        {
+            "packaging_type": "plastik tabak", "usage_area": "test", "product": "test",
+            "target_market": "AB", "food_contact": True, "target_volume_units": 1000,
+            "dimensions": {},
+        },
+    )
+    assert req.target_thickness_micron is None
+
+    updated = update_packaging_request(
+        db_session, req, {"target_thickness_micron": 70.0, "target_gsm": 12.5, "physical_performance_notes": "Not."}
+    )
+    assert updated.target_thickness_micron == 70.0
+    assert updated.target_gsm == 12.5
+    assert updated.physical_performance_notes == "Not."
+
+
+def test_spec_extraction_result_includes_new_fields_when_llm_unavailable():
+    """LLM mevcut değilken (bu test ortamında olduğu gibi) boş sonuç bile
+    yeni 3 alanı taşımalı -- schema tam, değer sadece None."""
+    result = extract_fields_from_spec_text("herhangi bir şartname metni")
+    assert "target_thickness_micron" in result
+    assert "target_gsm" in result
+    assert "physical_performance_notes" in result
+    assert result["target_thickness_micron"] is None
+
+
+def test_packaging_request_endpoints_roundtrip_review_fields(client, db_session):
+    resp = client.post(
+        "/api/v1/packaging-flow/requests",
+        json={
+            "packaging_type": "plastik tabak", "usage_area": "yemek servisi", "product": "test",
+            "target_market": "AB", "food_contact": True, "target_volume_units": 1000,
+            "dimensions": {}, "target_thickness_micron": 500.0, "target_gsm": 40.0,
+            "physical_performance_notes": "Test notu.",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["target_thickness_micron"] == 500.0
+    assert body["target_gsm"] == 40.0
+
+    req_id = body["id"]
+    resp2 = client.put(
+        f"/api/v1/packaging-flow/requests/{req_id}",
+        json={
+            "packaging_type": "plastik tabak", "usage_area": "yemek servisi", "product": "test",
+            "target_market": "AB", "food_contact": True, "target_volume_units": 1000,
+            "dimensions": {}, "target_thickness_micron": 550.0, "target_gsm": 42.0,
+            "physical_performance_notes": "Güncellenmiş not.",
+        },
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["target_thickness_micron"] == 550.0
+    assert resp2.json()["physical_performance_notes"] == "Güncellenmiş not."

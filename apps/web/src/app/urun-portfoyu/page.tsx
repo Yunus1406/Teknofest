@@ -9,7 +9,14 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { NumberField, TextField, TriStateField } from "@/components/ui/FormField";
-import { materialTypeLabel, materialTypeTone, physicalTestResultLabel, physicalTestResultTone } from "@/lib/labels";
+import {
+  materialTypeLabel,
+  materialTypeTone,
+  physicalTestResultLabel,
+  physicalTestResultTone,
+  regulatoryVerdictLabel,
+  regulatoryVerdictTone,
+} from "@/lib/labels";
 
 const EMPTY_SKU: ProductSkuCreate = {
   sku_code: "",
@@ -153,9 +160,7 @@ function TraceabilityBlock({
             {trace.regulatory_assessments.map((r, i) => (
               <div key={i} className="flex items-center gap-2 text-sm">
                 <span className="font-mono text-xs text-ink/40">{r.regulation_code ?? "—"}</span>
-                <Badge tone={r.verdict === "uygun_gorunuyor" ? "pcr" : r.verdict === "uygun_degil" ? "warn" : "virgin"}>
-                  {r.verdict}
-                </Badge>
+                <Badge tone={regulatoryVerdictTone(r.verdict)}>{regulatoryVerdictLabel(r.verdict)}</Badge>
               </div>
             ))}
           </div>

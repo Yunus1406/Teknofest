@@ -505,6 +505,7 @@ def load_regulation_requirements(db: Session, regulation_ids: dict[str, str]) ->
                 regulation_id=regulation_id,
                 regulation_no=row["regulation_no"],
                 article=row["article"],
+                sub_article=row.get("sub_article"),
                 packaging_category=row.get("packaging_category"),
                 target_year=row.get("target_year"),
                 requirement_text=row["requirement_text"].strip(),
@@ -516,6 +517,7 @@ def load_regulation_requirements(db: Session, regulation_ids: dict[str, str]) ->
                 default_verdict=row.get("default_verdict", "inceleme_gerekli"),
                 threshold_value=row.get("threshold_value"),
                 threshold_unit=row.get("threshold_unit"),
+                last_reviewed_at=_parse_date(row.get("last_reviewed_at")),
             )
         )
         count += 1

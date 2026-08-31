@@ -1,5 +1,7 @@
 """Aşama 2-5 orkestrasyonu: ambalaj tanımlama, mevzuat değerlendirmesi,
 firma altyapısı eşleştirmesi ve akıllı başlangıç reçetesi."""
+from dataclasses import dataclass, field
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -42,6 +44,9 @@ def update_packaging_request(db: Session, req: PackagingRequest, data: dict) -> 
         "food_contact",
         "target_volume_units",
         "dimensions",
+        "target_thickness_micron",
+        "target_gsm",
+        "physical_performance_notes",
     ):
         if field in data:
             setattr(req, field, data[field])
@@ -111,10 +116,20 @@ def assess_regulations(db: Session, packaging_request: PackagingRequest) -> tupl
 
 
 def _overall_verdict(verdicts: list[str]) -> str:
-    if any(v == RegulatoryVerdict.NOT_OK.value for v in verdicts):
-        return RegulatoryVerdict.NOT_OK.value
-    if any(v == RegulatoryVerdict.REVIEW.value for v in verdicts):
-        return RegulatoryVerdict.REVIEW.value
+    """Faz G.2 — 5 durumlu "en kötü kazanır" sıralaması: kesin bir uygunsuzluk
+    (`NOT_OK`) veya insan kararı gerektiren bir durum (`REVIEW`) her zaman en
+    önde; `MISSING_DATA`/`NO_METHODOLOGY` bir onay/red İDDİASI DEĞİLDİR (sadece
+    "bunu otomatik olarak değerlendiremedik" bilgisidir), bu yüzden ikisi de
+    `OK`'den önce ama `NOT_OK`/`REVIEW`'den sonra gelir."""
+    priority = [
+        RegulatoryVerdict.NOT_OK.value,
+        RegulatoryVerdict.REVIEW.value,
+        RegulatoryVerdict.MISSING_DATA.value,
+        RegulatoryVerdict.NO_METHODOLOGY.value,
+    ]
+    for v in priority:
+        if v in verdicts:
+            return v
     return RegulatoryVerdict.OK.value
 
 
@@ -174,16 +189,29 @@ def _assess_single_regulation(
     if requirements:
         row = requirements[0]
         return (row.default_verdict, row.requirement_text)
-    return (RegulatoryVerdict.REVIEW.value, "Otomatik değerlendirme kuralı tanımlı değil.")
+    # Faz G.2 — bu bir "inceleme gerektiren belirsiz durum" değil, sistemin
+    # bu madde için hiç RegulationRequirement satırı olmadığı GERÇEĞİDİR.
+    return (
+        RegulatoryVerdict.MISSING_DATA.value,
+        "Bu madde için bilgi tabanında henüz bir gereklilik satırı tanımlı değil.",
+    )
+
+
+def _article_citation(row: "RegulationRequirement | None", fallback: str) -> str:
+    """Faz G.2 — `article` ("Md.10") ile `sub_article` ("Ek IV"/"Fıkra 5")
+    ayrı alanlar; reasoning metinlerinde ikisini birlikte gösterir."""
+    if row is None:
+        return fallback
+    return f"{row.article} ({row.sub_article})" if row.sub_article else row.article
 
 
 def _assess_minimization(
     requirements: list[RegulationRequirement], req: PackagingRequest
 ) -> tuple[str, str]:
-    article = requirements[0].article if requirements else "Md.10"
+    article = _article_citation(requirements[0] if requirements else None, "Md.10")
     if not req.dimensions:
         return (
-            RegulatoryVerdict.REVIEW.value,
+            RegulatoryVerdict.MISSING_DATA.value,
             f"Ambalaj minimizasyonu (PPWR {article}) için ölçü/hacim verisi eksik; "
             "boyutlar girildiğinde otomatik değerlendirilecek.",
         )
@@ -214,11 +242,17 @@ def _assess_fcm(
         else "Hammadde Belgesi: Doğrulama Gerekli (bilgi tabanında gıda sınıfı "
         "sertifikalı hammadde henüz onaylanmadı)"
     )
+    # Faz G.2 — bu "belirsiz bir vaka, insan karar versin" durumu DEĞİL: nihai
+    # ambalajın migrasyon/uygunluk testlerinden geçtiğini doğrulamak yapısal
+    # olarak otomatikleştirilemez (gerçek bir laboratuvar testi gerekir),
+    # hammadde sertifikalı olsun olmasın bu değişmez — bu yüzden her zaman
+    # NO_METHODOLOGY, REVIEW değil.
     return (
-        RegulatoryVerdict.REVIEW.value,
+        RegulatoryVerdict.NO_METHODOLOGY.value,
         f"{raw_material_status} | Nihai Ambalaj Uygunluğu: Doğrulama Gerekli — tek bir "
         "hammaddenin sertifikalı olması, nihai ürünün migrasyon/uygunluk testlerinden "
-        f"geçtiği anlamına gelmez ({regulation_no}).",
+        f"geçtiği anlamına gelmez ({regulation_no}). Bu doğrulama otomatikleştirilemez, "
+        "laboratuvar testi gerekir.",
     )
 
 
@@ -226,6 +260,8 @@ _VERDICT_LABELS: dict[str, str] = {
     RegulatoryVerdict.OK.value: "Uygun Görünüyor",
     RegulatoryVerdict.REVIEW.value: "İnceleme Gerekli",
     RegulatoryVerdict.NOT_OK.value: "Uygun Değil",
+    RegulatoryVerdict.MISSING_DATA.value: "Veri Eksik",
+    RegulatoryVerdict.NO_METHODOLOGY.value: "Henüz Uygulanabilir Metodoloji Bulunmuyor",
 }
 
 
@@ -234,18 +270,22 @@ def _assess_pfas(
 ) -> tuple[str, str]:
     """PFAS (PPWR Md.5(5)) limitleri artık `ChemicalRestriction` tablosundan
     okunur (Faz F.4) -- eskiden bu sayılar SADECE requirement_text
-    prozasında gömülüydü, hiçbir kod okumuyordu. Verdict mantığı DEĞİŞMEDİ
-    (hâlâ requirement satırının default_verdict'i), sadece reasoning artık
-    gerçek, sorgulanabilir limit değerlerini alıntılıyor."""
-    verdict = requirements[0].default_verdict if requirements else RegulatoryVerdict.REVIEW.value
-    article = requirements[0].article if requirements else "Md.5(5)"
+    prozasında gömülüydü, hiçbir kod okumuyordu.
+
+    Faz G.2 — verdict mantığı iki ayrı duruma ayrıldı: referans limit verisi
+    (`ChemicalRestriction`) HİÇ yüklenmemişse bu "veri eksik"tir
+    (`MISSING_DATA`); veri yüklenmiş olsa BİLE, gerçek ppb/ppm içeriğinin
+    ambalajda ölçülmesi bir laboratuvar testi gerektirir -- bu yapısal olarak
+    otomatikleştirilemez (`NO_METHODOLOGY`), "kullanıcı karar versin"
+    (`REVIEW`) durumu DEĞİLDİR."""
+    article = _article_citation(requirements[0] if requirements else None, "Md.5(5)")
 
     restrictions = db.query(ChemicalRestriction).filter_by(regulation_id=reg.id, substance_group="PFAS").all()
     if not restrictions:
-        # Referans veri hiç yüklenmemişse (ör. eski bir DB) genel yola düş --
-        # sessizce uydurma bir sayı gösterilmez.
+        # Referans veri hiç yüklenmemişse (ör. eski bir DB) -- bu bir veri
+        # eksikliğidir, sessizce uydurma bir sayı gösterilmez.
         text = requirements[0].requirement_text if requirements else "PFAS limitleri tanımlı değil."
-        return verdict, text
+        return RegulatoryVerdict.MISSING_DATA.value, text
 
     by_type = {r.restriction_type: r for r in restrictions}
     parts = []
@@ -256,10 +296,12 @@ def _assess_pfas(
     if total_limit := by_type.get("toplam_sinir"):
         parts.append(f"toplam PFAS ≤{total_limit.limit_value:g} {total_limit.limit_unit} sınır")
 
+    verdict = RegulatoryVerdict.NO_METHODOLOGY.value
     reasoning = (
         f"PFAS Kontrolü — PPWR {article} | "
         f"Gıda temaslı ambalaj olduğu için uygulanır ({', '.join(parts)}) | "
-        "Kanıt durumu: Belge/Test Verisi Gerekli | "
+        "Kanıt durumu: Belge/Test Verisi Gerekli — gerçek PFAS içeriği ancak "
+        "laboratuvar testiyle doğrulanabilir, otomatik değerlendirilemez | "
         f"Sonuç: {_VERDICT_LABELS.get(verdict, verdict)}"
     )
     return verdict, reasoning
@@ -293,7 +335,7 @@ def _assess_pcr_content(
 
     if not rows:
         return (
-            RegulatoryVerdict.REVIEW.value,
+            RegulatoryVerdict.MISSING_DATA.value,
             "Geri Dönüştürülmüş İçerik — PPWR Md.7 | Bu ambalaj kategorisi için "
             "(gıda teması + polimer türü kombinasyonu) bilgi tabanında doğrulanmış bir "
             "hedef yüzde henüz tanımlı değil; sabit bir oran varsayılmadı. Kategori "
@@ -317,7 +359,9 @@ def _assess_pcr_content(
             "hammadde ile kullanılabilir; bilgi tabanında uygun sertifikalı hammadde "
             "henüz doğrulanmadı."
         )
-        return RegulatoryVerdict.REVIEW.value, reasoning
+        # Faz G.2 — bu bir belirsizlik/karar bekleyen durum değil, bilgi
+        # tabanında eksik bir veri (sertifikalı hammadde kaydı) durumudur.
+        return RegulatoryVerdict.MISSING_DATA.value, reasoning
 
     return RegulatoryVerdict.OK.value, reasoning
 
@@ -359,33 +403,133 @@ def match_infrastructure(db: Session, packaging_request: PackagingRequest) -> li
 
 # --- Aşama 5: Mevcut Reçete / Akıllı Başlangıç ----------------------------
 
-def find_reference_recipe(db: Session, packaging_request: PackagingRequest) -> Recipe | None:
-    """Faz B.5: bu case kalıcı bir Ürün/SKU'yu hedefliyorsa (sku_id set),
-    referans olarak ÖNCE o SKU'nun current_recipe_id'si denenir — bu, salt
-    'aynı packaging_type metni' sezgisel eşleşmesinden daha kesindir (iki
-    farklı ürün aynı ambalaj türü metnini paylaşabilir, ama aynı SKU'yu
-    paylaşamaz). SKU yoksa ya da current_recipe_id henüz set değilse, eski
-    sezgisel eşleşmeye düşülür (geriye dönük uyumlu)."""
+@dataclass
+class ReferenceSearchResult:
+    """Faz G.4 — firma hafızası taramasının GERÇEK sonucu: hangi kademede
+    kaç doğrulanmış aday bulunduğu. `recipe` None ise hiçbir kademe eşleşme
+    üretmedi -- Aşama 5 bu durumda kural tabanlı (virgin-only) bir başlangıç
+    reçetesi üretir (mevcut davranış, bkz. generate_initial_recipe)."""
+
+    recipe: Recipe | None
+    tier: str | None = None
+    evidence_count: int = 0
+    candidate_recipe_ids: list[str] = field(default_factory=list)
+
+
+_TOLERANCE_PCT = 0.20  # G.4: "benzer teknik şartlar" için ±%20 tolerans
+
+
+def _within_tolerance(target: float | None, candidate: float | None, pct: float = _TOLERANCE_PCT) -> bool:
+    if target is None or candidate is None:
+        return False
+    return abs(candidate - target) <= pct * target
+
+
+def find_reference_recipe_with_evidence(
+    db: Session, packaging_request: PackagingRequest, line_id: str | None = None
+) -> ReferenceSearchResult:
+    """Faz G.4 — 5 kademeli firma hafızası taraması, HER kademe SADECE bir
+    öncekinde hiç eşleşme yoksa denenir (kademe 1 en kesin/güvenilir kanıt,
+    kademe 5 en gevşek):
+      1. aynı SKU'nun doğrulanmış GEÇERLİ (current_recipe_id) reçetesi
+      2. aynı ambalaj türü metni (Faz B.5'in eski tek kademeli davranışı)
+      3. benzer kullanım alanı (usage_area eşleşmesi, ambalaj türünden
+         bağımsız)
+      4. benzer teknik şartlar (Faz G.1'in target_thickness_micron/
+         target_gsm alanlarına ±%20 tolerans)
+      5. aynı üretim hattında üretilmiş diğer doğrulanmış reçeteler
+    Her kademede eşleşen TÜM doğrulanmış adaylar sayılır (`evidence_count`)
+    -- sadece ilkini almak "kaç tanesi doğruladı" sorusuna cevap vermez."""
+    # Kademe 1: aynı SKU'nun kendi geçerli reçetesi.
     if packaging_request.sku_id and packaging_request.sku and packaging_request.sku.current_recipe_id:
         sku_recipe = db.get(Recipe, packaging_request.sku.current_recipe_id)
         if sku_recipe is not None and sku_recipe.is_verified:
-            return sku_recipe
+            return ReferenceSearchResult(
+                recipe=sku_recipe, tier="ayni_sku", evidence_count=1, candidate_recipe_ids=[sku_recipe.id]
+            )
 
-    return (
-        db.query(Recipe)
-        .join(PackagingRequest)
-        .filter(
-            PackagingRequest.packaging_type == packaging_request.packaging_type,
-            Recipe.is_verified.is_(True),
-            Recipe.packaging_request_id != packaging_request.id,
-        )
-        .order_by(Recipe.version.desc())
-        .first()
+    base_query = db.query(Recipe).join(PackagingRequest).filter(
+        Recipe.is_verified.is_(True),
+        Recipe.packaging_request_id != packaging_request.id,
     )
+
+    # Kademe 2: aynı ambalaj türü metni.
+    same_type = (
+        base_query.filter(PackagingRequest.packaging_type == packaging_request.packaging_type)
+        .order_by(Recipe.version.desc())
+        .all()
+    )
+    if same_type:
+        return ReferenceSearchResult(
+            recipe=same_type[0], tier="ayni_ambalaj_turu",
+            evidence_count=len(same_type), candidate_recipe_ids=[r.id for r in same_type],
+        )
+
+    # Kademe 3: benzer kullanım alanı (ambalaj türünden bağımsız).
+    similar_usage = (
+        base_query.filter(PackagingRequest.usage_area == packaging_request.usage_area)
+        .order_by(Recipe.version.desc())
+        .all()
+    )
+    if similar_usage:
+        return ReferenceSearchResult(
+            recipe=similar_usage[0], tier="benzer_kullanim_alani",
+            evidence_count=len(similar_usage), candidate_recipe_ids=[r.id for r in similar_usage],
+        )
+
+    # Kademe 4: benzer teknik şartlar (Faz G.1'in yeni alanları) -- SADECE
+    # mevcut talepte bu alanlardan en az biri girilmişse denenir; hiçbiri
+    # girilmemişse "benzerlik" iddiası ANLAMSIZ olurdu.
+    if packaging_request.target_thickness_micron is not None or packaging_request.target_gsm is not None:
+        spec_candidates = base_query.all()
+        similar_specs = []
+        for r in spec_candidates:
+            other = r.packaging_request
+            checks = []
+            if packaging_request.target_thickness_micron is not None:
+                checks.append(_within_tolerance(packaging_request.target_thickness_micron, other.target_thickness_micron))
+            if packaging_request.target_gsm is not None:
+                checks.append(_within_tolerance(packaging_request.target_gsm, other.target_gsm))
+            if checks and all(checks):
+                similar_specs.append(r)
+        if similar_specs:
+            similar_specs.sort(key=lambda r: r.version, reverse=True)
+            return ReferenceSearchResult(
+                recipe=similar_specs[0], tier="benzer_teknik_sartlar",
+                evidence_count=len(similar_specs), candidate_recipe_ids=[r.id for r in similar_specs],
+            )
+
+    # Kademe 5: aynı üretim hattında üretilmiş diğer doğrulanmış reçeteler.
+    if line_id:
+        same_line = (
+            db.query(Recipe)
+            .filter(
+                Recipe.line_id == line_id, Recipe.is_verified.is_(True),
+                Recipe.packaging_request_id != packaging_request.id,
+            )
+            .order_by(Recipe.version.desc())
+            .all()
+        )
+        if same_line:
+            return ReferenceSearchResult(
+                recipe=same_line[0], tier="ayni_hat",
+                evidence_count=len(same_line), candidate_recipe_ids=[r.id for r in same_line],
+            )
+
+    return ReferenceSearchResult(recipe=None)
+
+
+def find_reference_recipe(db: Session, packaging_request: PackagingRequest) -> Recipe | None:
+    """Faz B.5 (Faz G.4'te 5 kademeli bir kaskadın üstüne kuruldu) — geriye
+    dönük uyumluluk için sadece eşleşen reçeteyi döner. Tam kanıt (hangi
+    kademe, kaç aday) için `find_reference_recipe_with_evidence` kullanın
+    (bkz. generate_initial_recipe)."""
+    return find_reference_recipe_with_evidence(db, packaging_request).recipe
 
 
 def generate_initial_recipe(db: Session, packaging_request: PackagingRequest, line: ProductionLine) -> Recipe:
-    reference = find_reference_recipe(db, packaging_request)
+    search = find_reference_recipe_with_evidence(db, packaging_request, line_id=line.id)
+    reference = search.recipe
 
     if reference is not None:
         recipe = Recipe(
@@ -394,6 +538,11 @@ def generate_initial_recipe(db: Session, packaging_request: PackagingRequest, li
             line_id=line.id,
             source=RecipeSource.REFERANS.value,
             status="taslak",
+            reference_search_evidence={
+                "tier": search.tier,
+                "evidence_count": search.evidence_count,
+                "candidate_recipe_ids": search.candidate_recipe_ids,
+            },
         )
         db.add(recipe)
         db.flush()

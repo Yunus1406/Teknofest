@@ -22,6 +22,12 @@ class MaterialSpec:
     # EF' iddia edilmez.
     carbon_ef_status: str = "tanimlanmadi"
     carbon_ef_source: str | None = None
+    # Faz G.5 — "Veri Kaynağı" etiketlemesi ve "Karar Dayanağı" için: bu
+    # malzemenin bağlı olduğu karbon EF satırının versiyonu (varsa) ve
+    # tedarikçi teknik veri föyü referansı (varsa). İkisi de None ise o
+    # bilgi kaynağı bu malzeme için TANIMLANMADI demektir, uydurulmaz.
+    carbon_ef_version: str | None = None
+    technical_datasheet_ref: str | None = None
 
 
 @dataclass(frozen=True)

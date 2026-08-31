@@ -23,6 +23,11 @@ class RegulationRequirement(Base, IdMixin, TimestampMixin):
     regulation_id: Mapped[str] = mapped_column(ForeignKey("regulations.id"))
     regulation_no: Mapped[str] = mapped_column(String(60))  # ör. "EU 2025/40"
     article: Mapped[str] = mapped_column(String(60))  # ör. "Md.10 / Ek IV"
+    # Faz G.2 — "Md.10"tan AYRI, o maddenin bir alt fıkrası/eki varsa (ör.
+    # Md.5(5) için "5. fıkra", Md.10 için "Ek IV"). Bilinmiyorsa/tek bir
+    # bölünmemiş madde ise None kalır -- uydurma bir alt madde numarası
+    # ASLA atanmaz.
+    sub_article: Mapped[str | None] = mapped_column(String(60), nullable=True)
     # None = tüm ambalaj kategorileri için geçerli; dolu ise (ör. PPWR Md.7
     # gibi) kategoriye özgü bir hedef/gereklilik.
     packaging_category: Mapped[str | None] = mapped_column(String(80), nullable=True)
@@ -47,5 +52,12 @@ class RegulationRequirement(Base, IdMixin, TimestampMixin):
     # -- uydurma yeni bir rakam DEĞİL, mevcut prozanın yapılandırılmış hali.
     threshold_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     threshold_unit: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+    # Faz G.2 — ORM'nin otomatik yönettiği `updated_at` (TimestampMixin) HER
+    # satır mutasyonunda değişir (ör. bir migration/reseed sırasında), bu
+    # yüzden "kaynağın gerçekten ne zaman bir insan tarafından doğrulandığı"
+    # bilgisini TAŞIYAMAZ. Bu alan AYRI ve SADECE seed verisinden/manuel bir
+    # incelemeden set edilir; bilinmiyorsa None kalır.
+    last_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     regulation: Mapped["Regulation"] = relationship()  # noqa: F821

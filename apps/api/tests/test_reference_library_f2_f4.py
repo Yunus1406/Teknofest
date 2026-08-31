@@ -106,9 +106,11 @@ def test_pfas_reasoning_cites_structured_limit_values(db_session):
     assert "50 ppm" in pfas.reasoning
     # Faz A'dan kalan mevcut sözleşme (test_regulations_content.py) hâlâ geçerli:
     assert "PFAS" in pfas.reasoning
-    assert "İnceleme Gerekli" in pfas.reasoning
-    # Verdict mantığı DEĞİŞMEDİ -- hâlâ requirement satırının default_verdict'i.
-    assert pfas.verdict == "inceleme_gerekli"
+    # Faz G.2 — ChemicalRestriction verisi yüklüyse PFAS artık NO_METHODOLOGY
+    # (gerçek ppb/ppm ölçümü otomatikleştirilemez, laboratuvar testi gerekir),
+    # eskiden hep REVIEW'e düşen davranış artık ayrışıyor.
+    assert "Henüz Uygulanabilir Metodoloji Bulunmuyor" in pfas.reasoning
+    assert pfas.verdict == "henuz_metodoloji_yok"
 
 
 # --- Yeni /reference/* uçları --------------------------------------------

@@ -17,6 +17,8 @@ import {
   materialTypeTone,
   physicalTestResultLabel,
   physicalTestResultTone,
+  regulatoryVerdictLabel,
+  regulatoryVerdictTone,
 } from "@/lib/labels";
 
 /** Dijital Ürün Pasaportu'nun genel web sayfası (QR hedefi). `(flow)`
@@ -251,9 +253,7 @@ export default function DigitalProductPassportPage() {
           {regulatory.map((r, i) => (
             <li key={i} className="flex items-center gap-2 text-sm">
               <span className="font-mono text-xs text-ink/40">{r.article ?? r.regulation_code}</span>
-              <Badge tone={r.verdict === "uygun_gorunuyor" ? "pcr" : r.verdict === "uygun_degil" ? "warn" : "virgin"}>
-                {r.verdict === "uygun_gorunuyor" ? "Uygun Görünüyor" : r.verdict === "uygun_degil" ? "Uygun Değil" : "İnceleme Gerekli"}
-              </Badge>
+              <Badge tone={regulatoryVerdictTone(r.verdict)}>{regulatoryVerdictLabel(r.verdict)}</Badge>
             </li>
           ))}
         </ul>

@@ -12,6 +12,11 @@ export interface PackagingRequestCreate {
   // Faz B.5 — bu case var olan bir Ürün/SKU'yu mu hedefliyor? Şu an UI'da bir
   // SKU seçici yok (backend kapasitesi hazır), bu yüzden opsiyonel/undefined kalır.
   sku_id?: string | null;
+  // Faz G.1 — Aşama 2'nin "Çıkarılan Bilgileri Kontrol Edin" ekranının
+  // gösterdiği ek alanlar (hepsi opsiyonel, uydurma değer yok).
+  target_thickness_micron?: number | null;
+  target_gsm?: number | null;
+  physical_performance_notes?: string | null;
 }
 
 export interface PackagingRequestOut extends PackagingRequestCreate {
@@ -20,6 +25,9 @@ export interface PackagingRequestOut extends PackagingRequestCreate {
   extracted_fields: Record<string, unknown>;
   status: string;
   sku_id: string | null;
+  target_thickness_micron: number | null;
+  target_gsm: number | null;
+  physical_performance_notes: string | null;
 }
 
 export interface ProductSkuOut {
@@ -76,6 +84,9 @@ export interface SpecExtractionOut {
   food_contact: boolean | null;
   target_volume_units: number | null;
   dimensions: Record<string, number | null>;
+  target_thickness_micron: number | null;
+  target_gsm: number | null;
+  physical_performance_notes: string | null;
   field_confidence: Record<string, "yuksek" | "orta" | "dusuk">;
 }
 
@@ -86,10 +97,19 @@ export interface RecyclabilityDimensionOut {
   packaging_category: string | null;
 }
 
+// Faz G.2 — eskiden 3 durumdu; veri_eksik/henuz_metodoloji_yok bir onay/red
+// İDDİASI taşımaz, bkz. app/models/enums.py RegulatoryVerdict.
+export type RegulatoryVerdictValue =
+  | "uygun_gorunuyor"
+  | "inceleme_gerekli"
+  | "uygun_degil"
+  | "veri_eksik"
+  | "henuz_metodoloji_yok";
+
 export interface RegulatoryAssessmentOut {
   id: string;
   regulation_id: string;
-  verdict: "uygun_gorunuyor" | "inceleme_gerekli" | "uygun_degil";
+  verdict: RegulatoryVerdictValue;
   reasoning: string;
   // Faz F.9 — SADECE PPWR Md.6 (geri dönüştürülebilirlik) değerlendirmesinde
   // dolu, diğer maddelerde null.
@@ -97,7 +117,7 @@ export interface RegulatoryAssessmentOut {
 }
 
 export interface RegulatoryAssessmentSummaryOut {
-  overall_verdict: "uygun_gorunuyor" | "inceleme_gerekli" | "uygun_degil";
+  overall_verdict: RegulatoryVerdictValue;
   assessments: RegulatoryAssessmentOut[];
 }
 
@@ -155,6 +175,9 @@ export interface ProductionLineOut {
   energy_metering_equipped: boolean | null;
   average_waste_rate_pct: number | null;
   availability_status: string | null;
+  // Faz G.3 — "Kayıtlı Makineden Hat Oluştur" ile birden fazla kayıtlı
+  // satırın birleşimi olarak mı tanımlandı? null/[] = hayır.
+  component_line_ids: string[] | null;
 }
 
 export interface ProductionLineCreate {
@@ -195,6 +218,7 @@ export interface ProductionLineCreate {
   energy_metering_equipped?: boolean | null;
   average_waste_rate_pct?: number | null;
   availability_status?: string | null;
+  component_line_ids?: string[] | null;
 }
 
 export type ProductionLineUpdate = Partial<ProductionLineCreate>;
@@ -350,16 +374,19 @@ export interface RegulationRequirementOut {
   regulation_id: string;
   regulation_no: string;
   article: string;
+  sub_article: string | null;
   packaging_category: string | null;
   target_year: number | null;
   requirement_text: string;
   pcr_only: boolean;
   exception_text: string | null;
+  effective_date: string | null;
   version: string;
   source: string | null;
   default_verdict: string;
   threshold_value: number | null;
   threshold_unit: string | null;
+  last_reviewed_at: string | null;
 }
 
 export interface ChemicalRestrictionOut {
@@ -515,6 +542,17 @@ export interface RecipeOut {
   is_verified: boolean;
   total_gsm: number | null;
   total_micron: number | null;
+  // Faz G.4 — firma hafızası taramasının kanıtı: {tier, evidence_count,
+  // candidate_recipe_ids}. Referans bulunamadıysa (virgin-only üretim) null.
+  reference_search_evidence: {
+    tier: string;
+    evidence_count: number;
+    candidate_recipe_ids: string[];
+  } | null;
+  // Faz G.5 — bu reçetenin GERÇEKTEN beslendiği veri kaynakları (birden
+  // fazla olabilir). Sabit 8 değerli kelime dağarcığı — mevcut tek-değerli
+  // `data_source_type` (RecipeMetricOut) ile KARIŞTIRILMAZ, ayrı amaç.
+  data_source_tags: string[] | null;
   layers: RecipeLayerOut[];
   additives: { additive_id: string; dosage_pct: number }[];
   evaluations: RecipeEvaluationOut[];
@@ -532,8 +570,13 @@ export interface OptimizationCandidateOut {
   justification_text: string | null;
   decision_basis: {
     gecmis_receteler: string[];
+    // Faz G.5 — geçmiş reçeteler bulunduysa hangi kademede (bkz.
+    // referenceSearchTierLabel); hiç bulunamadıysa null.
+    gecmis_recete_kademe: string | null;
     mevzuat_maddeleri: string[];
     hat_parametreleri: Record<string, string>;
+    hammadde_veri_foyu_sayisi: number;
+    karbon_ef_versiyonu: string | null;
   };
   recipe: RecipeOut;
 }

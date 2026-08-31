@@ -18,6 +18,9 @@ Aşağıdaki alanları JSON olarak çıkar:
   "food_contact": boolean | null,
   "target_volume_units": number | null,
   "dimensions": {"length_mm": number|null, "width_mm": number|null, "height_mm": number|null},
+  "target_thickness_micron": number | null,
+  "target_gsm": number | null,
+  "physical_performance_notes": string | null,
   "field_confidence": {"<alan_adi>": "yuksek"|"orta"|"dusuk"}
 }
 
@@ -34,6 +37,9 @@ _EMPTY_RESULT = {
     "food_contact": None,
     "target_volume_units": None,
     "dimensions": {"length_mm": None, "width_mm": None, "height_mm": None},
+    "target_thickness_micron": None,
+    "target_gsm": None,
+    "physical_performance_notes": None,
     "field_confidence": {},
 }
 

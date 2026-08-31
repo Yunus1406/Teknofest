@@ -47,6 +47,9 @@ class ProductionLineOut(BaseModel):
     energy_metering_equipped: bool | None = None
     average_waste_rate_pct: float | None = None
     availability_status: str | None = None
+    # Faz G.3 — bu hat "Kayıtlı Makineden Hat Oluştur" ile birden fazla
+    # kayıtlı satırın birleşimi olarak mı tanımlandı? None/[] = hayır.
+    component_line_ids: list[str] | None = None
 
 
 class LineMatchOut(BaseModel):
@@ -103,12 +106,14 @@ class ProductionLineCreate(BaseModel):
     energy_metering_equipped: bool | None = None
     average_waste_rate_pct: float | None = None
     availability_status: str | None = None
+    component_line_ids: list[str] | None = None
 
 
 class ProductionLineUpdate(BaseModel):
     """Kısmi güncelleme — sadece gönderilen alanlar değişir (bkz.
     app/api/v1/routers/machine_park.py `exclude_unset=True`)."""
 
+    component_line_ids: list[str] | None = None
     facility_id: str | None = None
     name: str | None = None
     process_type: str | None = None
