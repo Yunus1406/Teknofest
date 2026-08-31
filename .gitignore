@@ -1,0 +1,35 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+.env
+.env.local
+apps/web/.env*.local
+
+# Python
+apps/api/.venv/
+apps/api/__pycache__/
+**/__pycache__/
+*.pyc
+apps/api/.pytest_cache/
+apps/api/*.db
+apps/api/*.sqlite3
+
+# Env files
+.env
+apps/api/.env
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+*.tsbuildinfo
+
+# Dev server logs (nohup/background server output during local dev)
+*.log

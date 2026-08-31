@@ -1,0 +1,46 @@
+# Bilgi Tabanı — Polimer türleri
+- code: PP
+  name: Polipropilen
+  category: poliolefin
+  base_properties:
+    density_g_cm3: 0.905
+    melt_temp_c: 160
+    food_contact_eligible: true
+    rigidity: orta_yuksek
+
+- code: PE
+  name: Polietilen (LDPE/HDPE ailesi)
+  category: poliolefin
+  base_properties:
+    density_g_cm3: 0.92
+    melt_temp_c: 115
+    food_contact_eligible: true
+    rigidity: dusuk_esnek
+
+- code: PET
+  name: Polietilen Tereftalat
+  category: polyester
+  base_properties:
+    density_g_cm3: 1.38
+    melt_temp_c: 250
+    food_contact_eligible: true
+    rigidity: yuksek
+
+- code: PS
+  name: Polistiren
+  category: stiren_polimeri
+  base_properties:
+    density_g_cm3: 1.05
+    melt_temp_c: 100
+    food_contact_eligible: true
+    rigidity: sert_kirilgan
+
+- code: PLA
+  name: Polilaktik Asit
+  category: biyopolimer
+  base_properties:
+    density_g_cm3: 1.24
+    melt_temp_c: 175
+    food_contact_eligible: true
+    rigidity: orta
+    biodegradable: true

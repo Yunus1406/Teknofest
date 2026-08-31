@@ -1,0 +1,92 @@
+# Bilgi Tabanı — AB PPWR'nin kritik maddeleri (sadeleştirilmiş, kısıt motoru
+# için yapılandırılmış kriterlere indirgenmiş temsil; hukuki metnin birebir
+# çevirisi değildir).
+- code: PPWR-ART-10
+  title: Ambalaj Minimizasyonu (PPWR Md.10 + Ek IV)
+  category: ambalaj_minimizasyonu
+  description: >
+    Ambalaj, gerekli performans/güvenlik/hijyen işlevini sağlayacak asgari
+    ağırlık ve hacimde tasarlanmalı; gereksiz boş hacim ve aşırı katman
+    kalınlığından kaçınılmalıdır. Performans kriterleri Ek IV'te belirtilir.
+    (Not: Madde 3 tanımlar bölümüdür — minimizasyon yükümlülüğü Madde 10'dadır.)
+  criteria:
+    max_empty_space_volume_pct: 20
+    requires_weight_justification: true
+    performance_criteria_annex: "Ek IV"
+  applicable_packaging_types: [plastik_tabak, esnek_film_ambalaj, sise, kapak, plastik_bardak, plastik_kap]
+
+- code: PPWR-ART-6
+  title: Geri Dönüştürülebilirlik Tasarımı (PPWR Md.6)
+  category: geri_donusturulebilirlik
+  description: >
+    Ambalaj 2030 itibarıyla geri dönüştürülebilir olarak tasarlanmalı;
+    ayrıştırmayı zorlaştıran uyumsuz çok-malzemeli/çok-polimerli yapılardan
+    ve geri dönüşümü engelleyen katkı seviyelerinden kaçınılmalıdır.
+  criteria:
+    max_incompatible_layer_material_combo: true
+    max_incompatible_additive_pct: 5
+  applicable_packaging_types: [plastik_tabak, esnek_film_ambalaj, sise, kapak, plastik_bardak, plastik_kap]
+
+- code: PPWR-ART-7
+  title: Geri Dönüştürülmüş İçerik Zorunlulukları (PPWR Md.7)
+  category: geri_donusturulmus_icerik
+  description: >
+    Plastik içerikli ambalajlarda kategoriye ve tarihe göre kademeli asgari
+    geri dönüştürülmüş İÇERİK (post-tüketici PCR) oranı zorunludur. PIR/
+    regranül (dahili/pre-consumer fire) bu hesaba DAHİL DEĞİLDİR. Gıda
+    temaslı ambalajlarda PCR, dekontaminasyon sertifikasyonu (gıda sınıfı)
+    olmadan kullanılamaz. Hedefler istisna/derogasyon ve metodolojiye tabidir
+    — burada verilenler tek bir referans senaryo (gıda temaslı, PET dışı
+    plastik) içindir; diğer kategoriler (ör. PET şişeler) ayrıca doğrulanıp
+    tabloya eklenmelidir.
+  criteria:
+    pir_excluded_from_calculation: true
+    food_contact_pcr_requires_certification: true
+    caveat: "İstisna, tarih ve metodoloji ayrıca doğrulanmalı."
+    targets:
+      - category: gida_temasli_pet_disi_plastik
+        food_contact: true
+        pet: false
+        by_year:
+          "2030": 10
+          "2040": 25
+  applicable_packaging_types: [plastik_tabak, esnek_film_ambalaj, sise, kapak, plastik_bardak, plastik_kap]
+
+- code: PPWR-ART-5
+  title: PFAS Kısıtı - Gıda Temaslı Ambalaj (PPWR Md.5(5))
+  category: pfas
+  description: >
+    Gıda ile doğrudan temas eden ambalajlarda PFAS (per- ve polifloroalkil
+    maddeler) için hedef/sınır değerler: tekil PFAS ≤25 ppb, toplam PFAS
+    ≤250 ppb (hedef), toplam PFAS ≤50 ppm (sınır). 12 Ağustos 2026'dan
+    itibaren yürürlüktedir. Yalnızca gıda temaslı ambalajlarda uygulanır.
+  criteria:
+    single_pfas_ppb: 25
+    total_pfas_target_ppb: 250
+    total_pfas_limit_ppm: 50
+    effective_date: "2026-08-12"
+    applies_only_when_food_contact: true
+  applicable_packaging_types: [plastik_tabak, esnek_film_ambalaj, sise, kapak, plastik_bardak, plastik_kap]
+
+- code: PPWR-ART-9
+  title: Kompostabilite İstisnaları (PPWR Md.9)
+  category: biyobozunurluk
+  description: >
+    Kompostabilite zorunluluğu yalnızca meyve/sebze etiketleri, çay poşetleri,
+    kapsül gibi dar bir istisna listesiyle sınırlıdır; genel ambalaj için
+    biyobozunurluk geri dönüştürülebilirliğin yerini tutmaz.
+  criteria:
+    allowed_only_for: [meyve_sebze_etiketi, cay_posetii, kahve_kapsulu]
+  applicable_packaging_types: [plastik_tabak, esnek_film_ambalaj]
+
+- code: EU-FCM-1935-2004
+  title: Gıda Temaslı Malzemeler Çerçeve Tüzüğü
+  category: gida_temasi
+  description: >
+    Gıda ile doğrudan temas eden ambalaj malzemeleri, migrasyon limitleri ve
+    gıda sınıfı sertifikasyonu şartlarını sağlamalıdır; sertifikasız PCR/
+    regranül gıda temaslı katmanda kullanılamaz.
+  criteria:
+    requires_food_grade_certification_for_direct_contact: true
+    pcr_requires_decontamination_process: true
+  applicable_packaging_types: [plastik_tabak, esnek_film_ambalaj, sise, kapak, plastik_bardak, plastik_kap]

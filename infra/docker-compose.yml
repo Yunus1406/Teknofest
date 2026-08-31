@@ -1,0 +1,38 @@
+name: recete-os
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: recete
+      POSTGRES_PASSWORD: recete
+      POSTGRES_DB: recete_os
+    ports:
+      - "5432:5432"
+    volumes:
+      - recete_os_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recete -d recete_os"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../apps/api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://recete:recete@postgres:5432/recete_os
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../apps/api:/app
+
+volumes:
+  recete_os_pgdata:

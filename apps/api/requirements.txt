@@ -1,0 +1,18 @@
+# Sürümler alt sınır olarak sabitlenir (üst sınır yok) ki Python 3.14 gibi
+# yeni sürümler için önceden derlenmiş wheel'i olan en güncel paket kurulsun
+# (bkz. docs/architecture.md — ortam notu).
+fastapi>=0.115
+uvicorn[standard]>=0.32
+sqlalchemy>=2.0.36
+alembic>=1.14
+psycopg2-binary>=2.9.10
+pydantic>=2.10
+pydantic-settings>=2.6
+python-multipart>=0.0.19
+pyyaml>=6.0.2
+anthropic>=0.40
+pypdf>=5.1
+qrcode[pil]>=8.0
+reportlab>=4.0
+pytest>=8.3
+httpx>=0.28

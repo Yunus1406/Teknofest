@@ -1,0 +1,85 @@
+# Bilgi Tabanı — Masterbatch ve Katkılar Kütüphanesi. carbon_key,
+# loader.py tarafından carbon_emission_factors.yaml'daki material_key alanına
+# eşlenir (Additive.carbon_ef_id) — bkz. app/services/carbon.py; tüm EF'ler
+# bu fazda DEMO/VARSAYIMSALDIR.
+- name: UV Stabilizatör Masterbatch
+  additive_type: stabilizator
+  manufacturer: "Polimer Katkı A.Ş. (varsayımsal)"
+  carrier_polymer: PP
+  regulatory_document_ref: "EU 10/2011 Uygunluk Beyanı Mevcut"
+  effects:
+    uv_koruma: true
+    mekanik_etki: notr
+  dosage_min_pct: 0.5
+  dosage_max_pct: 2.0
+  food_contact_eligible: true
+  cost_per_kg: 85
+  carbon_key: "UV Stabilizatör Masterbatch"
+
+- name: Kayganlaştırıcı (Slip) Masterbatch
+  additive_type: kaygan_kaydirici
+  manufacturer: "Film Katkı San. (varsayımsal)"
+  carrier_polymer: PE
+  regulatory_document_ref: "EU 10/2011 Uygunluk Beyanı Mevcut"
+  effects:
+    surtunme_azaltma: true
+    mekanik_etki: hafif_negatif
+  dosage_min_pct: 0.3
+  dosage_max_pct: 1.5
+  food_contact_eligible: true
+  cost_per_kg: 65
+  carbon_key: "Kayganlaştırıcı (Slip) Masterbatch"
+
+- name: Antiblok Masterbatch
+  additive_type: antiblok
+  manufacturer: "Film Katkı San. (varsayımsal)"
+  carrier_polymer: PE
+  regulatory_document_ref: "EU 10/2011 Uygunluk Beyanı Mevcut"
+  effects:
+    yapismayi_onler: true
+  dosage_min_pct: 0.2
+  dosage_max_pct: 1.0
+  food_contact_eligible: true
+  cost_per_kg: 60
+  carbon_key: "Antiblok Masterbatch"
+
+- name: Renk Masterbatch (Beyaz TiO2)
+  additive_type: renklendirici
+  manufacturer: "Renk Pigment Ltd. (varsayımsal)"
+  carrier_polymer: PP
+  regulatory_document_ref: "EU 10/2011 Uygunluk Beyanı Mevcut (TiO2 sınırı dahil)"
+  effects:
+    opaklik_artirir: true
+  dosage_min_pct: 2.0
+  dosage_max_pct: 8.0
+  food_contact_eligible: true
+  cost_per_kg: 55
+  carbon_key: "Renk Masterbatch (Beyaz TiO2)"
+
+- name: Darbe Dayanım Modifiyeri (Impact Modifier)
+  additive_type: mekanik_modifiyer
+  manufacturer: "Polimer Katkı A.Ş. (varsayımsal)"
+  carrier_polymer: PP
+  regulatory_document_ref: "EU 10/2011 Uygunluk Beyanı Mevcut"
+  effects:
+    darbe_dayanimi: artirir
+    sertlik: azaltir
+  dosage_min_pct: 3.0
+  dosage_max_pct: 10.0
+  food_contact_eligible: true
+  cost_per_kg: 95
+  carbon_key: "Darbe Dayanım Modifiyeri (Impact Modifier)"
+
+- name: PCR Koku Giderici / Stabilizatör
+  additive_type: stabilizator
+  manufacturer: "Geri Dönüşüm Katkı Ltd. (varsayımsal)"
+  carrier_polymer: PP
+  regulatory_document_ref: "Doğrulama Gerekli — PCR uygulamaları için özel belge yok"
+  effects:
+    koku_azaltma: true
+    oksidasyon_onleme: true
+  dosage_min_pct: 0.3
+  dosage_max_pct: 1.0
+  food_contact_eligible: true
+  cost_per_kg: 110
+  carbon_key: "PCR Koku Giderici / Stabilizatör"

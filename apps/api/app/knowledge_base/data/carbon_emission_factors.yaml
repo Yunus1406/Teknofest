@@ -1,0 +1,176 @@
+# Karbon Veri Kütüphanesi (Sistem Referans). Format: Malzeme | EF | Birim |
+# Kaynak | Yıl | Coğrafya | Versiyon.
+#
+# ÖNEMLİ — DEMO/VARSAYIMSAL VERİ UYARISI: Bu sistemde şu an gerçek bir LCA
+# veritabanı (ör. Ecoinvent, PlasticsEurope EPD) entegrasyonu YOK. Aşağıdaki
+# TÜM ef_value'lar mühendislik tahminidir, kaynaklı DEĞİLDİR.
+# is_demo_placeholder: true ve source alanı bunu açıkça belirtir — bu etiket
+# UI'nin karbon gösterilen HER yerinde (Dashboard 6/7/8/12) görünür olmalıdır
+# (bkz. app/services/carbon.py). Gerçek bir EF kaynağı bağlandığında, ilgili
+# satırın source/year/geography/version alanları güncellenip
+# is_demo_placeholder: false yapılmalıdır — material_key ile Material.name
+# eşleşmesi loader.py tarafından otomatik kurulur.
+- material_key: "PP Virgin Enjeksiyon Sınıfı"
+  ef_value: 1.9
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "PP PCR Gıda Sınıfı (Dekontaminasyonlu)"
+  ef_value: 0.6
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "PP Regranül (Post-Endüstriyel)"
+  ef_value: 0.5
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "PE Virgin Film Sınıfı"
+  ef_value: 1.8
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "PE PCR Post-Tüketici (Sertifikasız)"
+  ef_value: 0.55
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "PE Regranül (Dahili Fire Geri Kazanım)"
+  ef_value: 0.45
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "PET Virgin Şişe/Tabak Sınıfı"
+  ef_value: 2.3
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "rPET Gıda Sınıfı (Dekontaminasyonlu)"
+  ef_value: 0.9
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "PET Regranül (Endüstriyel)"
+  ef_value: 0.7
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "PS Virgin"
+  ef_value: 2.0
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "PS Regranül (Post-Endüstriyel)"
+  ef_value: 0.6
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "PLA Virgin (Biyo Bazlı)"
+  ef_value: -0.4
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+# --- Masterbatch/Katkı EF'leri (Faz B.4) — konsantre aktif içerik nedeniyle
+# taşıyıcı reçineden daha yüksek varsayılmıştır; hepsi DEMO/VARSAYIMSAL. ---
+
+- material_key: "UV Stabilizatör Masterbatch"
+  ef_value: 2.8
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "Kayganlaştırıcı (Slip) Masterbatch"
+  ef_value: 2.5
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "Antiblok Masterbatch"
+  ef_value: 2.4
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "Renk Masterbatch (Beyaz TiO2)"
+  ef_value: 3.5
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "Darbe Dayanım Modifiyeri (Impact Modifier)"
+  ef_value: 3.0
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true
+
+- material_key: "PCR Koku Giderici / Stabilizatör"
+  ef_value: 2.9
+  unit: kg_co2e_per_kg
+  source: "DEMO/VARSAYIMSAL — kaynak yok"
+  year: null
+  geography: null
+  version: "v0-demo"
+  is_demo_placeholder: true

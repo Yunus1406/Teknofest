@@ -1,0 +1,12 @@
+{
+  "name": "recete-os",
+  "private": true,
+  "description": "Ambalaj Sürdürülebilirlik Optimizasyon Platformu (Reçete OS)",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build:web": "npm run build --workspace=apps/web"
+  }
+}

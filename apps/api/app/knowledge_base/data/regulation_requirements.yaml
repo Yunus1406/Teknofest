@@ -1,0 +1,116 @@
+# PPWR Kural Kütüphanesi (Faz B.8) — her satır bir `Regulation`ın (regulations.yaml,
+# `regulation_code` ile eşleşir) tek bir madde/kategori/yıl gerekliliğini temsil
+# eder. app/services/packaging_service.py artık bu satırları OKUR; yeni bir madde
+# eklemek yeni bir if/elif dalı değil, buraya yeni bir satır eklemek demektir.
+
+- regulation_code: PPWR-ART-10
+  regulation_no: "EU 2025/40"
+  article: "Md.10 / Ek IV"
+  packaging_category: null
+  target_year: null
+  requirement_text: >
+    Ambalaj, gerekli performans/güvenlik/hijyen işlevini sağlayacak asgari
+    ağırlık ve hacimde tasarlanmalı; gereksiz boş hacim ve aşırı katman
+    kalınlığından kaçınılmalıdır.
+  pcr_only: false
+  exception_text: null
+  effective_date: null
+  version: "1.0"
+  source: "PPWR (EU) 2025/40 — sadeleştirilmiş temsil"
+  default_verdict: inceleme_gerekli
+
+- regulation_code: PPWR-ART-6
+  regulation_no: "EU 2025/40"
+  article: "Md.6"
+  packaging_category: null
+  target_year: null
+  requirement_text: >
+    Geri dönüştürülebilirlik tasarımı (PPWR Md.6), katman yapısı ve
+    kullanılan polimer kombinasyonu Aşama 6'da belirlendiğinde kesinleşecek.
+  pcr_only: false
+  exception_text: null
+  effective_date: null
+  version: "1.0"
+  source: "PPWR (EU) 2025/40 — sadeleştirilmiş temsil"
+  default_verdict: inceleme_gerekli
+
+# PPWR Md.7 — kategori+yıl başına AYRI satır (tek bir referans senaryo: gıda
+# temaslı + PET dışı plastik). Diğer kategoriler (ör. PET şişeler) henüz
+# doğrulanmadığından satır eklenmedi — sabit bir yüzde ASLA varsayılmaz.
+- regulation_code: PPWR-ART-7
+  regulation_no: "EU 2025/40"
+  article: "Md.7"
+  packaging_category: gida_temasli_pet_disi_plastik
+  target_year: 2030
+  requirement_text: >
+    2030 itibarıyla asgari %10 geri dönüştürülmüş içerik (post-tüketici PCR)
+    zorunludur.
+  pcr_only: true
+  exception_text: "İstisna, tarih ve metodoloji ayrıca doğrulanmalı."
+  effective_date: null
+  version: "1.0"
+  source: "PPWR (EU) 2025/40 Md.7 — sadeleştirilmiş temsil, tek referans senaryo"
+  default_verdict: inceleme_gerekli
+
+- regulation_code: PPWR-ART-7
+  regulation_no: "EU 2025/40"
+  article: "Md.7"
+  packaging_category: gida_temasli_pet_disi_plastik
+  target_year: 2040
+  requirement_text: >
+    2040 itibarıyla asgari %25 geri dönüştürülmüş içerik (post-tüketici PCR)
+    zorunludur.
+  pcr_only: true
+  exception_text: "İstisna, tarih ve metodoloji ayrıca doğrulanmalı."
+  effective_date: null
+  version: "1.0"
+  source: "PPWR (EU) 2025/40 Md.7 — sadeleştirilmiş temsil, tek referans senaryo"
+  default_verdict: inceleme_gerekli
+
+- regulation_code: PPWR-ART-5
+  regulation_no: "EU 2025/40"
+  article: "Md.5(5)"
+  packaging_category: null
+  target_year: null
+  requirement_text: >
+    PFAS Kontrolü — PPWR Md.5(5) | Gıda temaslı ambalaj olduğu için uygulanır
+    (12 Ağustos 2026'dan itibaren yürürlükte: tekil PFAS ≤25 ppb, toplam PFAS
+    ≤250 ppb hedef, toplam PFAS ≤50 ppm sınır) | Kanıt durumu: Belge/Test
+    Verisi Gerekli | Sonuç: İnceleme Gerekli
+  pcr_only: false
+  exception_text: null
+  effective_date: "2026-08-12"
+  version: "1.0"
+  source: "PPWR (EU) 2025/40 Md.5(5)"
+  default_verdict: inceleme_gerekli
+
+- regulation_code: PPWR-ART-9
+  regulation_no: "EU 2025/40"
+  article: "Md.9"
+  packaging_category: null
+  target_year: null
+  requirement_text: >
+    Bu ambalaj türü kompostabilite istisna kapsamına girmiyor; standart geri
+    dönüştürülebilirlik rotası (PPWR Md.6/7) izlenmelidir.
+  pcr_only: false
+  exception_text: null
+  effective_date: null
+  version: "1.0"
+  source: "PPWR (EU) 2025/40 — sadeleştirilmiş temsil"
+  default_verdict: uygun_gorunuyor
+
+- regulation_code: EU-FCM-1935-2004
+  regulation_no: "EU 1935/2004"
+  article: "Çerçeve Tüzüğü"
+  packaging_category: null
+  target_year: null
+  requirement_text: >
+    Gıda ile doğrudan temas eden ambalaj malzemeleri, migrasyon limitleri ve
+    gıda sınıfı sertifikasyonu şartlarını sağlamalıdır; sertifikasız PCR/
+    regranül gıda temaslı katmanda kullanılamaz.
+  pcr_only: false
+  exception_text: null
+  effective_date: null
+  version: "1.0"
+  source: "EU 1935/2004 — sadeleştirilmiş temsil"
+  default_verdict: inceleme_gerekli
