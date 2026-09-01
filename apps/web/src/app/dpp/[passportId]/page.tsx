@@ -13,15 +13,36 @@ import { aggregateToSegments } from "@/lib/composition-segments";
 import {
   carbonEfStatusLabel,
   carbonEfStatusTone,
+  dataConfidenceFromSourceKind,
+  dataConfidenceLabel,
+  dataConfidenceTone,
   dataSourceLabel,
   dataSourceTone,
   materialTypeLabel,
   materialTypeTone,
   physicalTestResultLabel,
   physicalTestResultTone,
+  recyclabilityDimensionLabel,
+  referenceSearchTierLabel,
   regulatoryVerdictLabel,
   regulatoryVerdictTone,
 } from "@/lib/labels";
+
+// Faz I.1 — Bölüm D: Referans|Tahmini|Gerçekleşen (H.4'ün Aşama 12
+// tablosuyla AYNI desen, bkz. asama-12-nihai-sonuc/page.tsx).
+const TRIPLE_ROWS: { key: string; label: string; unit: string }[] = [
+  { key: "virgin_kg", label: "Virgin", unit: "kg" },
+  { key: "pcr_kg", label: "PCR", unit: "kg" },
+  { key: "regranul_kg", label: "PIR-Regranül", unit: "kg" },
+  { key: "karbon_kg_co2", label: "Karbon", unit: "kg CO₂" },
+  { key: "fire_kg", label: "Fire", unit: "kg" },
+  { key: "enerji_kwh", label: "Enerji", unit: "kWh" },
+];
+
+function formatTripleCell(v: number | string | null | undefined, unit: string): string {
+  if (typeof v !== "number") return "—";
+  return `${v.toFixed(2)} ${unit}`;
+}
 
 /** Dijital Ürün Pasaportu'nun genel web sayfası (QR hedefi). `(flow)`
  * rota grubunun DIŞINDA, case-store'a bağımlı değil — sadece URL'deki
@@ -107,8 +128,10 @@ export default function DigitalProductPassportPage() {
     );
   }
 
-  const { header, status_summary, material_summary, environmental, physical_tests, regulatory, version_history } =
-    passport.public;
+  const {
+    header, status_summary, material_summary, environmental, circularity, food_contact,
+    physical_tests, regulatory, version_history,
+  } = passport.public;
   const segments = aggregateToSegments(
     material_summary.virgin_pct,
     material_summary.pcr_pct,
@@ -144,9 +167,9 @@ export default function DigitalProductPassportPage() {
         Son Güncelleme: {new Date(status_summary.last_updated).toLocaleString("tr-TR")}
       </p>
 
-      {/* Kimlik bilgisi */}
+      {/* A) Ürün Kimliği */}
       <Card className="mt-6">
-        <CardTitle>Ürün Kimliği</CardTitle>
+        <CardTitle>A) Ürün Kimliği</CardTitle>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <dt className="text-ink/50">Doğrulanmış Reçete</dt>
           <dd>V{header.recipe_version}</dd>
@@ -163,9 +186,17 @@ export default function DigitalProductPassportPage() {
         </dl>
       </Card>
 
-      {/* 1. Malzeme Kimliği */}
+      {/* B) Malzeme Kimliği */}
       <Card className="mt-6">
-        <CardTitle>Malzeme Kimliği</CardTitle>
+        <CardTitle>B) Malzeme Kimliği</CardTitle>
+        {(() => {
+          const level = dataConfidenceFromSourceKind("hesaplanan");
+          return level ? (
+            <div className="mb-2">
+              <Badge tone={dataConfidenceTone(level)}>{dataConfidenceLabel(level)}</Badge>
+            </div>
+          ) : null;
+        })()}
         <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatTile label="Toplam Kalınlık" value={material_summary.total_micron ?? "—"} unit="µm" />
           <StatTile label="Gramaj" value={material_summary.total_gsm ?? "—"} unit="g/m²" />
@@ -176,11 +207,85 @@ export default function DigitalProductPassportPage() {
         {material_summary.polymers.length > 0 && (
           <p className="mt-3 text-sm text-ink/60">Polimer Ailesi: {material_summary.polymers.join(", ")}</p>
         )}
+        <p className="mt-3 text-xs text-ink/40">
+          Katkı maddesi/masterbatch dozajı, hammadde lotu ve tedarikçi bilgisi ticari detaydır — sadece Yetkili
+          Alan&apos;da görünür.
+        </p>
       </Card>
 
-      {/* 2. Çevresel Performans */}
+      {/* C) Döngüsellik */}
       <Card className="mt-6">
-        <CardTitle subtitle="1.000 satılabilir ambalaj başına">Çevresel Performans</CardTitle>
+        <CardTitle>C) Döngüsellik</CardTitle>
+        {circularity.pcr_trend ? (
+          <p className="text-sm text-ink/70">
+            PCR oranı önceki doğrulanmış üretime göre{" "}
+            <span className="font-mono font-medium">
+              %{circularity.pcr_trend.onceki_pcr_pct.toFixed(0)} → %{circularity.pcr_trend.guncel_pcr_pct.toFixed(0)}
+            </span>
+          </p>
+        ) : (
+          <p className="text-sm text-ink/50">
+            Karşılaştırma temeli (doğrulanmış bir önceki üretim) bulunmadığından PCR trendi gösterilmiyor.
+          </p>
+        )}
+        {circularity.recyclability_breakdown ? (
+          <div className="mt-3 border-t border-ink/10 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+              Geri Dönüştürülebilirlik Kırılımı
+            </p>
+            <ul className="mt-1.5 space-y-1.5">
+              {circularity.recyclability_breakdown.dimensions.map((d, i) => (
+                <li key={i} className="text-sm text-ink/60">
+                  <span className="font-medium text-ink/70">{recyclabilityDimensionLabel(d.dimension)}</span>
+                  {d.weight_pct != null ? ` (%${d.weight_pct})` : ""}: {d.criterion_text}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-ink/50">Geri dönüştürülebilirlik değerlendirmesi henüz yapılmadı.</p>
+        )}
+      </Card>
+
+      {/* D) Çevresel Performans */}
+      <Card className="mt-6">
+        <CardTitle subtitle="1.000 satılabilir ambalaj başına">D) Çevresel Performans</CardTitle>
+        {environmental.triple_comparison && (
+          <div className="mb-6 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-ink/40">
+                  <th className="py-1 pr-4 font-normal"></th>
+                  <th className="py-1 pr-4 font-normal">Referans</th>
+                  <th className="py-1 pr-4 font-normal">Tahmini</th>
+                  <th className="py-1 pr-4 font-normal">Gerçekleşen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {TRIPLE_ROWS.map((row) => (
+                  <tr key={row.key} className="border-t border-ink/5">
+                    <td className="py-1.5 pr-4 text-ink/50">{row.label}</td>
+                    <td className="py-1.5 pr-4 font-mono">
+                      {environmental.triple_comparison!.reference ? (
+                        formatTripleCell(environmental.triple_comparison!.reference[row.key], row.unit)
+                      ) : (
+                        <span className="text-ink/30">Referans yok</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 pr-4 font-mono">
+                      {formatTripleCell(environmental.triple_comparison!.tahmini[row.key], row.unit)}
+                    </td>
+                    <td className="py-1.5 pr-4 font-mono">
+                      {environmental.triple_comparison!.gerceklesen
+                        ? formatTripleCell(environmental.triple_comparison!.gerceklesen[row.key], row.unit)
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         {p1000 ? (
           <>
             {/* Faz H.3 — Virgin/PCR/Regranül/Karbon HESAPLANIR; Fire/Enerji
@@ -189,7 +294,13 @@ export default function DigitalProductPassportPage() {
                 rozetini taşır. */}
             <div className="mb-2 flex items-center gap-2">
               {typeof p1000.kutle_veri_kaynagi === "string" && (
-                <Badge tone={dataSourceTone(p1000.kutle_veri_kaynagi)}>{dataSourceLabel(p1000.kutle_veri_kaynagi)}</Badge>
+                <>
+                  <Badge tone={dataSourceTone(p1000.kutle_veri_kaynagi)}>{dataSourceLabel(p1000.kutle_veri_kaynagi)}</Badge>
+                  {(() => {
+                    const level = dataConfidenceFromSourceKind(p1000.kutle_veri_kaynagi as string);
+                    return level ? <Badge tone={dataConfidenceTone(level)}>{dataConfidenceLabel(level)}</Badge> : null;
+                  })()}
+                </>
               )}
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -207,9 +318,15 @@ export default function DigitalProductPassportPage() {
             )}
             <div className="mb-2 mt-4 flex items-center gap-2">
               {typeof p1000.fire_enerji_veri_kaynagi === "string" && (
-                <Badge tone={dataSourceTone(p1000.fire_enerji_veri_kaynagi)}>
-                  {dataSourceLabel(p1000.fire_enerji_veri_kaynagi)}
-                </Badge>
+                <>
+                  <Badge tone={dataSourceTone(p1000.fire_enerji_veri_kaynagi)}>
+                    {dataSourceLabel(p1000.fire_enerji_veri_kaynagi)}
+                  </Badge>
+                  {(() => {
+                    const level = dataConfidenceFromSourceKind(p1000.fire_enerji_veri_kaynagi as string);
+                    return level ? <Badge tone={dataConfidenceTone(level)}>{dataConfidenceLabel(level)}</Badge> : null;
+                  })()}
+                </>
               )}
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -227,9 +344,9 @@ export default function DigitalProductPassportPage() {
         </p>
       </Card>
 
-      {/* 3. Teknik ve Kalite Performansı */}
+      {/* E) Teknik ve Kalite Performansı */}
       <Card className="mt-6">
-        <CardTitle>Teknik ve Kalite Performansı</CardTitle>
+        <CardTitle>E) Teknik ve Kalite Performansı</CardTitle>
         {physical_tests.length === 0 ? (
           <p className="text-sm text-ink/50">Henüz kayıtlı bir fiziksel test yok.</p>
         ) : (
@@ -266,9 +383,16 @@ export default function DigitalProductPassportPage() {
         )}
       </Card>
 
-      {/* 4. Mevzuat ve Döngüsellik Bilgileri */}
+      {/* F) Mevzuat */}
       <Card className="mt-6">
-        <CardTitle>Mevzuat ve Döngüsellik Bilgileri</CardTitle>
+        <CardTitle>F) Mevzuat</CardTitle>
+        {food_contact != null && (
+          <div className="mb-3">
+            <Badge tone={food_contact ? "pcr" : "neutral"}>
+              Gıda Teması: {food_contact ? "Var" : "Yok"}
+            </Badge>
+          </div>
+        )}
         <ul className="space-y-2">
           {regulatory.map((r, i) => (
             <li key={i} className="flex items-center gap-2 text-sm">
@@ -280,9 +404,9 @@ export default function DigitalProductPassportPage() {
         <p className="mt-4 text-xs text-ink/50">{passport.public.regulatory_disclaimer}</p>
       </Card>
 
-      {/* Reçete İzlenebilirliği (versiyon özeti) */}
+      {/* G) Reçete ve Üretim İzlenebilirliği (versiyon özeti — kamu görünümü) */}
       <Card className="mt-6">
-        <CardTitle>Reçete İzlenebilirliği</CardTitle>
+        <CardTitle>G) Reçete ve Üretim İzlenebilirliği</CardTitle>
         <ol className="space-y-2">
           {version_history.map((v) => (
             <li key={v.id} className="flex items-center gap-3 text-sm">
@@ -345,6 +469,21 @@ export default function DigitalProductPassportPage() {
               ))}
             </div>
 
+            {passport.authorized.additives.length > 0 && (
+              <div className="mt-5 border-t border-ink/10 pt-4">
+                <CardTitle>Katkı Maddeleri / Masterbatch</CardTitle>
+                <div className="flex flex-wrap gap-2">
+                  {passport.authorized.additives.map((a, i) => (
+                    <Badge key={i} tone="neutral">
+                      {a.additive_name ?? "—"} · %{a.dosage_pct}
+                      {a.layer_index !== null ? ` · Katman ${a.layer_index}` : ""}
+                      {a.manufacturer ? ` · ${a.manufacturer}` : ""}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="mt-5 border-t border-ink/10 pt-4">
               <CardTitle>Tam İzlenebilirlik Zinciri</CardTitle>
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
@@ -363,8 +502,49 @@ export default function DigitalProductPassportPage() {
                         .map((o) => `${o.id.slice(0, 8)}… (${o.operator ?? "operatör kaydı yok"})`)
                         .join(", ")}
                 </dd>
+                {passport.authorized.reference_search_evidence && (
+                  <>
+                    <dt className="text-ink/50">Firma Hafızası Kanıtı</dt>
+                    <dd>
+                      {referenceSearchTierLabel(passport.authorized.reference_search_evidence.tier)} ·{" "}
+                      {passport.authorized.reference_search_evidence.evidence_count} kanıt
+                    </dd>
+                  </>
+                )}
               </dl>
             </div>
+
+            {passport.authorized.causal_chain.length > 0 && (
+              <div className="mt-5 border-t border-ink/10 pt-4">
+                <CardTitle subtitle="Her halka: ne değişti → hangi hat → gerçek fire/enerji → fiziksel test → sonuç.">
+                  Nedensel Öğrenme Zinciri
+                </CardTitle>
+                <ol className="space-y-2">
+                  {passport.authorized.causal_chain.map((node) => (
+                    <li key={node.id} className="rounded-lg bg-ink/[0.03] p-3 text-sm">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge tone="petrol">V{node.version}</Badge>
+                        <span className="text-ink/60">{node.status}</span>
+                        {node.is_verified && <Badge tone="pcr">Doğrulandı</Badge>}
+                        {node.line_name && <span className="font-mono text-xs text-ink/40">{node.line_name}</span>}
+                      </div>
+                      <p className="mt-1 text-xs text-ink/50">
+                        {node.diff_from_previous === null
+                          ? "Zincirin başlangıcı — karşılaştırılacak bir önceki versiyon yok."
+                          : node.diff_from_previous.length === 0
+                            ? "Bir önceki versiyona göre kompozisyon değişikliği kaydedilmedi."
+                            : `${node.diff_from_previous.length} kompozisyon değişikliği kaydedildi.`}
+                      </p>
+                      <p className="mt-1 font-mono text-xs text-ink/50">
+                        Fire: {node.gerceklesen_fire_kg ?? "—"} kg · Enerji: {node.gerceklesen_enerji_kwh ?? "—"} kWh · Test:{" "}
+                        {node.physical_test_summary.basarili} geçti / {node.physical_test_summary.basarisiz} kaldı /{" "}
+                        {node.physical_test_summary.beklemede} beklemede
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
 
             {passport.authorized.regulatory_reasoning.length > 0 && (
               <div className="mt-5 border-t border-ink/10 pt-4">

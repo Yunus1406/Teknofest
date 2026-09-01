@@ -92,6 +92,7 @@ export default function Stage10Page() {
                   <th className="py-1.5 pr-4 font-medium">Dönem Fire</th>
                   <th className="py-1.5 pr-4 font-medium">Kümülatif Fire</th>
                   <th className="py-1.5 pr-4 font-medium">Hat Hızı</th>
+                  <th className="py-1.5 pr-4 font-medium">Kaynak</th>
                 </tr>
               </thead>
               <tbody className="font-mono text-xs">
@@ -107,6 +108,9 @@ export default function Stage10Page() {
                     <td className="py-1.5 pr-4 text-ink/60">+{r.waste_kg} kg</td>
                     <td className="py-1.5 pr-4">{r.cumulative_waste_kg} kg</td>
                     <td className="py-1.5 pr-4">{r.line_speed_m_min} m/dk</td>
+                    <td className="py-1.5 pr-4">
+                      <Badge tone={dataSourceTone(r.source)}>{dataSourceLabel(r.source)}</Badge>
+                    </td>
                   </tr>
                 ))}
               </tbody>

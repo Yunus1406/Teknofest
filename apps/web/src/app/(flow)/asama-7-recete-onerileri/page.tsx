@@ -15,6 +15,7 @@ import { recipeLayersToSegments, recipeLayersToTable } from "@/lib/composition-s
 import {
   carbonEfStatusLabel,
   carbonEfStatusTone,
+  dataConfidenceFromSourceKind,
   dataConfidenceLabel,
   dataConfidenceTone,
   dataSourceTagLabel,
@@ -113,6 +114,11 @@ export default function Stage7Page() {
                 {Object.entries(f.score_breakdown).map(([k, v]) => (
                   <Meter key={k} label={scoreCriterionLabel(k)} value={v} />
                 ))}
+              </div>
+              <div className="mt-1">
+                <Badge tone={dataConfidenceTone(dataConfidenceFromSourceKind("hesaplanan"))}>
+                  Skorlama {dataConfidenceLabel(dataConfidenceFromSourceKind("hesaplanan"))}
+                </Badge>
               </div>
 
               <div className="mt-4 rounded-lg bg-petrol/5 p-3">

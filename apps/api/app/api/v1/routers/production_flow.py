@@ -22,8 +22,9 @@ from app.schemas.production import (
     SuggestedTestTargetOut,
     WasteRecordOut,
 )
+from app.schemas.learning_memory import CausalChainNodeOut, ChangeOutcomeStatsOut
 from app.schemas.recipe import RecipeOut
-from app.services import passport_service, pdf_service, production_flow_service, report_service
+from app.services import learning_memory_service, passport_service, pdf_service, production_flow_service, report_service
 from app.services.test_targets import suggested_physical_test_targets
 
 router = APIRouter(prefix="/production-flow", tags=["Aşama 8-12 - Üretim & Doğrulama & Sonuç"])
@@ -165,6 +166,19 @@ def finalize_result(recipe_id: str, db: Session = Depends(get_db)):
         version_history=production_flow_service.version_history(db, recipe),
         triple_comparison=production_flow_service.build_triple_comparison(db, recipe),
     )
+
+
+# --- Faz I.3: Gerçek Öğrenme Hafızası ---------------------------------------
+
+@router.get("/recipes/{recipe_id}/causal-chain", response_model=list[CausalChainNodeOut])
+def get_causal_chain(recipe_id: str, db: Session = Depends(get_db)):
+    recipe = _get_recipe_or_404(db, recipe_id)
+    return learning_memory_service.causal_chain_for_recipe(db, recipe)
+
+
+@router.get("/learning-memory/change-outcome-stats", response_model=ChangeOutcomeStatsOut)
+def get_change_outcome_stats(db: Session = Depends(get_db)):
+    return ChangeOutcomeStatsOut(buckets=learning_memory_service.change_outcome_stats(db))
 
 
 # --- Faz C.5-C.7: Otomatik Optimizasyon Raporu (PDF) ---------------------

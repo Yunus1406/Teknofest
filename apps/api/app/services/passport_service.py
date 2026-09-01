@@ -24,9 +24,9 @@ from app.models.digital_product_passport import DigitalProductPassport
 from app.models.infrastructure import ProductionLine
 from app.models.knowledge import Regulation
 from app.models.production import PhysicalTest, ProductionOrder, SustainabilityResult
-from app.models.recipe import Recipe, RegulatoryAssessment
+from app.models.recipe import Recipe, RecipeAdditive, RegulatoryAssessment
 from app.models.regulation_requirement import RegulationRequirement
-from app.services import production_flow_service, traceability_service
+from app.services import learning_memory_service, production_flow_service, traceability_service
 
 
 def _next_passport_no(db: Session) -> str:
@@ -202,6 +202,17 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
     comparison = production_flow_service.build_comparison(db, recipe)
     recommended = comparison["recommended"]
     gains = comparison["gains"]
+    # Faz I.1 — Bölüm D (Çevresel Performans): H.4'ün üçlü karşılaştırması
+    # (Referans|Tahmini|Gerçekleşen) DOĞRUDAN çağrılır, yeniden kurulmaz.
+    triple_comparison = production_flow_service.build_triple_comparison(db, recipe)
+    # Faz I.1 — Bölüm C (Döngüsellik): PCR trendi, Aşama 8'in referans bulma
+    # sorgusuyla ZATEN bulunmuş `comparison["reference"]`'tan türetilir --
+    # yeni bir sorgu/hesap YOK. Referans yoksa None (uydurulmaz).
+    pcr_trend = (
+        {"onceki_pcr_pct": comparison["reference"]["pcr_pct"], "guncel_pcr_pct": recommended["pcr_pct"]}
+        if comparison["reference"] is not None
+        else None
+    )
 
     layer_structure, layer_count = _layer_structure_pattern(recipe)
     polymers = sorted({layer.material.polymer.code for layer in recipe.layers if layer.material is not None})
@@ -223,6 +234,7 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
         )
     regulatory_public = []
     regulatory_reasoning = []
+    recyclability_breakdown = None
     for a in regulatory_assessments:
         reg = db.get(Regulation, a.regulation_id)
         requirement = (
@@ -240,6 +252,10 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
         regulatory_reasoning.append(
             {"regulation_code": reg.code if reg is not None else None, "reasoning": a.reasoning}
         )
+        # Faz I.1 — Bölüm C: SADECE PPWR Md.6 değerlendirmesi bu alanı
+        # doldurur (Faz F.9); ilk (ve tek) dolu satır kullanılır.
+        if recyclability_breakdown is None and a.recyclability_breakdown is not None:
+            recyclability_breakdown = a.recyclability_breakdown
 
     trace = traceability_service.build_recipe_traceability(db, recipe.id) or {}
     version_history = production_flow_service.version_history(db, recipe)
@@ -275,7 +291,19 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
             "per_1000_units": per_1000_units,
             "gains_pct": gains,
             "has_reference": comparison["reference"] is not None,
+            # Faz I.1 — Bölüm D: Referans|Tahmini|Gerçekleşen bir arada.
+            # Mevcut per_1000_units/gains_pct/has_reference KORUNUR (geriye
+            # dönük uyumluluk), bu SADECE üzerine eklenir.
+            "triple_comparison": triple_comparison,
         },
+        # Faz I.1 — Bölüm C (Döngüsellik).
+        "circularity": {
+            "recyclability_breakdown": recyclability_breakdown,
+            "pcr_trend": pcr_trend,
+        },
+        # Faz I.1 — Bölüm F: gıda temas durumu (ticari bir bilgi DEĞİL,
+        # ambalajın kullanım amacına dair temel bir gerçek — public kalır).
+        "food_contact": packaging_request.food_contact if packaging_request is not None else None,
         "physical_tests": [
             {
                 "test_type": t.test_type,
@@ -321,10 +349,32 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
             }
             for layer in sorted(recipe.layers, key=lambda l: l.layer_index)
         ]
+        # Faz I.1 — Bölüm B: katkı maddesi/masterbatch dozajı (RecipeAdditive,
+        # zaten var, şimdiye kadar pasaporta hiç aktarılmıyordu). Ticari bir
+        # detay olduğu için authorized altında kalır.
+        additives = [
+            {
+                "layer_index": a.layer_index,
+                "additive_name": a.additive.name if a.additive is not None else None,
+                "additive_type": a.additive.additive_type if a.additive is not None else None,
+                "manufacturer": a.additive.manufacturer if a.additive is not None else None,
+                "dosage_pct": a.dosage_pct,
+            }
+            for a in db.query(RecipeAdditive).filter_by(recipe_id=recipe.id).all()
+        ]
         authorized = {
             "layer_materials": layer_materials,
+            "additives": additives,
             "traceability": trace,
             "regulatory_reasoning": regulatory_reasoning,
+            # Faz I.1 — Bölüm G: bu reçetenin Aşama 5'te firma hafızasında
+            # GERÇEKTEN bulduğu kanıt (Faz G.4) — kademe + kanıt sayısı.
+            "reference_search_evidence": recipe.reference_search_evidence,
+            # Faz I.3 — Bölüm G: V1→V2→V3 zincirinin nedensel halkaları
+            # (ne değişti → hangi hat/proses → gerçek fire/enerji →
+            # fiziksel test → sonuç), "hepsi geriye doğru sorgulanabilir
+            # olsun" kuralı.
+            "causal_chain": learning_memory_service.causal_chain_for_recipe(db, recipe),
         }
 
     settings = get_settings()

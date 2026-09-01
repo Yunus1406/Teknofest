@@ -8,6 +8,7 @@ import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import { Badge } from "@/components/ui/Badge";
+import { dataConfidenceFromSourceKind, dataConfidenceLabel, dataConfidenceTone } from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
 export default function Stage6Page() {
@@ -66,10 +67,15 @@ export default function Stage6Page() {
 
       {run && (
         <>
-          <div className="mb-6 grid grid-cols-3 gap-4">
+          <div className="mb-2 grid grid-cols-3 gap-4">
             <StatTile label="Üretilen Aday" value={run.generated_candidate_count} />
             <StatTile label="Kısıt Motorundan Geçen" value={run.survived_constraint_engine_count} />
             <StatTile label="Elenen" value={eliminatedCount} tone={eliminatedCount > 0 ? "warn" : "default"} />
+          </div>
+          <div className="mb-6">
+            <Badge tone={dataConfidenceTone(dataConfidenceFromSourceKind("hesaplanan"))}>
+              {dataConfidenceLabel(dataConfidenceFromSourceKind("hesaplanan"))}
+            </Badge>
           </div>
 
           {run.generation_breakdown && (

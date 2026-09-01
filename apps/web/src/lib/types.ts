@@ -726,6 +726,10 @@ export interface SuggestedTestTargetOut {
   target_min: number | null;
   target_max: number | null;
   note: string;
+  // Faz F.6 — ayrı, açıkça "öneri" etiketli alan; target_min/target_max DEĞİLDİR.
+  suggested_min: number | null;
+  suggested_max: number | null;
+  suggestion_source: string | null;
 }
 
 // Faz D.2 — basarili/basarisiz/beklemede. `passed` sadece geriye dönük
@@ -951,6 +955,14 @@ export interface PassportEnvironmentalOut {
   per_1000_units: Record<string, number | string | null> | null;
   gains_pct: Record<string, number> | null;
   has_reference: boolean;
+  // Faz I.1 — Bölüm D: Referans|Tahmini|Gerçekleşen (H.4'ün TripleComparisonOut'uyla aynı şekil).
+  triple_comparison: TripleComparisonOut | null;
+}
+
+// Faz I.1 — Bölüm C (Döngüsellik). İkisi de yoksa null (uydurulmaz).
+export interface PassportCircularityOut {
+  recyclability_breakdown: { dimensions: RecyclabilityDimensionOut[] } | null;
+  pcr_trend: { onceki_pcr_pct: number; guncel_pcr_pct: number } | null;
 }
 
 export interface PassportPhysicalTestOut {
@@ -983,6 +995,10 @@ export interface PassportPublicOut {
   status_summary: PassportStatusSummaryOut;
   material_summary: PassportMaterialSummaryOut;
   environmental: PassportEnvironmentalOut;
+  // Faz I.1 — Bölüm C.
+  circularity: PassportCircularityOut;
+  // Faz I.1 — Bölüm F: ticari bir bilgi değil, public kalır.
+  food_contact: boolean | null;
   physical_tests: PassportPhysicalTestOut[];
   regulatory: PassportRegulatoryItemOut[];
   regulatory_disclaimer: string;
@@ -1006,10 +1022,43 @@ export interface PassportRegulatoryReasoningOut {
   reasoning: string;
 }
 
+// Faz I.1 — Bölüm B: katkı maddesi/masterbatch dozajı, ticari detay olduğu için authorized altında.
+export interface PassportAdditiveOut {
+  layer_index: number | null;
+  additive_name: string | null;
+  additive_type: string | null;
+  manufacturer: string | null;
+  dosage_pct: number;
+}
+
+// Faz I.3 — Gerçek Öğrenme Hafızası: V1→V2→V3 zincirinin bir halkası.
+export interface CausalChainNodeOut {
+  id: string;
+  version: number;
+  status: string;
+  is_verified: boolean;
+  created_at: string;
+  diff_from_previous: Record<string, unknown>[] | null;
+  line_name: string | null;
+  target_process_parameters: { parameter_name: string; typical_min: number | null; typical_max: number | null; unit: string }[];
+  gerceklesen_fire_kg: number | null;
+  gerceklesen_enerji_kwh: number | null;
+  physical_test_summary: { basarili: number; basarisiz: number; beklemede: number };
+}
+
 export interface PassportAuthorizedOut {
   layer_materials: PassportLayerMaterialDetailOut[];
+  additives: PassportAdditiveOut[];
   traceability: RecipeTraceabilityOut;
   regulatory_reasoning: PassportRegulatoryReasoningOut[];
+  // Faz I.1 — Bölüm G: Faz G.4'ün firma hafızası tarama kanıtı (varsa).
+  reference_search_evidence: {
+    tier: string;
+    evidence_count: number;
+    candidate_recipe_ids: string[];
+  } | null;
+  // Faz I.3 — Bölüm G: V1→V2→V3 zincirinin nedensel halkaları.
+  causal_chain: CausalChainNodeOut[];
 }
 
 export interface DigitalProductPassportOut {

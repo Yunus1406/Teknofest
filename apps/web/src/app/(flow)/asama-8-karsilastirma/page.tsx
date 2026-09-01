@@ -11,7 +11,7 @@ import { StatTile } from "@/components/ui/StatTile";
 import { LayerBreakdownTable } from "@/components/visualizations/LayerBreakdownTable";
 import { LayeredCompositionBar } from "@/components/visualizations/LayeredCompositionBar";
 import { aggregateToSegments, layerCompositionOutToTable } from "@/lib/composition-segments";
-import { carbonEfStatusLabel, carbonEfStatusTone } from "@/lib/labels";
+import { carbonEfStatusLabel, carbonEfStatusTone, dataConfidenceFromSourceKind, dataConfidenceTone } from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
 // Faz H.1 — Aşama 8'in HİÇBİR sayısı "gerçekleşen" ile karıştırılamaz;
@@ -23,7 +23,31 @@ function EstimateTag({ show }: { show: boolean }) {
   return <span className="ml-1 rounded bg-virgin/10 px-1 py-0.5 text-[9px] font-sans font-medium text-virgin">Tahmini</span>;
 }
 
-function StatRow({ label, value, estimated }: { label: string; value: string | null; estimated: boolean }) {
+const TONE_DOT: Record<string, string> = {
+  petrol: "bg-petrol", virgin: "bg-virgin", pcr: "bg-pcr", regranul: "bg-regranul", warn: "bg-warn", neutral: "bg-ink/40",
+};
+
+// Faz I.4 — H.5'in kaynak etiketinden türetilen "Veri Güveni"; küçük bir
+// renkli nokta olarak gösterilir (yoğun 3 sütunlu grid'de her satıra tam
+// bir rozet sığdırmak yerine), üzerine gelince (title) tam etiketi gösterir.
+function ConfidenceDot({ sourceKind }: { sourceKind: string | null }) {
+  const level = dataConfidenceFromSourceKind(sourceKind);
+  if (!level) return null;
+  const tone = dataConfidenceTone(level);
+  const label = { yuksek: "Yüksek", orta: "Orta", dusuk: "Düşük", varsayimsal: "Varsayımsal" }[level] ?? level;
+  return (
+    <span
+      className={`ml-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full ${TONE_DOT[tone]}`}
+      title={`Veri Güveni: ${label}`}
+    />
+  );
+}
+
+function StatRow({
+  label, value, estimated, confidenceKind = "hesaplanan",
+}: {
+  label: string; value: string | null; estimated: boolean; confidenceKind?: string | null;
+}) {
   if (value === null) return null;
   return (
     <div>
@@ -31,6 +55,7 @@ function StatRow({ label, value, estimated }: { label: string; value: string | n
       <dd className="flex items-center">
         {value}
         <EstimateTag show={estimated} />
+        <ConfidenceDot sourceKind={confidenceKind} />
       </dd>
     </div>
   );
@@ -48,7 +73,12 @@ function SideCard({ side }: { side: CompositionSide }) {
       <dl className="mt-4 grid grid-cols-3 gap-3 font-mono text-xs">
         <StatRow label="Kalınlık" value={`${side.total_micron.toFixed(0)} µm`} estimated={side.is_estimated} />
         <StatRow label="Maliyet" value={`${side.cost_per_kg.toFixed(1)} TL/kg`} estimated={side.is_estimated} />
-        <StatRow label="Karbon" value={`${side.carbon_kg_co2_per_kg.toFixed(2)} kg CO₂/kg`} estimated={side.is_estimated} />
+        <StatRow
+          label="Karbon"
+          value={`${side.carbon_kg_co2_per_kg.toFixed(2)} kg CO₂/kg`}
+          estimated={side.is_estimated}
+          confidenceKind={side.carbon_data_quality}
+        />
         <StatRow
           label="Virgin (1000 birim)"
           value={side.virgin_kg !== null ? `${side.virgin_kg.toFixed(2)} kg` : null}

@@ -74,6 +74,41 @@ def report_source_label(kind: str | None) -> str:
     return _REPORT_SOURCE_LABELS.get(kind, "Veri Yok")
 
 
+# Faz I.4 — Sistem geneli "Veri Güveni" göstergesi. AYRI bir hesaplama
+# DEĞİL -- `_REPORT_SOURCE_LABELS` ile AYNI `kind` girdi kümesini 4 kademeli
+# bir ölçeğe (Yüksek/Orta/Düşük/Varsayımsal) çevirir. F.12'nin öncelik
+# sırasıyla (FIRMA_OLCUM/FIRMA_URETIM en güvenilir -> VARSAYIM en az) tutarlı:
+# doğrudan ölçüm/makine verisi Yüksek, firma geçmişi/tedarikçi föyü/hesaplama
+# Orta, mevzuat/sistem referansı/simülasyon Düşük, varsayımsal/demo en alt.
+_CONFIDENCE_BY_KIND = {
+    "makineden_alinan": "Yüksek",
+    "laboratuvar": "Yüksek",
+    "firma_verisi": "Yüksek",
+    "laboratuvar_testi": "Yüksek",
+    "kullanici_girisi": "Yüksek",
+    "gecmis_uretim": "Orta",
+    "teknik_veri_foyu": "Orta",
+    "hesaplanan": "Orta",
+    "gecmis_uretim_verisi": "Orta",
+    "mevzuat": "Düşük",
+    "sistem_referansi": "Düşük",
+    "simulasyon": "Düşük",
+    "simulasyon_verisi": "Düşük",
+    "tanimli_gercek": "Düşük",
+    "varsayimsal": "Varsayımsal",
+    "tanimli_demo": "Varsayımsal",
+}
+
+
+def data_confidence_level(kind: str | None) -> str | None:
+    """Kaynak gerçekten belirlenemiyorsa (None ya da tanınmıyorsa) None
+    döner -- rozet HİÇ gösterilmez (report_source_label'ın 'Veri Yok'
+    döndüğü durumla aynı disiplin, burada sadece rozetin kendisi basılmaz)."""
+    if kind is None:
+        return None
+    return _CONFIDENCE_BY_KIND.get(kind)
+
+
 def _find_reference_recipe(db: Session, recipe: Recipe) -> Recipe | None:
     """`production_flow_service.build_comparison()`'daki referans seçim
     sorgusunun AYNISI — bilinçli küçük bir tekrar. build_comparison sadece
@@ -226,7 +261,7 @@ def _packaging_info(packaging_request: PackagingRequest) -> dict:
 def _reference_section(comparison: dict) -> dict:
     reference_side = comparison["reference"]
     if reference_side is None:
-        return {"has_reference": False, "note": _NO_REFERENCE_NOTE, "reference": None, "_kaynak": None}
+        return {"has_reference": False, "note": _NO_REFERENCE_NOTE, "reference": None, "_kaynak": None, "_guven": None}
     # Referans, firma hafızasındaki daha önce ÜRETİLMİŞ+doğrulanmış bir
     # reçetedir (bkz. production_flow_service.build_comparison) -- "Geçmiş
     # Üretim" gerçek kaynağı, uydurulmuyor.
@@ -235,6 +270,7 @@ def _reference_section(comparison: dict) -> dict:
         "note": None,
         "reference": reference_side,
         "_kaynak": report_source_label("gecmis_uretim"),
+        "_guven": data_confidence_level("gecmis_uretim"),
     }
 
 
@@ -275,6 +311,7 @@ def _selected_recipe_section(recipe: Recipe, trace: dict) -> dict:
         # Faz H.5 — katman/kalınlık dağılımı optimizasyon motorunun
         # deterministik çıktısıdır -- "Hesaplanan".
         "_kaynak": report_source_label("hesaplanan"),
+        "_guven": data_confidence_level("hesaplanan"),
     }
 
 
@@ -390,6 +427,8 @@ def _climate_circularity_section(comparison: dict, per_1000: dict | None) -> dic
         # (bugün her zaman simülasyon, uydurulmuyor).
         "_kaynak_kompozisyon": report_source_label("hesaplanan"),
         "_kaynak_fire_enerji": report_source_label((per_1000 or {}).get("fire_enerji_veri_kaynagi")),
+        "_guven_kompozisyon": data_confidence_level("hesaplanan"),
+        "_guven_fire_enerji": data_confidence_level((per_1000 or {}).get("fire_enerji_veri_kaynagi")),
     }
 
 
@@ -496,31 +535,33 @@ def _source_matrix_section(data: dict) -> list[dict]:
     """Faz H.5'in her bölüme eklediği kaynak etiketlerinin TEK bir özet
     tablosu -- rapordaki her ana rakamın nereden geldiği bir bakışta
     görünür. `data`, bu fonksiyon çağrılana kadar inşa edilmiş TÜM diğer
-    bölümleri içerir; burada hiçbir yeni sorgu/hesap YAPILMAZ."""
+    bölümleri içerir; burada hiçbir yeni sorgu/hesap YAPILMAZ. Faz I.4 —
+    her satıra, AYNI `_guven` alanlarından (varsa) bir "Veri Güveni"
+    sütunu da eklenir."""
     rows: list[dict] = []
     if data["referans_recete"].get("_kaynak"):
-        rows.append({"alan": "Referans Reçete", "kaynak": data["referans_recete"]["_kaynak"]})
+        rows.append({"alan": "Referans Reçete", "kaynak": data["referans_recete"]["_kaynak"], "guven": data["referans_recete"].get("_guven")})
     if data["secilen_recete"].get("_kaynak"):
-        rows.append({"alan": "Seçilen Reçete (katman/kalınlık)", "kaynak": data["secilen_recete"]["_kaynak"]})
+        rows.append({"alan": "Seçilen Reçete (katman/kalınlık)", "kaynak": data["secilen_recete"]["_kaynak"], "guven": data["secilen_recete"].get("_guven")})
     if data["tahmini_sonuclar"].get("_kaynak"):
-        rows.append({"alan": "Tahmini Sonuçlar (Aşama 8)", "kaynak": data["tahmini_sonuclar"]["_kaynak"]})
+        rows.append({"alan": "Tahmini Sonuçlar (Aşama 8)", "kaynak": data["tahmini_sonuclar"]["_kaynak"], "guven": data["tahmini_sonuclar"].get("_guven")})
     per_1000 = data["surdurulebilirlik_performansi"]["per_1000_units"] or {}
     if per_1000.get("kutle_veri_kaynagi"):
-        rows.append({"alan": "Gerçekleşen Virgin/PCR/PIR-Regranül/Karbon", "kaynak": report_source_label(per_1000["kutle_veri_kaynagi"])})
+        rows.append({"alan": "Gerçekleşen Virgin/PCR/PIR-Regranül/Karbon", "kaynak": report_source_label(per_1000["kutle_veri_kaynagi"]), "guven": data_confidence_level(per_1000["kutle_veri_kaynagi"])})
     if per_1000.get("fire_enerji_veri_kaynagi"):
-        rows.append({"alan": "Gerçekleşen Fire/Enerji", "kaynak": report_source_label(per_1000["fire_enerji_veri_kaynagi"])})
+        rows.append({"alan": "Gerçekleşen Fire/Enerji", "kaynak": report_source_label(per_1000["fire_enerji_veri_kaynagi"]), "guven": data_confidence_level(per_1000["fire_enerji_veri_kaynagi"])})
     if data["iklim_dongusellik"].get("_kaynak_kompozisyon"):
-        rows.append({"alan": "İklim/Döngüsellik Kompozisyon", "kaynak": data["iklim_dongusellik"]["_kaynak_kompozisyon"]})
+        rows.append({"alan": "İklim/Döngüsellik Kompozisyon", "kaynak": data["iklim_dongusellik"]["_kaynak_kompozisyon"], "guven": data["iklim_dongusellik"].get("_guven_kompozisyon")})
     if data["iklim_dongusellik"].get("_kaynak_fire_enerji"):
-        rows.append({"alan": "İklim/Döngüsellik Fire/Enerji", "kaynak": data["iklim_dongusellik"]["_kaynak_fire_enerji"]})
+        rows.append({"alan": "İklim/Döngüsellik Fire/Enerji", "kaynak": data["iklim_dongusellik"]["_kaynak_fire_enerji"], "guven": data["iklim_dongusellik"].get("_guven_fire_enerji")})
     for t in data["fiziksel_dogrulama"]["tests"]:
-        rows.append({"alan": f"Fiziksel Test: {t['test_type']}", "kaynak": report_source_label(t.get("source"))})
+        rows.append({"alan": f"Fiziksel Test: {t['test_type']}", "kaynak": report_source_label(t.get("source")), "guven": data_confidence_level(t.get("source"))})
     for o in data["gercek_uretim_sonuclari"]["orders"]:
         if o.get("data_source"):
-            rows.append({"alan": "Gerçek Üretim Sonuçları", "kaynak": report_source_label(o["data_source"])})
+            rows.append({"alan": "Gerçek Üretim Sonuçları", "kaynak": report_source_label(o["data_source"]), "guven": data_confidence_level(o["data_source"])})
     for i in data["ppwr_on_uyum"]["items"]:
         if i.get("requirement_source"):
-            rows.append({"alan": f"PPWR {i.get('article') or i.get('regulation_code')}", "kaynak": "Mevzuat"})
+            rows.append({"alan": f"PPWR {i.get('article') or i.get('regulation_code')}", "kaynak": "Mevzuat", "guven": data_confidence_level("mevzuat")})
     return rows
 
 
@@ -562,7 +603,11 @@ def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
         # Faz H.5 — comparison["recommended"] paylaşılan bir sözlük (Aşama
         # 8'in kendi API yanıtında da kullanılıyor); burada YENİ bir kopya
         # (spread) üzerine `_kaynak` eklenir, orijinal dict MUTATE edilmez.
-        "tahmini_sonuclar": {**comparison["recommended"], "_kaynak": report_source_label("hesaplanan")},
+        "tahmini_sonuclar": {
+            **comparison["recommended"],
+            "_kaynak": report_source_label("hesaplanan"),
+            "_guven": data_confidence_level("hesaplanan"),
+        },
         "gercek_uretim_sonuclari": production_section,
         "fiziksel_dogrulama": physical_section,
         "surdurulebilirlik_performansi": sustainability_section,

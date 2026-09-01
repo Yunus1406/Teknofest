@@ -30,6 +30,10 @@ export function carbonEfStatusTone(v: string | null | undefined): Tone {
   }
 }
 
+// Faz I.4 — "varsayimsal" 4. durum olarak eklendi (Aşama 7'nin
+// RecipeEvaluation.data_confidence'ı hâlâ sadece yuksek/orta/dusuk üretir;
+// "varsayimsal" SADECE dataConfidenceFromSourceKind()'ın türettiği
+// senaryolarda ortaya çıkar). Mevcut 3 durum DEĞİŞMEDİ, üzerine eklendi.
 export function dataConfidenceLabel(v: string | null): string {
   switch (v) {
     case "yuksek":
@@ -38,6 +42,8 @@ export function dataConfidenceLabel(v: string | null): string {
       return "Veri Güveni: Orta";
     case "dusuk":
       return "Veri Güveni: Düşük";
+    case "varsayimsal":
+      return "Veri Güveni: Varsayımsal";
     default:
       return "Veri Güveni: —";
   }
@@ -51,9 +57,41 @@ export function dataConfidenceTone(v: string | null): Tone {
       return "virgin";
     case "dusuk":
       return "warn";
+    case "varsayimsal":
+      return "regranul";
     default:
       return "neutral";
   }
+}
+
+// Faz I.4 — Sistem geneli "Veri Güveni" göstergesi. AYRI bir hesaplama
+// DEĞİL: backend'in app/services/report_service.py::_CONFIDENCE_BY_KIND
+// ile AYNI 4 kademeli eşleme, aynı `kind` girdi kümesi (H.5'in 10 kelimelik
+// kaynak sözlüğü + DataSourceType/carbon_ef_status takma adları) üzerinde.
+// Kaynak gerçekten belirlenemiyorsa (null/tanınmıyor) null döner — rozet
+// HİÇ gösterilmez, "Veri Güveni: —" bile basılmaz.
+const _CONFIDENCE_BY_SOURCE_KIND: Record<string, string> = {
+  makineden_alinan: "yuksek",
+  laboratuvar: "yuksek",
+  firma_verisi: "yuksek",
+  laboratuvar_testi: "yuksek",
+  kullanici_girisi: "yuksek",
+  gecmis_uretim: "orta",
+  teknik_veri_foyu: "orta",
+  hesaplanan: "orta",
+  gecmis_uretim_verisi: "orta",
+  mevzuat: "dusuk",
+  sistem_referansi: "dusuk",
+  simulasyon: "dusuk",
+  simulasyon_verisi: "dusuk",
+  tanimli_gercek: "dusuk",
+  varsayimsal: "varsayimsal",
+  tanimli_demo: "varsayimsal",
+};
+
+export function dataConfidenceFromSourceKind(kind: string | null | undefined): string | null {
+  if (!kind) return null;
+  return _CONFIDENCE_BY_SOURCE_KIND[kind] ?? null;
 }
 
 export function dataSourceLabel(v: string): string {

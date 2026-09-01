@@ -10,9 +10,9 @@ from fastapi.testclient import TestClient
 
 from app.core.db import get_db
 from app.main import app
-from app.models.knowledge import Material, Polymer
+from app.models.knowledge import Additive, Material, Polymer, Regulation
 from app.models.production import PhysicalTest
-from app.models.recipe import PackagingRequest, Recipe, RecipeLayer
+from app.models.recipe import PackagingRequest, Recipe, RecipeAdditive, RecipeLayer, RegulatoryAssessment
 from app.services.passport_service import build_passport_content, get_or_create_passport
 
 
@@ -142,6 +142,165 @@ def test_physical_performance_reflects_failed_test(db_session):
     content = build_passport_content(db_session, passport, include_authorized=False)
 
     assert content["public"]["status_summary"]["physical_performance"] == "Başarısız"
+
+
+# --- Faz I.1/I.2: 7 bölümlü yapı genişlemesi --------------------------------
+
+def test_authorized_content_includes_additives(db_session):
+    recipe = _verified_recipe_with_layer(db_session)
+    additive = Additive(
+        name="UV Stabilizatör", additive_type="stabilizator", manufacturer="Test Katkı A.Ş.",
+        dosage_min_pct=0.1, dosage_max_pct=1.0, food_contact_eligible=True, cost_per_kg=80.0,
+    )
+    db_session.add(additive)
+    db_session.flush()
+    db_session.add(RecipeAdditive(recipe_id=recipe.id, additive_id=additive.id, dosage_pct=0.4, layer_index=0))
+    db_session.commit()
+    passport = get_or_create_passport(db_session, recipe.id)
+
+    content = build_passport_content(db_session, passport, include_authorized=True)
+
+    additives = content["authorized"]["additives"]
+    assert len(additives) == 1
+    assert additives[0]["additive_name"] == "UV Stabilizatör"
+    assert additives[0]["manufacturer"] == "Test Katkı A.Ş."
+    assert additives[0]["dosage_pct"] == 0.4
+
+
+def test_public_content_never_leaks_additives_or_evidence(db_session):
+    recipe = _verified_recipe_with_layer(db_session)
+    additive = Additive(
+        name="UV Stabilizatör", additive_type="stabilizator", dosage_min_pct=0.1, dosage_max_pct=1.0,
+        food_contact_eligible=True, cost_per_kg=80.0,
+    )
+    db_session.add(additive)
+    db_session.flush()
+    db_session.add(RecipeAdditive(recipe_id=recipe.id, additive_id=additive.id, dosage_pct=0.4, layer_index=0))
+    recipe.reference_search_evidence = {"tier": "ayni_ambalaj_turu", "evidence_count": 2, "candidate_recipe_ids": []}
+    db_session.commit()
+    passport = get_or_create_passport(db_session, recipe.id)
+
+    content = build_passport_content(db_session, passport, include_authorized=False)
+
+    assert content["authorized"] is None
+    assert "additives" not in content["public"]
+    assert "reference_search_evidence" not in content["public"]
+
+
+def test_circularity_pcr_trend_none_when_no_reference(db_session):
+    recipe = _verified_recipe_with_layer(db_session)
+    passport = get_or_create_passport(db_session, recipe.id)
+
+    content = build_passport_content(db_session, passport, include_authorized=False)
+
+    assert content["public"]["circularity"]["pcr_trend"] is None
+
+
+def _recipe_for_material(db, material, version=1):
+    req = PackagingRequest(
+        packaging_type="esnek film ambalaj", usage_area="test", product="test", target_market="AB",
+        food_contact=True, target_volume_units=1000, dimensions={},
+    )
+    db.add(req)
+    db.flush()
+    recipe = Recipe(
+        packaging_request_id=req.id, version=version, source="sistem_uretti", status="dogrulandi",
+        is_verified=True, total_micron=70.0,
+    )
+    db.add(recipe)
+    db.flush()
+    db.add(RecipeLayer(recipe_id=recipe.id, layer_index=0, layer_label="A", material_id=material.id, ratio_pct=100.0, thickness_micron=70.0))
+    db.commit()
+    db.refresh(recipe)
+    return recipe
+
+
+def test_circularity_pcr_trend_computed_when_reference_exists(db_session):
+    from app.models.recipe import RecipeMetric
+
+    material = _material(db_session)
+    old_recipe = _recipe_for_material(db_session, material)
+    db_session.add(RecipeMetric(recipe_id=old_recipe.id, metric_type="pcr_kullanimi", value=20.0, unit="%", is_estimated=True, data_source_type="hesaplanan"))
+    db_session.add(RecipeMetric(recipe_id=old_recipe.id, metric_type="virgin_kullanimi", value=80.0, unit="%", is_estimated=True, data_source_type="hesaplanan"))
+    db_session.commit()
+
+    new_recipe = _recipe_for_material(db_session, material)
+    db_session.add(RecipeMetric(recipe_id=new_recipe.id, metric_type="pcr_kullanimi", value=25.0, unit="%", is_estimated=True, data_source_type="hesaplanan"))
+    db_session.add(RecipeMetric(recipe_id=new_recipe.id, metric_type="virgin_kullanimi", value=75.0, unit="%", is_estimated=True, data_source_type="hesaplanan"))
+    db_session.commit()
+
+    passport = get_or_create_passport(db_session, new_recipe.id)
+    content = build_passport_content(db_session, passport, include_authorized=False)
+
+    trend = content["public"]["circularity"]["pcr_trend"]
+    assert trend is not None
+    assert trend["onceki_pcr_pct"] == pytest.approx(20.0)
+    assert trend["guncel_pcr_pct"] == pytest.approx(25.0)
+
+
+def test_circularity_recyclability_breakdown_none_when_not_assessed(db_session):
+    recipe = _verified_recipe_with_layer(db_session)
+    passport = get_or_create_passport(db_session, recipe.id)
+
+    content = build_passport_content(db_session, passport, include_authorized=False)
+
+    assert content["public"]["circularity"]["recyclability_breakdown"] is None
+
+
+def test_circularity_recyclability_breakdown_surfaced_when_assessed(db_session):
+    recipe = _verified_recipe_with_layer(db_session)
+    regulation = Regulation(
+        code="PPWR-ART-6", title="Geri Dönüştürülebilirlik", category="geri_donusturulebilirlik",
+        description="test", criteria={}, applicable_packaging_types=[],
+    )
+    db_session.add(regulation)
+    db_session.flush()
+    db_session.add(
+        RegulatoryAssessment(
+            packaging_request_id=recipe.packaging_request_id, regulation_id=regulation.id,
+            verdict="uygun_gorunuyor", reasoning="test gerekce",
+            recyclability_breakdown={"dimensions": [{"dimension": "tasarim_uyumu", "criterion_text": "x", "weight_pct": 40.0, "packaging_category": None}]},
+        )
+    )
+    db_session.commit()
+    passport = get_or_create_passport(db_session, recipe.id)
+
+    content = build_passport_content(db_session, passport, include_authorized=False)
+
+    breakdown = content["public"]["circularity"]["recyclability_breakdown"]
+    assert breakdown is not None
+    assert breakdown["dimensions"][0]["dimension"] == "tasarim_uyumu"
+
+
+def test_food_contact_reflects_packaging_request(db_session):
+    recipe = _verified_recipe_with_layer(db_session)
+    passport = get_or_create_passport(db_session, recipe.id)
+
+    content = build_passport_content(db_session, passport, include_authorized=False)
+
+    assert content["public"]["food_contact"] is True  # fixture food_contact=True
+
+
+def test_environmental_includes_triple_comparison(db_session):
+    recipe = _verified_recipe_with_layer(db_session)
+    passport = get_or_create_passport(db_session, recipe.id)
+
+    content = build_passport_content(db_session, passport, include_authorized=False)
+
+    triple = content["public"]["environmental"]["triple_comparison"]
+    assert set(triple.keys()) == {"reference", "tahmini", "gerceklesen", "gains"}
+    assert triple["tahmini"] is not None
+
+
+def test_authorized_reference_search_evidence_passthrough(db_session):
+    recipe = _verified_recipe_with_layer(db_session)
+    recipe.reference_search_evidence = {"tier": "ayni_sku", "evidence_count": 3, "candidate_recipe_ids": ["x"]}
+    db_session.commit()
+    passport = get_or_create_passport(db_session, recipe.id)
+
+    content = build_passport_content(db_session, passport, include_authorized=True)
+
+    assert content["authorized"]["reference_search_evidence"]["tier"] == "ayni_sku"
 
 
 # --- Router seviyesi: paylaşılan-anahtar kapısı ----------------------------

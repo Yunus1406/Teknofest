@@ -46,6 +46,17 @@ class PassportEnvironmentalOut(BaseModel):
     per_1000_units: dict | None = None
     gains_pct: dict | None = None
     has_reference: bool
+    # Faz I.1 — Bölüm D: Referans|Tahmini|Gerçekleşen (H.4'ün
+    # TripleComparisonOut'uyla AYNI şekil, bkz. app/schemas/dashboard.py).
+    triple_comparison: dict | None = None
+
+
+class PassportCircularityOut(BaseModel):
+    """Faz I.1 — Bölüm C (Döngüsellik). İkisi de gerçekten yoksa None --
+    uydurulmaz."""
+
+    recyclability_breakdown: dict | None = None
+    pcr_trend: dict | None = None
 
 
 class PassportPhysicalTestOut(BaseModel):
@@ -79,6 +90,11 @@ class PassportPublicOut(BaseModel):
     status_summary: PassportStatusSummaryOut
     material_summary: PassportMaterialSummaryOut
     environmental: PassportEnvironmentalOut
+    # Faz I.1 — Bölüm C.
+    circularity: PassportCircularityOut
+    # Faz I.1 — Bölüm F: ticari bir bilgi değil, ambalajın kullanım
+    # amacına dair temel bir gerçek -- public kalır.
+    food_contact: bool | None = None
     physical_tests: list[PassportPhysicalTestOut] = []
     regulatory: list[PassportRegulatoryItemOut] = []
     regulatory_disclaimer: str
@@ -97,6 +113,17 @@ class PassportLayerMaterialDetailOut(BaseModel):
     ratio_pct: float
 
 
+class PassportAdditiveOut(BaseModel):
+    """Faz I.1 — Bölüm B: katkı maddesi/masterbatch dozajı, ticari detay
+    olduğu için authorized altında."""
+
+    layer_index: int | None = None
+    additive_name: str | None = None
+    additive_type: str | None = None
+    manufacturer: str | None = None
+    dosage_pct: float
+
+
 class PassportRegulatoryReasoningOut(BaseModel):
     regulation_code: str | None = None
     reasoning: str
@@ -104,8 +131,15 @@ class PassportRegulatoryReasoningOut(BaseModel):
 
 class PassportAuthorizedOut(BaseModel):
     layer_materials: list[PassportLayerMaterialDetailOut] = []
+    additives: list[PassportAdditiveOut] = []
     traceability: RecipeTraceabilityOut
     regulatory_reasoning: list[PassportRegulatoryReasoningOut] = []
+    # Faz I.1 — Bölüm G: Faz G.4'ün firma hafızası tarama kanıtı (varsa).
+    reference_search_evidence: dict | None = None
+    # Faz I.3 — Bölüm G: V1→V2→V3 zincirinin nedensel halkaları (bkz.
+    # app/schemas/learning_memory.py CausalChainNodeOut, burada gevşek
+    # dict olarak taşınır -- ayrı bir endpoint zaten tam tipli).
+    causal_chain: list[dict] = []
 
 
 class DigitalProductPassportOut(BaseModel):

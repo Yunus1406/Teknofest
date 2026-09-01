@@ -8,7 +8,13 @@ import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { physicalTestResultLabel, physicalTestResultTone } from "@/lib/labels";
+import {
+  dataConfidenceFromSourceKind,
+  dataConfidenceLabel,
+  dataConfidenceTone,
+  physicalTestResultLabel,
+  physicalTestResultTone,
+} from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
 const TEST_LABELS: Record<string, string> = {
@@ -119,6 +125,18 @@ export default function Stage11Page() {
                     {t.unit} (hedef: {t.target_min ?? "—"}–{t.target_max ?? "—"})
                   </span>
                 </div>
+                {(() => {
+                  // Faz I.4 — hedef aralığın kaynağına göre güven: F.6
+                  // mekanik test standardından öneri varsa Sistem Referansı
+                  // (Düşük); yoksa ama hedef reçetenin kendi kalınlığından
+                  // türetildiyse Hesaplanan (Orta); hiçbiri yoksa rozet yok.
+                  const kind = s?.suggestion_source ? "sistem_referansi" : t.target_min !== null ? "hesaplanan" : null;
+                  const level = dataConfidenceFromSourceKind(kind);
+                  if (!level) return null;
+                  return (
+                    <Badge tone={dataConfidenceTone(level)}>{dataConfidenceLabel(level)}</Badge>
+                  );
+                })()}
                 {s && <p className="mt-1 text-xs text-ink/40">{s.note}</p>}
                 {t.test_method && (
                   <p className="mt-0.5 text-xs text-ink/40">

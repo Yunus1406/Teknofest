@@ -146,6 +146,20 @@ def _data_source_label(v: str | None) -> str:
     }.get(v, v or "—")
 
 
+def _data_confidence_level(v: str | None) -> str | None:
+    # Faz I.4 — report_service.py::data_confidence_level ile AYNI ölçek,
+    # burada DataSourceType slug'ları (yukarıdaki _data_source_label ile
+    # AYNI girdi) üzerinde. Kaynak yoksa/tanınmıyorsa None -- rozet basılmaz.
+    return {
+        "hesaplanan": "Orta",
+        "gecmis_uretim_verisi": "Orta",
+        "makineden_alinan": "Yüksek",
+        "laboratuvar_testi": "Yüksek",
+        "kullanici_girisi": "Yüksek",
+        "simulasyon_verisi": "Düşük",
+    }.get(v)
+
+
 def _verdict_label(v: str | None) -> str:
     return {
         "uygun_gorunuyor": "Uygun Görünüyor",
@@ -274,6 +288,8 @@ def _section_reference(data: dict) -> list:
         story.append(_table(rows, col_widths=[55 * mm, 110 * mm]))
         if ref.get("_kaynak"):
             story.append(_p(f"Veri Kaynağı: {ref['_kaynak']}", STYLE_SMALL))
+        if ref.get("_guven"):
+            story.append(_p(f"Veri Güveni: {ref['_guven']}", STYLE_SMALL))
     story.append(Spacer(1, 10))
     return story
 
@@ -336,6 +352,8 @@ def _section_selected_recipe(data: dict) -> list:
         story.append(_table(layer_rows, col_widths=[20 * mm, 75 * mm, 30 * mm, 25 * mm]))
     if sel.get("_kaynak"):
         story.append(_p(f"Veri Kaynağı: {sel['_kaynak']}", STYLE_SMALL))
+    if sel.get("_guven"):
+        story.append(_p(f"Veri Güveni: {sel['_guven']}", STYLE_SMALL))
     story.append(Spacer(1, 10))
     return story
 
@@ -351,6 +369,8 @@ def _section_estimated_results(data: dict) -> list:
     story = [_p("8. Tahmini Sonuçlar (Aşama 8)", STYLE_H1), _table(rows, col_widths=[55 * mm, 110 * mm])]
     if est.get("_kaynak"):
         story.append(_p(f"Veri Kaynağı: {est['_kaynak']}", STYLE_SMALL))
+    if est.get("_guven"):
+        story.append(_p(f"Veri Güveni: {est['_guven']}", STYLE_SMALL))
     story.append(Spacer(1, 10))
     return story
 
@@ -425,13 +445,15 @@ def _section_sustainability(data: dict) -> list:
     # başlığı altında görünse de FARKLI kaynaklardandır -- ikisi tek bir
     # etikette karıştırılmaz (bkz. production_flow_service.finalize_result).
     if per_1000.get("kutle_veri_kaynagi"):
-        story.append(
-            _p(f"Virgin/PCR/PIR-Regranül/Karbon Veri Kaynağı: {_data_source_label(per_1000['kutle_veri_kaynagi'])}", STYLE_SMALL)
-        )
+        kutle_kaynak = per_1000["kutle_veri_kaynagi"]
+        story.append(_p(f"Virgin/PCR/PIR-Regranül/Karbon Veri Kaynağı: {_data_source_label(kutle_kaynak)}", STYLE_SMALL))
+        if _data_confidence_level(kutle_kaynak):
+            story.append(_p(f"Virgin/PCR/PIR-Regranül/Karbon Veri Güveni: {_data_confidence_level(kutle_kaynak)}", STYLE_SMALL))
     if per_1000.get("fire_enerji_veri_kaynagi"):
-        story.append(
-            _p(f"Fire/Enerji Veri Kaynağı: {_data_source_label(per_1000['fire_enerji_veri_kaynagi'])}", STYLE_SMALL)
-        )
+        fire_enerji_kaynak = per_1000["fire_enerji_veri_kaynagi"]
+        story.append(_p(f"Fire/Enerji Veri Kaynağı: {_data_source_label(fire_enerji_kaynak)}", STYLE_SMALL))
+        if _data_confidence_level(fire_enerji_kaynak):
+            story.append(_p(f"Fire/Enerji Veri Güveni: {_data_confidence_level(fire_enerji_kaynak)}", STYLE_SMALL))
     if per_1000.get("_uyari"):
         story.append(_p(per_1000["_uyari"], STYLE_DISCLAIMER))
     story.append(Spacer(1, 10))
@@ -473,8 +495,12 @@ def _section_climate(data: dict) -> list:
     story.append(_table(rows, col_widths=[65 * mm, 100 * mm]))
     if c.get("_kaynak_kompozisyon"):
         story.append(_p(f"Virgin/PCR/PIR-Regranül/Karbon Veri Kaynağı: {c['_kaynak_kompozisyon']}", STYLE_SMALL))
+    if c.get("_guven_kompozisyon"):
+        story.append(_p(f"Virgin/PCR/PIR-Regranül/Karbon Veri Güveni: {c['_guven_kompozisyon']}", STYLE_SMALL))
     if c.get("_kaynak_fire_enerji"):
         story.append(_p(f"Fire/Enerji Veri Kaynağı: {c['_kaynak_fire_enerji']}", STYLE_SMALL))
+    if c.get("_guven_fire_enerji"):
+        story.append(_p(f"Fire/Enerji Veri Güveni: {c['_guven_fire_enerji']}", STYLE_SMALL))
     story.append(Spacer(1, 10))
     return story
 
@@ -580,10 +606,10 @@ def _section_source_matrix(data: dict) -> list:
     if not matrix:
         story.append(_p("Kaynak matrisi için yeterli veri yok.", STYLE_BODY))
     else:
-        rows = [["Alan", "Kaynak"]]
+        rows = [["Alan", "Kaynak", "Veri Güveni"]]
         for row in matrix:
-            rows.append([row["alan"], row["kaynak"]])
-        story.append(_table(rows, col_widths=[100 * mm, 65 * mm]))
+            rows.append([row["alan"], row["kaynak"], row.get("guven") or "—"])
+        story.append(_table(rows, col_widths=[80 * mm, 50 * mm, 35 * mm]))
     story.append(Spacer(1, 10))
     return story
 

@@ -9,7 +9,15 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { StatTile } from "@/components/ui/StatTile";
-import { carbonEfStatusLabel, carbonEfStatusTone, dataSourceLabel, dataSourceTone } from "@/lib/labels";
+import {
+  carbonEfStatusLabel,
+  carbonEfStatusTone,
+  dataConfidenceFromSourceKind,
+  dataConfidenceLabel,
+  dataConfidenceTone,
+  dataSourceLabel,
+  dataSourceTone,
+} from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
 // Faz H.4 — Referans | Tahmini | Gerçekleşen, üçü de 1.000 birim başına AYNI
@@ -142,7 +150,17 @@ export default function Stage12Page() {
                 <thead>
                   <tr className="text-left text-xs text-ink/40">
                     <th className="py-1 pr-4 font-normal"></th>
-                    <th className="py-1 pr-4 font-normal">Referans</th>
+                    <th className="py-1 pr-4 font-normal">
+                      Referans
+                      {(() => {
+                        const level = dataConfidenceFromSourceKind("gecmis_uretim");
+                        return level ? (
+                          <span className="ml-1">
+                            <Badge tone={dataConfidenceTone(level)}>{dataConfidenceLabel(level)}</Badge>
+                          </span>
+                        ) : null;
+                      })()}
+                    </th>
                     <th className="py-1 pr-4 font-normal">
                       Tahmini <Badge tone="virgin">Aşama 8</Badge>
                     </th>
@@ -208,7 +226,15 @@ export default function Stage12Page() {
           <div className="mb-4">
             <div className="mb-2 flex items-center gap-2">
               {p.kutle_veri_kaynagi != null && typeof p.kutle_veri_kaynagi === "string" && (
-                <Badge tone={dataSourceTone(p.kutle_veri_kaynagi)}>{dataSourceLabel(p.kutle_veri_kaynagi)}</Badge>
+                <>
+                  <Badge tone={dataSourceTone(p.kutle_veri_kaynagi)}>{dataSourceLabel(p.kutle_veri_kaynagi)}</Badge>
+                  {(() => {
+                    const level = dataConfidenceFromSourceKind(p.kutle_veri_kaynagi as string);
+                    return level ? (
+                      <Badge tone={dataConfidenceTone(level)}>{dataConfidenceLabel(level)}</Badge>
+                    ) : null;
+                  })()}
+                </>
               )}
             </div>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -221,7 +247,15 @@ export default function Stage12Page() {
           <div className="mb-8">
             <div className="mb-2 flex items-center gap-2">
               {p.fire_enerji_veri_kaynagi != null && typeof p.fire_enerji_veri_kaynagi === "string" && (
-                <Badge tone={dataSourceTone(p.fire_enerji_veri_kaynagi)}>{dataSourceLabel(p.fire_enerji_veri_kaynagi)}</Badge>
+                <>
+                  <Badge tone={dataSourceTone(p.fire_enerji_veri_kaynagi)}>{dataSourceLabel(p.fire_enerji_veri_kaynagi)}</Badge>
+                  {(() => {
+                    const level = dataConfidenceFromSourceKind(p.fire_enerji_veri_kaynagi as string);
+                    return level ? (
+                      <Badge tone={dataConfidenceTone(level)}>{dataConfidenceLabel(level)}</Badge>
+                    ) : null;
+                  })()}
+                </>
               )}
             </div>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
