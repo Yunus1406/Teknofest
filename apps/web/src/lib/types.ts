@@ -223,10 +223,23 @@ export interface ProductionLineCreate {
 
 export type ProductionLineUpdate = Partial<ProductionLineCreate>;
 
+// Faz K.4 — Aşama 4'ün uygunluk matrisindeki 5 kriter.
+export interface LineMatchCriteriaOut {
+  proses: boolean;
+  malzeme_uyumu: boolean;
+  mikron_araligi: boolean;
+  katman_yapisi: boolean;
+  ambalaj_turu: boolean;
+}
+
 export interface LineMatchOut {
   line: ProductionLineOut;
   compatible_material_ids: string[];
   match_reason: string;
+  eligible: boolean;
+  score_pct: number;
+  criteria: LineMatchCriteriaOut | null;
+  missing: string[];
 }
 
 export interface MaterialOut {

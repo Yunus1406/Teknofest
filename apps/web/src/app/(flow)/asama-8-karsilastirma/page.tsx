@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import type { ComparisonOut, CompositionSide } from "@/lib/types";
+import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -132,6 +133,7 @@ export default function Stage8Page() {
         title="Mevcut ↔ Önerilen Karşılaştırması"
         description="Referans ve önerilen reçete yan yana — sonuçlar üretim henüz yapılmadığı için açıkça 'Tahmini' olarak işaretlenir."
       />
+      <ActiveCaseSummary />
 
       {!recipeId && (
         <Card className="border-warn/30 bg-warn/5">

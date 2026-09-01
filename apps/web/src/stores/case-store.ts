@@ -15,12 +15,18 @@ import { persist } from "zustand/middleware";
 interface CaseState {
   packagingRequestId: string | null;
   lineId: string | null;
+  // Faz K.8 (Madde 10) — `lineId` sadece "bir hat seçili" demektir, "bu hat
+  // GERÇEKTEN bu ambalaj talebiyle uyumlu" demek DEĞİLDİR (K.4'ün uygunluk
+  // matrisinden gelen sinyal). Aşama 5/6'nın geçiş kontrolü (gate) bu ayrı
+  // bayrağa bakar -- `lineId` varlığına değil.
+  lineEligible: boolean;
   recipeId: string | null;
   optimizationRunId: string | null;
   productionOrderId: string | null;
 
   setPackagingRequestId: (id: string | null) => void;
   setLineId: (id: string | null) => void;
+  setLineEligible: (eligible: boolean) => void;
   setRecipeId: (id: string | null) => void;
   setOptimizationRunId: (id: string | null) => void;
   setProductionOrderId: (id: string | null) => void;
@@ -29,6 +35,7 @@ interface CaseState {
 
 const EMPTY_DOWNSTREAM_OF_PACKAGING_REQUEST = {
   lineId: null,
+  lineEligible: false,
   recipeId: null,
   optimizationRunId: null,
   productionOrderId: null,
@@ -45,12 +52,17 @@ export const useCaseStore = create<CaseState>()(
     (set) => ({
       packagingRequestId: null,
       lineId: null,
+      lineEligible: false,
       recipeId: null,
       optimizationRunId: null,
       productionOrderId: null,
 
       setPackagingRequestId: (id) => set({ packagingRequestId: id, ...EMPTY_DOWNSTREAM_OF_PACKAGING_REQUEST }),
-      setLineId: (id) => set({ lineId: id, ...EMPTY_DOWNSTREAM_OF_LINE }),
+      // `lineEligible` her yeni/değişen hat seçiminde false'a döner --
+      // gerçek uygunluk yalnızca `setLineEligible` ile (Aşama 4'ün
+      // refreshMatches'i K.4 sonucunu okuyup) açıkça onaylanır.
+      setLineId: (id) => set({ lineId: id, lineEligible: false, ...EMPTY_DOWNSTREAM_OF_LINE }),
+      setLineEligible: (eligible) => set({ lineEligible: eligible }),
       // Farklı/yeni bir reçete seçilmesi (Aşama 5/6/7/11), ona bağlı olan
       // önceki üretim emrini geçersiz kılar -- yeni reçete için ayrıca
       // Aşama 9'dan yeni bir üretim emri açılmalı.
@@ -61,6 +73,7 @@ export const useCaseStore = create<CaseState>()(
         set({
           packagingRequestId: null,
           lineId: null,
+          lineEligible: false,
           recipeId: null,
           optimizationRunId: null,
           productionOrderId: null,

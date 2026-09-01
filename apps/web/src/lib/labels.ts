@@ -259,6 +259,24 @@ export function scoreCriterionLabel(v: string): string {
   return map[v] ?? v;
 }
 
+// Faz K.1 — Aşama 2'nin "Alanları Çıkar" çıktısındaki her alan için
+// (yuksek/orta/dusuk) bir güven YÜZDESİ gösterilir; sabit, kaba bir eşleme
+// (gerçek bir olasılık modeli değil, sadece 3 kademeyi kullanıcıya daha
+// somut anlatan bir gösterim). "dusuk" için ayrıca UI'da "Kontrol Ediniz"
+// uyarısı eklenir (bkz. asama-2-ambalaj-tanimlama/page.tsx ConfidenceBadge).
+export function fieldConfidencePct(v: string | undefined): number | null {
+  switch (v) {
+    case "yuksek":
+      return 98;
+    case "orta":
+      return 78;
+    case "dusuk":
+      return 50;
+    default:
+      return null;
+  }
+}
+
 export function formatPct(v: number): string {
   return `%${v.toFixed(0)}`;
 }
@@ -275,6 +293,18 @@ export function referenceDataQualityLabel(isDemoPlaceholder: boolean): string {
 }
 export function referenceDataQualityTone(isDemoPlaceholder: boolean): Tone {
   return isDemoPlaceholder ? "virgin" : "pcr";
+}
+
+// Faz K.4 — Aşama 4'ün uygunluk matrisindeki 5 kriterin kısa Türkçe etiketi.
+export function matchCriterionLabel(key: string): string {
+  const map: Record<string, string> = {
+    proses: "Proses",
+    malzeme_uyumu: "Malzeme Uyumu",
+    mikron_araligi: "Mikron Aralığı",
+    katman_yapisi: "Katman Yapısı",
+    ambalaj_turu: "Ambalaj Türü",
+  };
+  return map[key] ?? key;
 }
 
 export function recyclabilityDimensionLabel(v: string): string {

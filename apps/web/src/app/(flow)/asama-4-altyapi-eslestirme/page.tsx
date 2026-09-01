@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import type { LineMatchOut, ProductionLineCreate, ProductionLineOut } from "@/lib/types";
+import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -10,6 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EMPTY_LINE, MachineForm } from "@/components/machine-park/MachineForm";
 import { deriveCompositeLineDefaults } from "@/lib/line-composition";
+import { matchCriterionLabel } from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
 type AddMode = "closed" | "choose" | "compose" | "new_machine";
@@ -17,10 +19,13 @@ type AddMode = "closed" | "choose" | "compose" | "new_machine";
 export default function Stage4Page() {
   const packagingRequestId = useCaseStore((s) => s.packagingRequestId);
   const lineId = useCaseStore((s) => s.lineId);
+  const lineEligible = useCaseStore((s) => s.lineEligible);
   const setLineId = useCaseStore((s) => s.setLineId);
+  const setLineEligible = useCaseStore((s) => s.setLineEligible);
 
   const [matches, setMatches] = useState<LineMatchOut[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
 
   const [addMode, setAddMode] = useState<AddMode>("closed");
   const [allLines, setAllLines] = useState<ProductionLineOut[]>([]);
@@ -34,9 +39,38 @@ export default function Stage4Page() {
       .getInfrastructureMatches(packagingRequestId)
       .then((m) => {
         setMatches(m);
-        if (m.length > 0 && !lineId) setLineId(m[0].line.id);
+        // Faz K.3 — burada `lineId`'nin render kapanışındaki (stale
+        // olabilecek) değeri DEĞİL, store'un o ANki gerçek değeri okunur;
+        // aksi halde kullanıcı listede ilk olmayan bir hattı seçtiğinde,
+        // henüz yenilenmemiş eski `lineId` kapanışı "seçili hat yok"
+        // sanıp seçimi sessizce ilk eşleşen hatla EZEBİLİRDİ.
+        // Faz K.4 — `m` artık uygun OLMAYAN hatları da içerebilir; otomatik
+        // seçim SADECE gerçekten uygun (`eligible`) bir hat için yapılmalı.
+        const firstEligible = m.find((match) => match.eligible);
+        const currentLineId = useCaseStore.getState().lineId;
+        if (firstEligible && !currentLineId) {
+          setLineId(firstEligible.line.id);
+          setLineEligible(true);
+        } else if (currentLineId) {
+          // Faz K.8 — `lineEligible`, seçili hattın K.4'ün en GÜNCEL
+          // eşleştirme sonucuna göre gerçekten uygun olup olmadığıyla
+          // senkron tutulur (yeni hat oluşturma dahil, her refreshMatches
+          // çağrısında yeniden değerlendirilir) -- Aşama 5/6 gate'i buna bakar.
+          const currentMatch = m.find((match) => match.line.id === currentLineId);
+          setLineEligible(currentMatch?.eligible ?? false);
+        }
       })
       .catch((e) => setError(String(e)));
+  }
+
+  // Faz K.3 (Madde 5) — Kullanıcı bir hat seçtiğinde ("Ekle" yerine radio
+  // seçimi) hem görünür bir onay verilmeli hem de eşleştirme otomatik
+  // yeniden hesaplanmalı; önceden state güncelleniyordu ama HİÇBİR görsel
+  // geri bildirim yoktu, kullanıcı "hiçbir şey olmadı" sanıyordu.
+  function selectLine(id: string, name: string) {
+    setLineId(id);
+    setConfirmation(`${name} çalışmaya başarıyla eklendi.`);
+    refreshMatches();
   }
 
   useEffect(() => {
@@ -80,6 +114,7 @@ export default function Stage4Page() {
       const created = await api.createProductionLine(form);
       setAddMode("closed");
       setLineId(created.id);
+      setConfirmation(`${created.name} çalışmaya başarıyla eklendi.`);
       refreshMatches();
     } catch (e) {
       setError(String(e));
@@ -95,6 +130,7 @@ export default function Stage4Page() {
         title="Firma Altyapısı ve Otomatik Eşleştirme"
         description="Kayıtlı üretim hatları, katman yapıları, kullanılabilir virgin/PCR/regranül hammaddeler ve üretilebilir mikron aralığından uygun olanlar otomatik eşleştirilir."
       />
+      <ActiveCaseSummary />
 
       {error && (
         <Card className="mb-6 border-warn/30 bg-warn/5">
@@ -102,10 +138,19 @@ export default function Stage4Page() {
         </Card>
       )}
 
-      {matches && matches.length === 0 && (
+      {confirmation && (
+        <Card className="mb-4 border-pcr/30 bg-pcr/5">
+          <p className="text-sm text-pcr">✓ {confirmation}</p>
+        </Card>
+      )}
+
+      {matches && matches.every((m) => !m.eligible) && (
         <Card className="border-warn/30 bg-warn/5">
           <p className="text-sm text-warn">
-            Bu ambalaj türü için uygun bir üretim hattı bulunamadı. Aşağıdan yeni bir üretim hattı ekleyebilirsiniz.
+            {matches.length === 0
+              ? "Kayıtlı hiçbir aktif üretim hattı yok."
+              : "Bu ambalaj türü için tam uygun bir üretim hattı bulunamadı — aşağıda en yakın adaylar ve eksik kriterleri listeleniyor."}
+            {" "}Aşağıdan yeni bir üretim hattı ekleyebilirsiniz.
           </p>
         </Card>
       )}
@@ -114,23 +159,36 @@ export default function Stage4Page() {
         {matches?.map((m) => (
           <Card
             key={m.line.id}
-            className={`cursor-pointer transition-colors ${
+            className={`transition-colors ${m.eligible ? "cursor-pointer" : "opacity-70"} ${
               lineId === m.line.id ? "border-petrol/50 ring-1 ring-petrol/30" : ""
             }`}
           >
-            <label className="flex cursor-pointer items-start gap-3">
+            <label className={`flex items-start gap-3 ${m.eligible ? "cursor-pointer" : "cursor-not-allowed"}`}>
               <input
                 type="radio"
                 className="mt-1"
                 checked={lineId === m.line.id}
-                onChange={() => setLineId(m.line.id)}
+                disabled={!m.eligible}
+                onChange={() => selectLine(m.line.id, m.line.name)}
               />
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <CardTitle>{m.line.name}</CardTitle>
-                  <Badge tone="petrol">{m.line.layer_structure}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge tone={m.eligible ? "pcr" : "warn"}>%{m.score_pct} uyumlu</Badge>
+                    <Badge tone="petrol">{m.line.layer_structure}</Badge>
+                  </div>
                 </div>
-                <p className="text-sm text-ink/60">{m.match_reason}</p>
+                <p className={`text-sm ${m.eligible ? "text-ink/60" : "text-warn"}`}>{m.match_reason}</p>
+                {m.criteria && (
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-mono text-xs">
+                    {Object.entries(m.criteria).map(([key, ok]) => (
+                      <span key={key} className={ok ? "text-pcr" : "text-warn"}>
+                        {ok ? "✓" : "✕"} {matchCriterionLabel(key)}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-ink/50">
                   <span>Mikron: {m.line.min_micron}-{m.line.max_micron}</span>
                   <span>Hız: {m.line.line_speed_m_min} m/dk</span>
@@ -236,7 +294,10 @@ export default function Stage4Page() {
         )}
       </div>
 
-      <StageNav currentNo={4} nextEnabled={!!lineId} />
+      {/* Faz K.8 — `!!lineId` TEK BAŞINA yetmez: kullanıcı "Yeni Üretim
+          Hattı Ekle" ile uyumsuz bir hat da oluşturabilir. Sonraki aşamaya
+          geçiş SADECE K.4'ün onayladığı (`lineEligible`) bir hat için açılır. */}
+      <StageNav currentNo={4} nextEnabled={!!lineId && lineEligible} />
     </div>
   );
 }

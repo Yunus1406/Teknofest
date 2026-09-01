@@ -20,6 +20,15 @@ _PACKAGING_KEYWORD_RULES: list[tuple[str, str, list[str]]] = [
     ("tabağ", "plastik_tabak", ["PP", "PET", "PS"]),
     ("bardak", "plastik_bardak", ["PP", "PS", "PET"]),
     ("bardağ", "plastik_bardak", ["PP", "PS", "PET"]),
+    # Faz K.6 (Madde 8) — "tepsi"/"termoform" bu tabloda hiç YOKTU, bu yüzden
+    # PET/rPET termoform tepsi talepleri _DEFAULT_POLYMER_PREFERENCE'e
+    # (PP önce) düşüyor, "PP Virgin Enjeksiyon Sınıfı" gibi uyumsuz bir
+    # başlangıç hammaddesi seçilebiliyordu. Termoform tepsi/kap PET/rPET
+    # ağırlıklıdır (gıda sınıfı berraklık/sıcaklık dayanımı için) -- PP ikinci
+    # sırada, tamamen dışlanmıyor.
+    ("tepsi", "plastik_tepsi", ["PET", "PP"]),
+    ("tepsiğ", "plastik_tepsi", ["PET", "PP"]),
+    ("termoform", "plastik_tepsi", ["PET", "PP"]),
     ("şişe", "sise", ["PET", "PE"]),
     ("sise", "sise", ["PET", "PE"]),
     ("film", "esnek_film_ambalaj", ["PE", "PP"]),

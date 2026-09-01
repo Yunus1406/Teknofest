@@ -209,12 +209,15 @@ def test_generate_initial_recipe_evidence_none_when_no_reference(db_session):
     line = _line(db_session, name="Boş Hat G4", supported_packaging_types=["hiç kimsenin kullanmadığı tür"])
     # generate_initial_recipe, hiç referans bulunamadığında bilgi tabanından
     # virgin bir malzeme arar -- ValueError'a düşmemesi için burada kuruyoruz.
-    polymer = Polymer(code="PPX", name="Polipropilen X", category="poliolefin", base_properties={})
+    # Faz K.6 -- kod GERÇEKTEN tercih edilen listedeki ("PP") bir polimerle
+    # eşleşmeli; artık uyumsuz bir kod (ör. eski "PPX") sessizce herhangi bir
+    # virgin malzemeye düşmüyor, açık bir ValueError fırlatıyor.
+    polymer = Polymer(code="PP", name="Polipropilen", category="poliolefin", base_properties={})
     db_session.add(polymer)
     db_session.flush()
     db_session.add(
         Material(
-            polymer_id=polymer.id, name="PPX Virgin", material_type="virgin", density_g_cm3=0.9,
+            polymer_id=polymer.id, name="PP Virgin", material_type="virgin", density_g_cm3=0.9,
             degradation_factor=0.0, food_contact_eligible=True, max_recommended_ratio_pct=100.0,
         )
     )

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.models.infrastructure import ProductionLine
 from app.models.recipe import PackagingRequest
-from app.schemas.infrastructure import LineMatchOut, ProductionLineOut
+from app.schemas.infrastructure import LineMatchCriteriaOut, LineMatchOut, ProductionLineOut
 from app.schemas.recipe import (
     PackagingRequestCreate,
     PackagingRequestOut,
@@ -100,6 +100,10 @@ def get_infrastructure_matches(request_id: str, db: Session = Depends(get_db)):
             line=ProductionLineOut.model_validate(m["line"]),
             compatible_material_ids=m["compatible_material_ids"],
             match_reason=m["match_reason"],
+            eligible=m["eligible"],
+            score_pct=m["score_pct"],
+            criteria=LineMatchCriteriaOut(**m["criteria"]),
+            missing=m["missing"],
         )
         for m in matches
     ]

@@ -5,6 +5,7 @@ run/candidates) ve API'ye dönecek OptimizationRunOut'u üretir."""
 from sqlalchemy.orm import Session
 
 from app.constraint_engine.engine import filter_candidates
+from app.constraint_engine.rules import validate_recipe_math_consistency
 from app.constraint_engine.types import (
     EvaluationContext,
     LineSpec,
@@ -174,6 +175,20 @@ def _persist_finalist(
     target_volume_units: int,
     reference_evidence: dict | None,
 ) -> OptimizationCandidate:
+    # Faz K.7 (Madde 9) — reçete üretim zincirine (persist) girmeden önce
+    # matematiksel tutarlılığı doğrulanır. Bu, iş kuralı elemesi DEĞİL
+    # (constraint_engine zaten o işi filter_candidates'te yaptı) -- bir
+    # matematik hatasına karşı son bir güvenlik ağı (ör. katman kalınlığı
+    # toplamının hedeften sapması).
+    consistency_failures = validate_recipe_math_consistency(
+        candidate, target_total_micron=packaging_request.target_thickness_micron
+    )
+    if consistency_failures:
+        raise ValueError(
+            "Reçete matematiksel olarak tutarsız, üretim zincirine giremez: "
+            + "; ".join(consistency_failures)
+        )
+
     decision_basis = _decision_basis(line, regulations, candidate, reference_evidence)
     data_source_tags = compute_data_source_tags(candidate, decision_basis)
 
@@ -322,7 +337,10 @@ def run_optimization(
     reference_evidence = seed_recipe.reference_search_evidence if seed_recipe is not None else None
 
     line_spec = _line_to_spec(line)
-    candidates = generate_candidates(line_spec, layer_options, ratio_step_pct=ratio_step_pct)
+    candidates = generate_candidates(
+        line_spec, layer_options, ratio_step_pct=ratio_step_pct,
+        target_total_micron=packaging_request.target_thickness_micron,
+    )
     generation_breakdown = describe_candidate_generation(line_spec, layer_options, ratio_step_pct=ratio_step_pct)
 
     ctx = EvaluationContext(

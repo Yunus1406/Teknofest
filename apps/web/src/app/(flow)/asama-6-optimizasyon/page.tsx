@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import type { OptimizationRunOut } from "@/lib/types";
+import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -14,6 +15,7 @@ import { useCaseStore } from "@/stores/case-store";
 export default function Stage6Page() {
   const packagingRequestId = useCaseStore((s) => s.packagingRequestId);
   const lineId = useCaseStore((s) => s.lineId);
+  const lineEligible = useCaseStore((s) => s.lineEligible);
   const setOptimizationRunId = useCaseStore((s) => s.setOptimizationRunId);
   const setRecipeId = useCaseStore((s) => s.setRecipeId);
 
@@ -22,7 +24,9 @@ export default function Stage6Page() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!packagingRequestId || !lineId || run) return;
+    // Faz K.8 (Madde 10) — uyumlu üretim hattı yoksa optimizasyon HİÇ
+    // başlatılmaz (aşağıdaki gate mesajı gösterilir).
+    if (!packagingRequestId || !lineId || !lineEligible || run) return;
     setRunning(true);
     api
       .runOptimization(packagingRequestId, lineId, 10)
@@ -34,7 +38,7 @@ export default function Stage6Page() {
       .catch((e) => setError(String(e)))
       .finally(() => setRunning(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [packagingRequestId, lineId]);
+  }, [packagingRequestId, lineId, lineEligible]);
 
   const eliminatedCount = run ? run.generated_candidate_count - run.survived_constraint_engine_count : 0;
 
@@ -45,10 +49,19 @@ export default function Stage6Page() {
         title="Optimizasyon (Ana Motor)"
         description="Virgin/PCR/regranül oranları, katman dağılımları ve mikron/gramaj kombinasyonları üretilir; her aday teknik performans, üretilebilirlik, mevzuat, kaynak kullanımı, karbon, fire ve maliyet açısından değerlendirilir."
       />
+      <ActiveCaseSummary />
 
       {(!packagingRequestId || !lineId) && (
         <Card className="border-warn/30 bg-warn/5">
           <p className="text-sm text-warn">Önce Aşama 2-5&apos;i tamamlamalısınız.</p>
+        </Card>
+      )}
+      {packagingRequestId && lineId && !lineEligible && (
+        <Card className="border-warn/30 bg-warn/5">
+          <p className="text-sm text-warn">
+            ⛔ Optimizasyon başlatılamıyor. Uyumlu üretim hattı bulunamadı — Aşama 4&apos;e dönüp uyumlu bir hat
+            seçin.
+          </p>
         </Card>
       )}
       {running && (

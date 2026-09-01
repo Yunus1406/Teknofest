@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api-client";
 import type { DigitalProductPassportOut, FinalResultOut } from "@/lib/types";
+import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -108,6 +109,7 @@ export default function Stage12Page() {
         title="Nihai Sonuç ve Sürdürülebilirlik Kazanımı"
         description="Artık 'Gerçekleşen' sonuçlar (tahmini değil): 1.000 satılabilir ambalaj başına kaynak kullanımı, üretim performansı ve reçete izlenebilirlik geçmişi."
       />
+      <ActiveCaseSummary />
 
       {error && (
         <Card className="mb-6 border-warn/30 bg-warn/5">

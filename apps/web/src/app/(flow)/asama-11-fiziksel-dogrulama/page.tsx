@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import type { PhysicalTestIn, PhysicalVerificationResultOut, SuggestedTestTargetOut } from "@/lib/types";
+import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -91,6 +92,7 @@ export default function Stage11Page() {
         title="Fiziksel Doğrulama"
         description="Üretilen ambalajın test sonuçları girilir/onaylanır. Hedefler, reçetenin gerçek kalınlığından türetilir. Başarısızsa reçete yeni versiyon olarak (V1→V2) optimizasyona geri döner; tüm geçmiş saklanır."
       />
+      <ActiveCaseSummary />
 
       {error && (
         <Card className="mb-6 border-warn/30 bg-warn/5">

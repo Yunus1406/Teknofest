@@ -332,13 +332,17 @@ def main() -> None:
             overall, assessments = packaging_service.assess_regulations(db, req)
             print(f"[Aşama 3] Mevzuat sonucu: {overall} ({len(assessments)} madde değerlendirildi)")
 
+            # Faz K.4 — match_infrastructure artık TÜM aktif hatları (uygun
+            # olmayanlar dahil, gerekçeleriyle) döner; sadece `eligible=True`
+            # olanlar gerçekten kullanılabilir bir hat adayıdır.
             matches = packaging_service.match_infrastructure(db, req)
-            print(f"[Aşama 4] {len(matches)} uygun hat bulundu: {[m['line'].name for m in matches]}")
-            if not matches:
+            eligible_matches = [m for m in matches if m["eligible"]]
+            print(f"[Aşama 4] {len(eligible_matches)} uygun hat bulundu: {[m['line'].name for m in eligible_matches]}")
+            if not eligible_matches:
                 print("  (Uygun hat yok — bu talep atlanıyor)")
                 continue
 
-            line = matches[0]["line"]
+            line = eligible_matches[0]["line"]
             initial_recipe = packaging_service.generate_initial_recipe(db, req, line)
             print(f"[Aşama 5] Başlangıç reçetesi oluşturuldu: {initial_recipe.id} (kaynak={initial_recipe.source})")
 

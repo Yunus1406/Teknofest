@@ -368,8 +368,33 @@ def _assess_pcr_content(
 
 # --- Aşama 4: Firma Altyapısı ve Otomatik Eşleştirme ----------------------
 
+# Faz K.4 (Madde 6) — her kriterin skora katkısı. Toplamı 1.0'dır. Bu skor
+# SADECE bilgilendirme/gerekçelendirme amaçlıdır -- bağlayıcı kısıtlar
+# constraint_engine'de (Faz K.6/K.7) ayrıca uygulanır.
+_MATCH_CRITERIA_WEIGHTS: dict[str, float] = {
+    "ambalaj_turu": 0.30,
+    "malzeme_uyumu": 0.30,
+    "mikron_araligi": 0.20,
+    "proses": 0.10,
+    "katman_yapisi": 0.10,
+}
+
+
 def match_infrastructure(db: Session, packaging_request: PackagingRequest) -> list[dict]:
+    """Faz K.4 (Madde 6) — önceden sadece ambalaj türü desteği kontrol
+    edilir, uymayan hatlar hiçbir gerekçe tutulmadan SESSİZCE elenirdi ("uygun
+    üretim hattı bulunamadı" derken hiçbir açıklama yoktu). Artık TÜM aktif
+    hatlar için 5 kriter (proses/aktiflik, malzeme-polimer uyumu, mikron
+    aralığı, katman yapısı, ambalaj türü desteği) ayrı ayrı değerlendirilir;
+    uygun OLMAYAN hatlar da sonuçta kalır (`eligible=False`, `missing` dolu),
+    kullanıcı NEDEN elendiğini görebilir. Sonuç önce uygunluğa (eligible),
+    sonra skora göre sıralanır -- ki `matches[0]` her zaman (varsa) uygun bir
+    hat olsun; bu, seed_demo.py ve Aşama 4'ün "ilk eşleşeni öner" mantığının
+    yanlışlıkla uygunsuz bir hat seçmesini engeller."""
     category = canonical_packaging_category(packaging_request.packaging_type)
+    preferred_codes = preferred_polymer_codes(packaging_request.packaging_type)
+    target_thickness = packaging_request.target_thickness_micron
+
     lines = (
         db.execute(
             select(ProductionLine).options(selectinload(ProductionLine.material_compatibility))
@@ -377,25 +402,101 @@ def match_infrastructure(db: Session, packaging_request: PackagingRequest) -> li
         .scalars()
         .all()
     )
+    # LineMaterialCompatibility bir `material` ilişkisi TAŞIMAZ (sadece
+    # material_id FK) -- malzeme+polimer bilgisini tek sorguda toplu çekip
+    # id'ye göre sözlükte tutuyoruz.
+    all_material_ids = {c.material_id for line in lines for c in line.material_compatibility}
+    materials_by_id: dict[str, Material] = {}
+    if all_material_ids:
+        materials_by_id = {
+            m.id: m
+            for m in db.execute(
+                select(Material).options(selectinload(Material.polymer)).filter(Material.id.in_(all_material_ids))
+            ).scalars()
+        }
+
     results: list[dict] = []
     for line in lines:
         if not line.active:
-            continue
+            continue  # pasif hatlar hiç gösterilmez (önceki davranışla aynı)
+
         supported_categories = {
             canonical_packaging_category(t) for t in (line.supported_packaging_types or [])
         }
-        if category not in supported_categories:
-            continue
-        compatible_ids = [c.material_id for c in line.material_compatibility]
-        reason = (
-            f"'{packaging_request.packaging_type}' türü destekleniyor; "
-            f"katman yapısı {line.layer_structure}, mikron aralığı "
-            f"{line.min_micron:.0f}-{line.max_micron:.0f}, {len(compatible_ids)} uyumlu "
-            "hammadde eşleşti."
-        )
-        results.append({"line": line, "compatible_material_ids": compatible_ids, "match_reason": reason})
+        ambalaj_turu_ok = category in supported_categories
 
-    if results:
+        compatible_ids = [c.material_id for c in line.material_compatibility]
+        malzeme_uyumu_ok = False
+        for c in line.material_compatibility:
+            material = materials_by_id.get(c.material_id)
+            if material is None or material.polymer is None:
+                continue
+            if material.polymer.code not in preferred_codes:
+                continue
+            if packaging_request.food_contact and not material.food_contact_eligible:
+                continue
+            malzeme_uyumu_ok = True
+            break
+
+        # Hedef kalınlık hiç girilmemişse (None) bu kriter değerlendirilemez
+        # -- eksik veriden dolayı bir hattı ENGELLEMEK yanlış olur.
+        mikron_araligi_ok = (
+            True if target_thickness is None else line.min_micron <= target_thickness <= line.max_micron
+        )
+        proses_ok = bool(line.process_type)
+        katman_yapisi_ok = bool(line.layer_structure) and line.layer_count >= 1
+
+        criteria = {
+            "proses": proses_ok,
+            "malzeme_uyumu": malzeme_uyumu_ok,
+            "mikron_araligi": mikron_araligi_ok,
+            "katman_yapisi": katman_yapisi_ok,
+            "ambalaj_turu": ambalaj_turu_ok,
+        }
+        score_pct = round(sum(_MATCH_CRITERIA_WEIGHTS[k] for k, ok in criteria.items() if ok) * 100)
+        eligible = ambalaj_turu_ok and malzeme_uyumu_ok and mikron_araligi_ok
+
+        missing: list[str] = []
+        if not ambalaj_turu_ok:
+            missing.append(f"'{packaging_request.packaging_type}' ambalaj türü desteklenmiyor")
+        if not malzeme_uyumu_ok:
+            missing.append(f"{'/'.join(preferred_codes)} uyumlu hammadde tanımı")
+        if not mikron_araligi_ok:
+            missing.append(
+                f"{target_thickness:.0f} µm hedefi hattın {line.min_micron:.0f}-{line.max_micron:.0f} µm "
+                "aralığı dışında"
+            )
+        if not proses_ok:
+            missing.append("proses tipi tanımlı değil")
+        if not katman_yapisi_ok:
+            missing.append("katman yapısı tanımlı değil")
+
+        reason = (
+            (
+                f"'{packaging_request.packaging_type}' türü destekleniyor; "
+                f"katman yapısı {line.layer_structure}, mikron aralığı "
+                f"{line.min_micron:.0f}-{line.max_micron:.0f}, {len(compatible_ids)} uyumlu "
+                "hammadde eşleşti."
+            )
+            if eligible
+            else ("Eksik: " + "; ".join(missing))
+        )
+
+        results.append(
+            {
+                "line": line,
+                "compatible_material_ids": compatible_ids,
+                "match_reason": reason,
+                "eligible": eligible,
+                "score_pct": score_pct,
+                "criteria": criteria,
+                "missing": missing,
+            }
+        )
+
+    results.sort(key=lambda r: (r["eligible"], r["score_pct"]), reverse=True)
+
+    if any(r["eligible"] for r in results):
         packaging_request.status = PackagingStatus.MATCHED.value
         db.commit()
     return results
@@ -566,8 +667,22 @@ def generate_initial_recipe(db: Session, packaging_request: PackagingRequest, li
     layer_labels = line.layer_structure.split("/")
     preferred = preferred_polymer_codes(packaging_request.packaging_type)
     weights = thickness_weights_for_layer_count(line.layer_count)
-    target_total_micron = (line.min_micron + line.max_micron) / 2
+    # Faz K.2 — Aşama 2'de girilen hedef kalınlık VARSA o kullanılır; hattın
+    # min/max aralığının ortası SADECE hedef hiç girilmemişse (None) bir
+    # yedek değerdir. Önceden bu satır hedefi hiç okumuyordu (ör. 450 µm
+    # istenirken hattın 20-120 µm aralığının ortası olan 70 µm üretiliyordu).
+    target_total_micron = packaging_request.target_thickness_micron or (
+        (line.min_micron + line.max_micron) / 2
+    )
 
+    # Faz K.6 (Madde 8) — Ambalaj → Proses → Hat → Polimer → Hammadde
+    # uyumluluk zinciri: SADECE bu ambalaj türü için tercih edilen polimer
+    # kod(lar)ı + (varsa) hattın uyumlu malzeme listesi + gıda teması
+    # kesişiminden bir virgin malzeme seçilir. Önceden bu arama boş dönerse
+    # (hiçbir tercih edilen polimer bulunamazsa) sistem SESSİZCE veritabanının
+    # İLK virgin malzemesine düşüyordu -- polimer/proses uyumu HİÇ kontrol
+    # edilmeden (ör. PET/rPET termoform tepsisi için "PP Virgin Enjeksiyon
+    # Sınıfı" seçilebiliyordu). Artık kesişim boşsa AÇIK bir hata döner.
     compatible_material_ids = {c.material_id for c in line.material_compatibility}
     virgin_material = None
     for code in preferred:
@@ -581,9 +696,23 @@ def generate_initial_recipe(db: Session, packaging_request: PackagingRequest, li
             virgin_material = candidate
             break
     if virgin_material is None:
-        virgin_material = db.query(Material).filter_by(material_type="virgin").first()
-    if virgin_material is None:
-        raise ValueError("Bilgi tabanında virgin malzeme bulunamadı; önce KB yüklenmeli.")
+        raise ValueError(
+            f"'{packaging_request.packaging_type}' ambalaj türü için tercih edilen polimerlerle "
+            f"({'/'.join(preferred)}) uyumlu bir virgin hammadde, '{line.name}' hattında/bilgi "
+            "tabanında bulunamadı. Bu hat için uyumlu hammadde tanımlanmalı ya da başka bir hat seçilmeli."
+        )
+
+    # Faz K.7 (Madde 9) — persist etmeden önce katman kalınlıkları toplamının
+    # gerçekten hedefe eşit olduğu doğrulanır. Bu dal tek malzeme/%100 oranlı
+    # olduğu için normalde otomatik sağlanır (weights toplamı 1.0), ama bu
+    # mantık ileride genişletilirse (ör. blend eklenirse) sessizce bozulmasın
+    # diye burada da kilitlenir.
+    layer_thickness_sum = sum(target_total_micron * w for w in weights)
+    if abs(layer_thickness_sum - target_total_micron) > 0.5:
+        raise ValueError(
+            f"Katman kalınlıkları toplamı {layer_thickness_sum:.1f} µm, hedef "
+            f"{target_total_micron:.1f} µm ile eşleşmiyor -- reçete üretilemedi."
+        )
 
     recipe = Recipe(
         packaging_request_id=packaging_request.id,
@@ -591,6 +720,7 @@ def generate_initial_recipe(db: Session, packaging_request: PackagingRequest, li
         line_id=line.id,
         source=RecipeSource.URETILDI.value,
         status="taslak",
+        total_micron=target_total_micron,
     )
     db.add(recipe)
     db.flush()

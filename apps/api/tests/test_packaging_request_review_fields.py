@@ -67,6 +67,38 @@ def test_spec_extraction_result_includes_new_fields_when_llm_unavailable():
     assert result["target_thickness_micron"] is None
 
 
+def test_spec_extraction_regex_fallback_fills_fields_when_llm_unavailable():
+    """Faz K.1 — LLM yokken (bu ortamda hep) "Alanları Çıkar" artık TAMAMEN
+    boş dönmemeli; regex/anahtar-kelime tabanlı bir fallback en azından net
+    bir şekilde metinde geçen alanları düşük güvenle doldurmalı. Düzeltmeden
+    önce bu fonksiyon koşulsuz _EMPTY_RESULT dönüyordu -- bu test o hatayı
+    üretir ve kilitler."""
+    text = (
+        "Bu ürün Avrupa Birliği (AB) pazarına yönelik gıda temaslı bir "
+        "plastik tabak olacak. Hedef kalınlık 450 mikron, üretim miktarı "
+        "500.000 adet olarak planlanıyor."
+    )
+    result = extract_fields_from_spec_text(text)
+
+    assert result["packaging_type"] == "tabak"
+    assert result["target_market"] == "AB"
+    assert result["food_contact"] is True
+    assert result["target_thickness_micron"] == 450.0
+    assert result["target_volume_units"] == 500000
+    # Her bulunan alan düşük güvenle işaretlenmeli -- kullanıcı doğrulamalı.
+    for field in ("packaging_type", "target_market", "food_contact", "target_thickness_micron", "target_volume_units"):
+        assert result["field_confidence"][field] == "dusuk"
+
+
+def test_spec_extraction_regex_fallback_leaves_unfound_fields_none():
+    """Metinde hiçbir tanınan kalıp yoksa hiçbir alan UYDURULMAMALI."""
+    result = extract_fields_from_spec_text("bu metinde hiçbir tanınan bilgi yok")
+    assert result["packaging_type"] is None
+    assert result["target_market"] is None
+    assert result["target_thickness_micron"] is None
+    assert result["field_confidence"] == {}
+
+
 def test_packaging_request_endpoints_roundtrip_review_fields(client, db_session):
     resp = client.post(
         "/api/v1/packaging-flow/requests",

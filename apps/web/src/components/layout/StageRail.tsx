@@ -3,11 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { STAGES } from "@/lib/stages";
+import { useCaseStore } from "@/stores/case-store";
 
 /** Sol tarafta 12 aşamalı dikey akış rayı — numaralandırma anlamlı çünkü
- * gerçek bir üretim hattı sırasını temsil ediyor. */
+ * gerçek bir üretim hattı sırasını temsil ediyor.
+ *
+ * Faz K.8 (Madde 10) — önceden StageNav'ın "sonraki" butonu devre dışı
+ * bırakılsa bile kullanıcı bu sidebar'dan doğrudan ileri bir aşamaya
+ * tıklayıp ön koşulları (ör. uyumlu hat seçimi) tamamen ATLAYABİLİYORDU.
+ * Artık `requiresEligibleLine` taşıyan bir aşama, `lineEligible` false iken
+ * tıklanamaz/kilitli gösterilir. */
 export function StageRail() {
   const pathname = usePathname();
+  const lineEligible = useCaseStore((s) => s.lineEligible);
   const activeSlug = STAGES.find((s) => pathname?.includes(s.slug))?.slug;
   const activeNo = STAGES.find((s) => s.slug === activeSlug)?.no ?? 1;
 
@@ -24,6 +32,23 @@ export function StageRail() {
         {STAGES.map((stage) => {
           const isActive = stage.slug === activeSlug;
           const isDone = stage.no < activeNo;
+          const isLocked = !isActive && !!stage.requiresEligibleLine && !lineEligible;
+          if (isLocked) {
+            return (
+              <li key={stage.slug} className="relative">
+                <span
+                  className="flex cursor-not-allowed items-start gap-3 rounded-lg px-3 py-2.5 text-sm opacity-50"
+                  title="Önce Aşama 4'te uyumlu bir üretim hattı seçilmeli"
+                  aria-disabled="true"
+                >
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink/10 font-mono text-[11px] font-medium text-ink/40">
+                    ⛔
+                  </span>
+                  <span className="leading-tight text-ink/40">{stage.shortTitle}</span>
+                </span>
+              </li>
+            );
+          }
           return (
             <li key={stage.slug} className="relative">
               <Link

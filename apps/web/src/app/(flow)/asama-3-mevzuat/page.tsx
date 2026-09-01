@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import type { RegulatoryAssessmentSummaryOut, RegulationOut } from "@/lib/types";
+import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -35,6 +36,7 @@ export default function Stage3Page() {
         title="Mevzuat ve Tasarım Kriterleri"
         description="Otomatik değerlendirme — AB PPWR kapsamı, ambalaj minimizasyonu, geri dönüştürülebilirlik, geri dönüştürülmüş içerik ve gıda teması kriterleri kontrol edilir."
       />
+      <ActiveCaseSummary />
 
       {!packagingRequestId && (
         <Card className="border-warn/30 bg-warn/5">

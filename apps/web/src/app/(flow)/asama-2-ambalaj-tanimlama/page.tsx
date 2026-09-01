@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api-client";
 import type { PackagingRequestCreate, SpecExtractionOut } from "@/lib/types";
+import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { fieldConfidencePct } from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
 const emptyForm: PackagingRequestCreate = {
@@ -39,9 +41,10 @@ function confidenceTone(c: string | undefined): "pcr" | "virgin" | "warn" | "neu
 function ConfidenceBadge({ extraction, field }: { extraction: SpecExtractionOut | null; field: string }) {
   const conf = extraction?.field_confidence[field];
   if (!conf) return null;
+  const pct = fieldConfidencePct(conf);
   return (
     <Badge tone={confidenceTone(conf)}>
-      {field}: {conf}
+      %{pct} güven{conf === "dusuk" ? " → Kontrol Ediniz" : ""}
     </Badge>
   );
 }
@@ -123,6 +126,7 @@ export default function Stage2Page() {
           title="Çıkarılan Bilgileri Kontrol Edin"
           description="Aşağıdaki bilgiler otomatik çıkarıldıysa/girildiyse — devam etmeden önce her alanı gözden geçirin, yanlış veya eksik olanı düzeltin. Düşük güvenli alanlar rozetle işaretlidir."
         />
+        <ActiveCaseSummary />
 
         <Card>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -262,6 +266,7 @@ export default function Stage2Page() {
         title="Ambalaj Tanımlama"
         description="Ürün bilgilerini girin veya teknik şartname yükleyin — sistem bilgileri otomatik çıkarır, siz bir sonraki ekranda tüm alanları kontrol edip onaylarsınız."
       />
+      <ActiveCaseSummary />
 
       <Card className="mb-6">
         <CardTitle subtitle="Serbest metin şartname yapıştırın; sistem alanları otomatik çıkarır (düşük güvenli alanlar bir sonraki ekranda işaretlenir).">

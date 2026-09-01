@@ -52,12 +52,28 @@ class ProductionLineOut(BaseModel):
     component_line_ids: list[str] | None = None
 
 
+class LineMatchCriteriaOut(BaseModel):
+    """Faz K.4 — Aşama 4'ün uygunluk matrisindeki 5 kriter."""
+
+    proses: bool
+    malzeme_uyumu: bool
+    mikron_araligi: bool
+    katman_yapisi: bool
+    ambalaj_turu: bool
+
+
 class LineMatchOut(BaseModel):
-    """Dashboard 4 çıktısı: bir hat + o hatta uygun hammaddeler."""
+    """Dashboard 4 çıktısı: bir hat + o hatta uygun hammaddeler + (Faz K.4)
+    uygunluk matrisi/skoru. `eligible=False` olan hatlar da listede kalır —
+    ki "uygun hat bulunamadı" derken kullanıcı NEDEN elendiğini görebilsin."""
 
     line: ProductionLineOut
     compatible_material_ids: list[str]
     match_reason: str
+    eligible: bool = True
+    score_pct: int = 100
+    criteria: LineMatchCriteriaOut | None = None
+    missing: list[str] = []
 
 
 class ProductionLineCreate(BaseModel):

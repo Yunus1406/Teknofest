@@ -63,6 +63,29 @@ describe("useCaseStore cascading resets", () => {
     expect(state.productionOrderId).toBeNull();
   });
 
+  it("setLineId resets lineEligible to false (Faz K.8 gate signal)", () => {
+    const { setLineId, setLineEligible } = useCaseStore.getState();
+    setLineId("line-1");
+    setLineEligible(true);
+    expect(useCaseStore.getState().lineEligible).toBe(true);
+
+    // Kullanıcı Aşama 4'te FARKLI bir hat seçti -- eski hattın uygunluğu
+    // yeni hat için ANLAMSIZ, Aşama 4'ün refreshMatches'i yeniden onaylamalı.
+    setLineId("line-2");
+
+    expect(useCaseStore.getState().lineEligible).toBe(false);
+  });
+
+  it("setPackagingRequestId resets lineEligible along with lineId", () => {
+    const { setPackagingRequestId, setLineId, setLineEligible } = useCaseStore.getState();
+    setLineId("line-1");
+    setLineEligible(true);
+
+    setPackagingRequestId("req-2");
+
+    expect(useCaseStore.getState().lineEligible).toBe(false);
+  });
+
   it("re-selecting the same recipe still clears productionOrderId (no stale false-positive in Aşama 9)", () => {
     // Aşama 9'un "Üretim Onaylandı" göstermesi İÇİN productionOrderId'nin
     // GEÇERLİ bir emre karşılık gelmesi gerekir; setRecipeId her çağrıldığında

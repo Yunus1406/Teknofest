@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import type { MaterialOut, OptimizationRunOut } from "@/lib/types";
+import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -54,6 +55,7 @@ export default function Stage7Page() {
         title="Reçete Önerileri"
         description="3-4 güçlü alternatif — her biri için 'Neden Bu Reçete?' gerekçesi ve 'Karar Dayanağı' gösterilir. Her veri noktasının kaynağı belirtilir."
       />
+      <ActiveCaseSummary />
 
       {!optimizationRunId && (
         <Card className="border-warn/30 bg-warn/5">

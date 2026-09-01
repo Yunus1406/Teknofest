@@ -91,12 +91,21 @@ def generate_candidates(
     line: LineSpec,
     layer_options: list[LayerMaterialOptions],
     ratio_step_pct: int = RATIO_STEP_PCT,
+    target_total_micron: float | None = None,
 ) -> list[RecipeCandidate]:
     """`layer_options` hattın katman sayısı kadar (sırayla dıştan içe) girilir.
-    Katmanlar birbirinden bağımsız taranıp kartezyen çarpımı alınır."""
+    Katmanlar birbirinden bağımsız taranıp kartezyen çarpımı alınır.
+
+    Faz K.2/K.7 — `target_total_micron` VERİLMİŞSE (Aşama 2'nin hedef
+    kalınlığı) o kullanılır; verilmemişse (None) hattın min/max ortası
+    eskisi gibi bir yedek değerdir. Önceden bu fonksiyon HER ZAMAN hattın
+    ortasını kullanıyordu -- Aşama 6'nın ürettiği TÜM finalistler, kullanıcının
+    Aşama 2'de girdiği hedeften bağımsız, hattın kapasitesine göre üretiliyordu
+    (K.2'nin Akıllı Başlangıç'taki eşleniği, burada da aynı kök neden)."""
     layer_count = len(layer_options)
     weights = _thickness_weights(layer_count)
-    target_total_micron = (line.min_micron + line.max_micron) / 2
+    if target_total_micron is None:
+        target_total_micron = (line.min_micron + line.max_micron) / 2
 
     per_layer_variants = _per_layer_variants(line, layer_options, ratio_step_pct)
 

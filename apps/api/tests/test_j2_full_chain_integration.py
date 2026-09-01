@@ -70,7 +70,11 @@ def test_j2_full_chain_from_company_profile_to_dpp(client, db_session):
 
     # 4) Hammadde Kütüphanesi (Polymer, HTTP endpoint'i yok -- sistem
     # referans verisi, doğrudan seed edilir; Material'ler GERÇEK HTTP ile)
-    polymer = Polymer(code="J2-PE", name="Polietilen", category="poliolefin", base_properties={})
+    # Faz K.6 -- kod GERÇEKTEN "esnek film ambalaj"ın tercih ettiği listedeki
+    # ("PE") bir polimerle eşleşmeli; artık uyumsuz bir kod (eski "J2-PE")
+    # generate_initial_recipe'in Akıllı Başlangıç adımında sessizce herhangi
+    # bir virgin malzemeye düşmüyor, açık bir ValueError fırlatıyor.
+    polymer = Polymer(code="PE", name="Polietilen", category="poliolefin", base_properties={})
     db_session.add(polymer)
     db_session.commit()
     db_session.refresh(polymer)

@@ -1,5 +1,9 @@
 "use client";
 
+import { useState } from "react";
+import type { KeyboardEvent } from "react";
+import { addTag } from "@/lib/tag-input";
+
 /** Faz E — Firma Profili/Makine Parkı/Hammadde Kütüphanesi/Ürün Portföyü
  * formlarında paylaşılan girdi alanları. `TriStateField` özellikle önemli:
  * bilinmeyen bir E/H alanı ASLA "Hayır"a düşmez, açıkça "Veri Girilmedi"
@@ -115,6 +119,13 @@ export function SelectField({
   );
 }
 
+// Faz K.5 (Madde 7) — eskiden `value.join(", ")` ile TEK bir string'e
+// dönüştürülüp her tuş vuruşunda split/trim/filter edilerek geri
+// yazılıyordu; bu, henüz yazılmakta olan ayracı (virgül+boşluk) her
+// keystroke'ta silip "AlmanyaFransa" gibi birleşmelere yol açıyordu. Artık
+// yazılmakta olan metin kendi AYRI, kontrolsüz taslak state'inde tutulur;
+// parent'ın `value: string[]`'i sadece bir etiket TAMAMLANDIĞINDA (Enter/
+// virgül/blur) güncellenir -- imleç asla parent'ın re-render'ıyla zıplamaz.
 export function TagListField({
   label,
   value,
@@ -126,23 +137,56 @@ export function TagListField({
   onChange: (v: string[]) => void;
   placeholder?: string;
 }) {
+  const [draft, setDraft] = useState("");
+
+  function commitDraft() {
+    onChange(addTag(value, draft));
+    setDraft("");
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      commitDraft();
+    } else if (e.key === "Backspace" && draft === "" && value.length > 0) {
+      onChange(value.slice(0, -1));
+    }
+  }
+
+  function removeTag(tag: string) {
+    onChange(value.filter((t) => t !== tag));
+  }
+
   return (
     <label className="block">
-      <span className="text-xs font-medium text-ink/60">{label} (virgülle ayırın)</span>
-      <input
-        type="text"
-        className="mt-1 w-full rounded-lg border border-ink/15 bg-white/70 px-2.5 py-1.5 text-sm"
-        value={value.join(", ")}
-        placeholder={placeholder}
-        onChange={(e) =>
-          onChange(
-            e.target.value
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          )
-        }
-      />
+      <span className="text-xs font-medium text-ink/60">{label}</span>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5 rounded-lg border border-ink/15 bg-white/70 px-2 py-1.5">
+        {value.map((tag) => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 rounded-full bg-petrol/10 px-2 py-0.5 text-xs text-petrol"
+          >
+            {tag}
+            <button
+              type="button"
+              className="text-petrol/60 hover:text-petrol"
+              onClick={() => removeTag(tag)}
+              aria-label={`${tag} etiketini kaldır`}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          type="text"
+          className="min-w-[8ch] flex-1 border-none bg-transparent text-sm outline-none"
+          value={draft}
+          placeholder={value.length === 0 ? placeholder : undefined}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={commitDraft}
+        />
+      </div>
     </label>
   );
 }

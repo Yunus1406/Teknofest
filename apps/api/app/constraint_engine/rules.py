@@ -218,6 +218,46 @@ def rule_ppwr_recyclability_multi_material(
     return None
 
 
+# --- Faz K.7 (Madde 9): Reçete Matematiksel Tutarlılık Kontrolleri --------
+# Bu, ELENDİ/GEÇTİ tier'lı bir kural DEĞİL -- "iş kuralı" ihlali değil,
+# matematiksel bir İÇ TUTARSIZLIK (üretim mantığında bir hatayı işaret eder,
+# ör. 11+49+11=71 gibi katman toplamı hedefle uyuşmayan bir reçete). Bu
+# yüzden ayrı bir fonksiyon: reçete PERSIST edilmeden önce çağrılır, boş
+# olmayan bir liste dönerse reçete HİÇ üretim zincirine giremez.
+def validate_recipe_math_consistency(
+    candidate: RecipeCandidate,
+    target_total_micron: float | None,
+    tolerance_micron: float = 0.5,
+    tolerance_pct: float = 0.5,
+) -> list[str]:
+    failures: list[str] = []
+
+    # (1) Katman kalınlıkları toplamı = toplam ambalaj kalınlığı.
+    if target_total_micron is not None:
+        diff = abs(candidate.total_micron - target_total_micron)
+        if diff > tolerance_micron:
+            failures.append(
+                f"Katman kalınlıkları toplamı {candidate.total_micron:.1f} µm, hedef "
+                f"{target_total_micron:.1f} µm ile eşleşmiyor (fark {diff:.1f} µm)."
+            )
+
+    # (2) Her katmanın İÇİNDEKİ malzeme oranları toplamı = %100 (blend'ler
+    # dahil -- aynı layer_index'i paylaşan birden fazla malzeme satırı olabilir).
+    by_index: dict[int, float] = {}
+    for layer in candidate.layers:
+        by_index[layer.layer_index] = by_index.get(layer.layer_index, 0.0) + layer.ratio_pct
+    for idx, total in sorted(by_index.items()):
+        if abs(total - 100.0) > tolerance_pct:
+            failures.append(f"{idx}. katman içindeki malzeme oranları toplamı %{total:.1f}, %100 olmalı.")
+
+    # (3) Virgin+PCR+PIR ağırlıklı kompozisyon toplamı = %100 (reçete geneli).
+    composition_total = sum(candidate.weighted_composition_pct().values())
+    if abs(composition_total - 100.0) > tolerance_pct:
+        failures.append(f"Virgin+PCR+PIR ağırlıklı kompozisyon toplamı %{composition_total:.1f}, %100 olmalı.")
+
+    return failures
+
+
 ALL_RULES = [
     rule_micron_within_line_range,
     rule_layer_count_match,

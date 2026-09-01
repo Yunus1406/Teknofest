@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import type { PackagingRequestOut, ProductionLineOut, ProductionOrderSummaryOut, RecipeOut } from "@/lib/types";
+import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -67,6 +68,7 @@ export default function Stage9Page() {
         title="Üretime Aktarım"
         description="Sistem uygun hat/makineyi otomatik seçer; siz üretimi onaylarsınız."
       />
+      <ActiveCaseSummary />
 
       {error && (
         <Card className="mb-6 border-warn/30 bg-warn/5">

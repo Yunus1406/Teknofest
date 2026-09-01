@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import type { MaterialOut, RecipeOut } from "@/lib/types";
+import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -16,6 +17,7 @@ import { useCaseStore } from "@/stores/case-store";
 export default function Stage5Page() {
   const packagingRequestId = useCaseStore((s) => s.packagingRequestId);
   const lineId = useCaseStore((s) => s.lineId);
+  const lineEligible = useCaseStore((s) => s.lineEligible);
   const setRecipeId = useCaseStore((s) => s.setRecipeId);
 
   const [recipe, setRecipe] = useState<RecipeOut | null>(null);
@@ -23,7 +25,10 @@ export default function Stage5Page() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!packagingRequestId || !lineId) return;
+    // Faz K.8 (Madde 10) — `lineId` var ama `lineEligible=false` olabilir
+    // (ör. kullanıcı Aşama 4'te uyumsuz yeni bir hat oluşturdu); bu durumda
+    // Akıllı Başlangıç HİÇ tetiklenmemeli, aşağıdaki gate mesajı gösterilir.
+    if (!packagingRequestId || !lineId || !lineEligible) return;
     Promise.all([api.generateInitialRecipe(packagingRequestId, lineId), api.listMaterials()])
       .then(([r, mats]) => {
         setRecipe(r);
@@ -32,7 +37,7 @@ export default function Stage5Page() {
       })
       .catch((e) => setError(String(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [packagingRequestId, lineId]);
+  }, [packagingRequestId, lineId, lineEligible]);
 
   const materialById = Object.fromEntries(materials.map((m) => [m.id, m]));
 
@@ -43,10 +48,19 @@ export default function Stage5Page() {
         title="Mevcut Reçete / Akıllı Başlangıç"
         description="Geçmiş doğrulanmış reçete varsa referans alınır; yoksa hammadde, hat ve mevzuat sınırlarına göre güvenli bir başlangıç reçetesi üretilir. Onayınızla optimizasyona geçilir."
       />
+      <ActiveCaseSummary />
 
       {(!packagingRequestId || !lineId) && (
         <Card className="border-warn/30 bg-warn/5">
           <p className="text-sm text-warn">Önce Aşama 2-4&apos;ü tamamlamalısınız.</p>
+        </Card>
+      )}
+      {packagingRequestId && lineId && !lineEligible && (
+        <Card className="border-warn/30 bg-warn/5">
+          <p className="text-sm text-warn">
+            ⛔ Akıllı Başlangıç başlatılamıyor. Seçili üretim hattı bu ambalaj talebiyle uyumlu değil — Aşama
+            4&apos;e dönüp uyumlu bir hat seçin.
+          </p>
         </Card>
       )}
       {error && (
