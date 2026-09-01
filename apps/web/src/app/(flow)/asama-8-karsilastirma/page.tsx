@@ -12,6 +12,7 @@ import { LayerBreakdownTable } from "@/components/visualizations/LayerBreakdownT
 import { LayeredCompositionBar } from "@/components/visualizations/LayeredCompositionBar";
 import { aggregateToSegments, layerCompositionOutToTable } from "@/lib/composition-segments";
 import { carbonEfStatusLabel, carbonEfStatusTone, dataConfidenceFromSourceKind, dataConfidenceTone } from "@/lib/labels";
+import { formatOptionalKg } from "@/lib/format";
 import { useCaseStore } from "@/stores/case-store";
 
 // Faz H.1 — Aşama 8'in HİÇBİR sayısı "gerçekleşen" ile karıştırılamaz;
@@ -81,27 +82,27 @@ function SideCard({ side }: { side: CompositionSide }) {
         />
         <StatRow
           label="Virgin (1000 birim)"
-          value={side.virgin_kg !== null ? `${side.virgin_kg.toFixed(2)} kg` : null}
+          value={formatOptionalKg(side.virgin_kg, "kg")}
           estimated={side.is_estimated}
         />
         <StatRow
           label="PCR (1000 birim)"
-          value={side.pcr_kg !== null ? `${side.pcr_kg.toFixed(2)} kg` : null}
+          value={formatOptionalKg(side.pcr_kg, "kg")}
           estimated={side.is_estimated}
         />
         <StatRow
           label="PIR-Regranül (1000 birim)"
-          value={side.regranul_kg !== null ? `${side.regranul_kg.toFixed(2)} kg` : null}
+          value={formatOptionalKg(side.regranul_kg, "kg")}
           estimated={side.is_estimated}
         />
         <StatRow
           label="Fire (1000 birim)"
-          value={side.fire_kg !== null ? `${side.fire_kg.toFixed(2)} kg` : null}
+          value={formatOptionalKg(side.fire_kg, "kg")}
           estimated={side.is_estimated}
         />
         <StatRow
           label="Enerji (1000 birim)"
-          value={side.enerji_kwh !== null ? `${side.enerji_kwh.toFixed(2)} kWh` : null}
+          value={formatOptionalKg(side.enerji_kwh, "kWh")}
           estimated={side.is_estimated}
         />
       </dl>
