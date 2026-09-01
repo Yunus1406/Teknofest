@@ -332,6 +332,29 @@ export function evidenceStatusTone(v: string): Tone {
   }
 }
 
+// Faz M.2 (Madde 12) — huni görselleştirmesinin yanındaki eleme nedeni
+// kategorileri (bkz. apps/api/app/constraint_engine/rules.py
+// REASON_CODE_CATEGORIES).
+export function eliminationCategoryLabel(v: string): string {
+  const map: Record<string, string> = {
+    malzeme_uyumsuzlugu: "Malzeme Uyumsuzluğu",
+    mevzuat: "Mevzuat",
+    makine_hat_kisiti: "Makine/Hat Kısıtı",
+    diger: "Diğer",
+  };
+  return map[v] ?? v;
+}
+
+export function eliminationCategoryTone(v: string): Tone {
+  const map: Record<string, Tone> = {
+    malzeme_uyumsuzlugu: "virgin",
+    mevzuat: "petrol",
+    makine_hat_kisiti: "warn",
+    diger: "neutral",
+  };
+  return map[v] ?? "neutral";
+}
+
 export function recyclabilityDimensionLabel(v: string): string {
   const map: Record<string, string> = {
     tasarim_uyumu: "Tasarım Uyumu",

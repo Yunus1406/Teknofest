@@ -5,7 +5,7 @@ run/candidates) ve API'ye dönecek OptimizationRunOut'u üretir."""
 from sqlalchemy.orm import Session
 
 from app.constraint_engine.engine import filter_candidates
-from app.constraint_engine.rules import validate_recipe_math_consistency
+from app.constraint_engine.rules import categorize_eliminations, validate_recipe_math_consistency
 from app.constraint_engine.types import (
     EvaluationContext,
     LineSpec,
@@ -28,6 +28,7 @@ from app.optimization.candidate_generator import (
 from app.optimization.scorer import score_candidate
 from app.services.carbon import resolve_carbon_ef
 from app.services.common import canonical_packaging_category, preferred_polymer_codes
+from app.services.packaging_service import match_infrastructure
 
 MAX_FINALISTS = 4
 MAX_NOTABLE_ELIMINATED = 3
@@ -295,6 +296,77 @@ def _eliminated_summary(candidate: RecipeCandidate, violations: list) -> dict:
     }
 
 
+def _diagnose_zero_finalists(
+    db: Session,
+    packaging_request: PackagingRequest,
+    line: ProductionLine,
+    eliminated: list[tuple[RecipeCandidate, list]],
+) -> dict:
+    """Faz M.3 (Madde 13) — SADECE `finalists` boşken çağrılır. K.8'in geçiş
+    kontrolü bu durumu genelde engeller, ama kullanıcı yine de karşılaşabilir
+    (ör. ön filtrelemeden hiç aday geçemezse). "Aday bulunamadı" demekle
+    yetinmez: hangi kısıt TÜM adayları eledi + K.4'ün hat uygunluk matrisini
+    (`match_infrastructure`) yeniden kullanarak somut bir alternatif önerir."""
+    if not eliminated:
+        return {
+            "dominant_reason_code": None,
+            "dominant_reason_text": None,
+            "affected_pct": None,
+            "alternative_line_name": None,
+            "alternative_line_score_pct": None,
+            "suggestion_text": (
+                f"0 aday: '{line.name}' hattı ve mevcut bilgi tabanı için hiçbir teorik "
+                "aday bile üretilemedi. Hattın katman yapısını ve bilgi tabanındaki "
+                "uyumlu hammadde tanımlarını kontrol edin."
+            ),
+        }
+
+    reason_counts: dict[str, int] = {}
+    reason_text_by_code: dict[str, str] = {}
+    for _candidate, violations in eliminated:
+        if not violations:
+            continue
+        code = violations[0].reason_code
+        reason_counts[code] = reason_counts.get(code, 0) + 1
+        reason_text_by_code.setdefault(code, violations[0].reason_text)
+
+    dominant_code = max(reason_counts, key=reason_counts.get) if reason_counts else None
+    dominant_text = reason_text_by_code.get(dominant_code) if dominant_code else None
+    affected_pct = round(100 * reason_counts[dominant_code] / len(eliminated)) if dominant_code else None
+
+    # Faz K.4'ün eşleştirme matrisi -- seçili hat DIŞINDA uygun bir alternatif
+    # var mı diye yeniden kullanılır, yeni bir sorgu yazılmaz.
+    matches = match_infrastructure(db, packaging_request)
+    alternatives = sorted(
+        (m for m in matches if m["eligible"] and m["line"].id != line.id),
+        key=lambda m: m["score_pct"],
+        reverse=True,
+    )
+    best_alt = alternatives[0] if alternatives else None
+
+    parts = [f"0 aday: '{line.name}' hattı için hiçbir aday kısıt motorundan geçemedi."]
+    if dominant_text:
+        parts.append(f"En sık neden (elenenlerin %{affected_pct}'i): {dominant_text}")
+    if best_alt:
+        parts.append(f"Öneri: '{best_alt['line'].name}' hattını deneyin (%{best_alt['score_pct']} uyumlu).")
+    elif dominant_code and dominant_code.startswith(("hat_malzeme", "malzeme_kendi")):
+        parts.append("Öneri: Bu hat için uyumlu hammadde tanımı ekleyin.")
+    else:
+        parts.append(
+            "Öneri: Farklı bir üretim hattı seçmeyi veya hammadde/kısıt tanımlarını "
+            "gözden geçirmeyi deneyin."
+        )
+
+    return {
+        "dominant_reason_code": dominant_code,
+        "dominant_reason_text": dominant_text,
+        "affected_pct": affected_pct,
+        "alternative_line_name": best_alt["line"].name if best_alt else None,
+        "alternative_line_score_pct": best_alt["score_pct"] if best_alt else None,
+        "suggestion_text": " ".join(parts),
+    }
+
+
 def run_optimization(
     db: Session, packaging_request_id: str, line_id: str, ratio_step_pct: int = 10
 ) -> dict:
@@ -353,6 +425,10 @@ def run_optimization(
         regulations=regulations,
     )
     survivors, eliminated = filter_candidates(candidates, ctx)
+    # Faz M.2 (Madde 12) — TÜM elenenlerin kategorik dağılımı (malzeme
+    # uyumsuzluğu/mevzuat/makine kısıtı); `notable_eliminated`'in 3 örneğinden
+    # BAĞIMSIZ, huni görselleştirmesinin yanındaki özet istatistik içindir.
+    elimination_category_counts = categorize_eliminations(eliminated)
 
     scored = [
         (c, score_candidate(c, regulations, food_contact=packaging_request.food_contact))
@@ -368,6 +444,7 @@ def run_optimization(
             "candidate_count_generated": len(candidates),
             "survived_constraint_engine_count": len(survivors),
             "generation_breakdown": generation_breakdown,
+            "elimination_category_counts": elimination_category_counts,
         },
     )
     db.add(run)
@@ -398,6 +475,12 @@ def run_optimization(
     # Faz C.4 — zaten hesaplanan bu listeyi kalıcı hale getir (Rapor §6 için).
     run.notable_eliminated = notable_eliminated
 
+    # Faz M.3 (Madde 13) — SADECE 0 finalist iken çağrılır (K.8'in geçiş
+    # kontrolü bu durumu genelde engeller ama kullanıcı yine de
+    # karşılaşabilir); finalist varsa her zaman None kalır.
+    diagnosis = _diagnose_zero_finalists(db, packaging_request, line, eliminated) if not finalists else None
+    run.parameters = {**run.parameters, "diagnosis": diagnosis}
+
     packaging_request.status = "recete_hazir"
     db.commit()
 
@@ -408,4 +491,6 @@ def run_optimization(
         "generated_candidate_count": len(candidates),
         "survived_constraint_engine_count": len(survivors),
         "generation_breakdown": generation_breakdown,
+        "elimination_category_counts": elimination_category_counts,
+        "diagnosis": diagnosis,
     }

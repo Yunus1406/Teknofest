@@ -258,6 +258,45 @@ def validate_recipe_math_consistency(
     return failures
 
 
+# --- Faz M.2 (Madde 12): Eleme Nedenlerinin Kategorik Dağılımı ------------
+# Huni görselleştirmesinin yanında "180 malzeme uyumsuzluğu, 74 mevzuat, 40
+# makine kısıtı" gibi bir özet üretmek için her reason_code'u 3 kullanıcı
+# dostu kategoriye eşler. Yeni bir kural eklendiğinde buraya da bir satır
+# eklenmesi gerekir (aksi halde o kod "diger" kategorisine düşer, sessizce
+# kaybolmaz).
+REASON_CODE_CATEGORIES: dict[str, str] = {
+    "micron_disi": "makine_hat_kisiti",
+    "katman_sayisi_uyumsuz": "makine_hat_kisiti",
+    "ambalaj_turu_desteklenmiyor": "makine_hat_kisiti",
+    "hat_malzeme_eslesmiyor": "malzeme_uyumsuzlugu",
+    "hat_malzeme_orani_asildi": "malzeme_uyumsuzlugu",
+    "malzeme_kendi_oran_siniri_asildi": "malzeme_uyumsuzlugu",
+    "katki_dozaj_disi": "malzeme_uyumsuzlugu",
+    "gida_temasi_uygun_degil": "mevzuat",
+    "katki_gida_temasi_uygun_degil": "mevzuat",
+    "uyumsuz_cok_polimer_yapisi": "mevzuat",
+}
+
+
+def categorize_eliminations(
+    eliminated: list[tuple[RecipeCandidate, list[EvaluationResult]]],
+) -> dict[str, int]:
+    """Faz M.2 — TÜM elenen adaylar için (sadece `notable_eliminated`'in
+    tuttuğu 3 örnek DEĞİL) her adayın İLK ihlali (ALL_RULES sırasındaki ilk
+    eşleşen kural, `evaluate_candidate`'ın kısayoldan çıkmadan topladığı
+    `violations` listesinin ilk elemanı) o adayın kategorisini belirler --
+    bir aday BAŞINA tek kategori sayılır (ihlal başına değil), aksi halde
+    toplam elenen aday sayısını aşar ve yanıltıcı olurdu (kullanıcının
+    örneğindeki "294 eleme: 180+74+40" toplamı elenen sayısına eşittir)."""
+    counts: dict[str, int] = {"malzeme_uyumsuzlugu": 0, "mevzuat": 0, "makine_hat_kisiti": 0, "diger": 0}
+    for _candidate, violations in eliminated:
+        if not violations:
+            continue
+        category = REASON_CODE_CATEGORIES.get(violations[0].reason_code, "diger")
+        counts[category] += 1
+    return counts
+
+
 ALL_RULES = [
     rule_micron_within_line_range,
     rule_layer_count_match,

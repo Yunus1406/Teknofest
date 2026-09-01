@@ -9,7 +9,15 @@ import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import { Badge } from "@/components/ui/Badge";
-import { dataConfidenceFromSourceKind, dataConfidenceLabel, dataConfidenceTone, tierLabel } from "@/lib/labels";
+import { FunnelChart } from "@/components/visualizations/FunnelChart";
+import {
+  dataConfidenceFromSourceKind,
+  dataConfidenceLabel,
+  dataConfidenceTone,
+  eliminationCategoryLabel,
+  eliminationCategoryTone,
+  tierLabel,
+} from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
 export default function Stage6Page() {
@@ -80,16 +88,79 @@ export default function Stage6Page() {
 
       {run && (
         <>
-          <div className="mb-2 grid grid-cols-3 gap-4">
-            <StatTile label="Üretilen Aday" value={run.generated_candidate_count} />
-            <StatTile label="Kısıt Motorundan Geçen" value={run.survived_constraint_engine_count} />
-            <StatTile label="Elenen" value={eliminatedCount} tone={eliminatedCount > 0 ? "warn" : "default"} />
+          {/* Faz M.1 (Madde 11) — "343 aday üretildi" tek başına yanıltıcı bir
+              büyük sayı izlenimi veriyordu. Ön Filtreleme (uyumluluk zincirinden
+              geçen "teknik olarak mümkün" adaylar) ile Optimizasyon (bunlar
+              arasından çok kriterli skorlamayla seçilen finalistler) artık iki
+              ayrı, adı açıkça etiketlenmiş blok olarak gösteriliyor. */}
+          <div className="mb-4">
+            <p className="mb-2 font-mono text-xs font-semibold uppercase tracking-wide text-petrol/70">
+              1. Ön Filtreleme — Uyumluluk Zinciri
+            </p>
+            <div className="grid grid-cols-3 gap-4">
+              <StatTile label="Üretilen Aday (Teorik Kombinasyon)" value={run.generated_candidate_count} />
+              <StatTile label="Elenen" value={eliminatedCount} tone={eliminatedCount > 0 ? "warn" : "default"} />
+              <StatTile label="Teknik Olarak Mümkün" value={run.survived_constraint_engine_count} />
+            </div>
           </div>
+          <div className="mb-4">
+            <p className="mb-2 font-mono text-xs font-semibold uppercase tracking-wide text-petrol/70">
+              2. Optimizasyon — Çok Kriterli Skorlama
+            </p>
+            <div className="grid grid-cols-3 gap-4">
+              <StatTile label="Değerlendirilen Aday" value={run.survived_constraint_engine_count} />
+              <StatTile
+                label="Seçilen Finalist"
+                value={run.finalists.length}
+                tone={run.finalists.length === 0 ? "warn" : "default"}
+              />
+              <div />
+            </div>
+          </div>
+          <Card className="mb-6 border-petrol/15 bg-petrol/5">
+            <p className="text-sm text-ink">
+              <strong>Ön Filtreleme:</strong> {run.generated_candidate_count} teorik kombinasyondan{" "}
+              {run.survived_constraint_engine_count}&apos;i teknik olarak mümkün → <strong>Optimizasyon:</strong>{" "}
+              {run.survived_constraint_engine_count} adaydan {run.finalists.length} finalist seçildi.
+            </p>
+          </Card>
           <div className="mb-6">
             <Badge tone={dataConfidenceTone(dataConfidenceFromSourceKind("hesaplanan"))}>
               {dataConfidenceLabel(dataConfidenceFromSourceKind("hesaplanan"))}
             </Badge>
           </div>
+
+          {/* Faz M.2 (Madde 12) — sayısal metnin YANINDA (yerine değil) görsel
+              bir daralma gösterimi + TÜM elenenlerin kategorik dağılımı. */}
+          <Card className="mb-6">
+            <CardTitle subtitle="Adayların üç aşamadaki daralması ve elenen adayların hangi kısıt kategorisine düştüğü.">
+              Huni Görünümü
+            </CardTitle>
+            <FunnelChart
+              stages={[
+                { label: "Üretilen Aday", value: run.generated_candidate_count, tone: "petrol" },
+                { label: "Teknik Olarak Mümkün", value: run.survived_constraint_engine_count, tone: "virgin" },
+                { label: "Seçilen Finalist", value: run.finalists.length, tone: "pcr" },
+              ]}
+            />
+            {eliminatedCount > 0 && (
+              <div className="mt-4 border-t border-ink/10 pt-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                  {eliminatedCount} Eleme — Kategorik Dağılım
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {Object.entries(run.elimination_category_counts)
+                    .filter(([, count]) => count > 0)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([category, count]) => (
+                      <Badge key={category} tone={eliminationCategoryTone(category)}>
+                        {count} {eliminationCategoryLabel(category)}
+                      </Badge>
+                    ))}
+                </div>
+              </div>
+            )}
+          </Card>
 
           {run.generation_breakdown && (
             <Card className="mb-6">
@@ -138,21 +209,48 @@ export default function Stage6Page() {
             )}
           </Card>
 
-          <Card>
-            <div className="flex items-center justify-between">
-              <CardTitle subtitle="Kısıt motorundan geçen adaylar arasından en yüksek skorlu 3-4 alternatif seçildi.">
-                Sonuç
-              </CardTitle>
-              <Badge tone="pcr">{run.finalists.length} finalist</Badge>
-            </div>
-            <p className="text-sm text-ink/60">
-              Detaylı reçete önerileri, gerekçeleri ve karar dayanağı için sonraki aşamaya geçin.
-            </p>
-          </Card>
+          {/* Faz M.3 (Madde 13) — 0 finalist durumunda boş/anlamsız bir "Sonuç"
+              kartı yerine somut, aksiyon alınabilir bir Teşhis Ekranı. */}
+          {run.diagnosis ? (
+            <Card className="border-warn/40 bg-warn/5">
+              <div className="flex items-center justify-between">
+                <CardTitle subtitle="Optimizasyon 0 uygun aday üretti — aşağıda hangi kısıtın adayları elediği ve somut bir öneri var.">
+                  ⚠ Teşhis Ekranı
+                </CardTitle>
+                <Badge tone="warn">0 finalist</Badge>
+              </div>
+              {run.diagnosis.dominant_reason_text && (
+                <p className="mt-2 text-sm text-ink/80">
+                  <strong>En sık neden{run.diagnosis.affected_pct != null ? ` (%${run.diagnosis.affected_pct})` : ""}:</strong>{" "}
+                  {run.diagnosis.dominant_reason_text}
+                </p>
+              )}
+              {run.diagnosis.alternative_line_name && (
+                <p className="mt-2 text-sm text-pcr">
+                  ✓ Alternatif: <strong>{run.diagnosis.alternative_line_name}</strong>
+                  {run.diagnosis.alternative_line_score_pct != null && ` (%${run.diagnosis.alternative_line_score_pct} uyumlu)`} —
+                  Aşama 4&apos;e dönüp bu hattı seçebilirsiniz.
+                </p>
+              )}
+              <p className="mt-3 rounded-lg bg-white/60 p-3 text-sm text-ink/70">{run.diagnosis.suggestion_text}</p>
+            </Card>
+          ) : (
+            <Card>
+              <div className="flex items-center justify-between">
+                <CardTitle subtitle="Kısıt motorundan geçen adaylar arasından en yüksek skorlu 3-4 alternatif seçildi.">
+                  Sonuç
+                </CardTitle>
+                <Badge tone="pcr">{run.finalists.length} finalist</Badge>
+              </div>
+              <p className="text-sm text-ink/60">
+                Detaylı reçete önerileri, gerekçeleri ve karar dayanağı için sonraki aşamaya geçin.
+              </p>
+            </Card>
+          )}
         </>
       )}
 
-      <StageNav currentNo={6} nextEnabled={!!run} />
+      <StageNav currentNo={6} nextEnabled={!!run && run.finalists.length > 0} />
     </div>
   );
 }

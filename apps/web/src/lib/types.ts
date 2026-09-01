@@ -671,6 +671,20 @@ export interface OptimizationRunOut {
   generated_candidate_count: number;
   survived_constraint_engine_count: number;
   generation_breakdown: GenerationBreakdownOut | null;
+  // Faz M.2 (Madde 12) — anahtarlar: malzeme_uyumsuzlugu, mevzuat,
+  // makine_hat_kisiti, diger.
+  elimination_category_counts: Record<string, number>;
+  // Faz M.3 (Madde 13) — SADECE finalists.length===0 iken dolu.
+  diagnosis: ZeroFinalistDiagnosisOut | null;
+}
+
+export interface ZeroFinalistDiagnosisOut {
+  dominant_reason_code: string | null;
+  dominant_reason_text: string | null;
+  affected_pct: number | null;
+  alternative_line_name: string | null;
+  alternative_line_score_pct: number | null;
+  suggestion_text: string;
 }
 
 export interface LayerMaterialRowOut {

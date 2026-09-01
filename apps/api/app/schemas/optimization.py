@@ -35,6 +35,18 @@ class EliminatedCandidateOut(BaseModel):
     summary_text: str
 
 
+class ZeroFinalistDiagnosisOut(BaseModel):
+    """Faz M.3 (Madde 13) — 0 finalist teşhis ekranı (bkz. optimization_
+    service._diagnose_zero_finalists). SADECE finalists boşken dolu."""
+
+    dominant_reason_code: str | None
+    dominant_reason_text: str | None
+    affected_pct: int | None
+    alternative_line_name: str | None
+    alternative_line_score_pct: int | None
+    suggestion_text: str
+
+
 class GenerationBreakdownLayerOut(BaseModel):
     layer_label: str
     virgin_material_name: str
@@ -62,3 +74,10 @@ class OptimizationRunOut(BaseModel):
     generated_candidate_count: int
     survived_constraint_engine_count: int
     generation_breakdown: GenerationBreakdownOut | None = None
+    # Faz M.2 (Madde 12) — TÜM elenenlerin kategorik dağılımı (huni
+    # görselleştirmesinin yanındaki özet). Anahtarlar: malzeme_uyumsuzlugu,
+    # mevzuat, makine_hat_kisiti, diger.
+    elimination_category_counts: dict[str, int] = {}
+    # Faz M.3 (Madde 13) — SADECE finalists boşken dolu (bkz.
+    # optimization_service._diagnose_zero_finalists).
+    diagnosis: ZeroFinalistDiagnosisOut | None = None

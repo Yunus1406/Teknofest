@@ -13,6 +13,7 @@ from app.schemas.optimization import (
     GenerationBreakdownOut,
     OptimizationCandidateOut,
     OptimizationRunOut,
+    ZeroFinalistDiagnosisOut,
 )
 from app.services import optimization_service
 
@@ -54,6 +55,8 @@ def run_optimization(
         generated_candidate_count=result["generated_candidate_count"],
         survived_constraint_engine_count=result["survived_constraint_engine_count"],
         generation_breakdown=GenerationBreakdownOut(**result["generation_breakdown"]),
+        elimination_category_counts=result["elimination_category_counts"],
+        diagnosis=ZeroFinalistDiagnosisOut(**result["diagnosis"]) if result["diagnosis"] else None,
     )
 
 
@@ -74,4 +77,8 @@ def get_run(run_id: str, db: Session = Depends(get_db)):
         generated_candidate_count=run.parameters.get("candidate_count_generated", 0),
         survived_constraint_engine_count=run.parameters.get("survived_constraint_engine_count", 0),
         generation_breakdown=GenerationBreakdownOut(**breakdown) if breakdown else None,
+        elimination_category_counts=run.parameters.get("elimination_category_counts", {}),
+        diagnosis=(
+            ZeroFinalistDiagnosisOut(**run.parameters["diagnosis"]) if run.parameters.get("diagnosis") else None
+        ),
     )
