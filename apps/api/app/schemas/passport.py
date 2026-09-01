@@ -104,6 +104,10 @@ class PassportPublicOut(BaseModel):
     regulatory: list[PassportRegulatoryItemOut] = []
     regulatory_disclaimer: str
     version_history: list[PassportVersionOut] = []
+    # Faz O.2 (Madde 19) — Sürdürülebilirlik Karnesi özeti: sadece
+    # key/label/deger/birim/durum_metni (karşılaştırma yüzdesi ve veri
+    # güveni detayı YOK -- bkz. app/services/scorecard_service.py).
+    sustainability_scorecard_summary: list[dict] = []
 
 
 class PassportLayerMaterialDetailOut(BaseModel):
@@ -145,6 +149,9 @@ class PassportAuthorizedOut(BaseModel):
     # app/schemas/learning_memory.py CausalChainNodeOut, burada gevşek
     # dict olarak taşınır -- ayrı bir endpoint zaten tam tipli).
     causal_chain: list[dict] = []
+    # Faz O.2 (Madde 19) — Sürdürülebilirlik Karnesi'nin tam detayı
+    # (karşılaştırma yüzdesi + veri güveni kind'i dahil 9 boyut).
+    sustainability_scorecard: list[dict] = []
 
 
 class DigitalProductPassportOut(BaseModel):

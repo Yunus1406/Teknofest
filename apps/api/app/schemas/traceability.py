@@ -108,3 +108,16 @@ class RecipeTraceabilityOut(BaseModel):
     production_orders: list[TraceabilityProductionOrderOut] = []
     physical_tests: list[TraceabilityPhysicalTestOut] = []
     regulatory_assessments: list[TraceabilityRegulatoryAssessmentOut] = []
+
+
+# Faz O.1 (Madde 18) — Ambalajın Dijital İkizi. `traceability` mevcut
+# `RecipeTraceabilityOut`'un AYNISI (Reçete+Katman+Makine+Test+Mevzuat);
+# burada sadece Proses/Sürdürülebilirlik/Versiyon Zinciri EKLENİR. Gevşek
+# `dict`/`list[dict]` tipler bilinçli -- `schemas/dashboard.py::FinalResultOut.
+# per_1000_units: dict` emsaliyle aynı, iç şekli değişebilecek serbest bir
+# hesaplanmış görünüm için sıkı bir şema zorlamak gereksiz katılık katar.
+class DigitalTwinOut(BaseModel):
+    traceability: RecipeTraceabilityOut
+    process_parameters: list[dict] = []
+    sustainability_per_1000_units: dict | None = None
+    version_history: list[dict] = []

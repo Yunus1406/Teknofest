@@ -170,6 +170,48 @@ def _verdict_label(v: str | None) -> str:
     }.get(v, v or "—")
 
 
+_REGULATORY_VERDICT_CODES = {
+    "uygun_gorunuyor", "inceleme_gerekli", "uygun_degil", "veri_eksik", "henuz_metodoloji_yok",
+}
+
+# Faz O.2 (Madde 19) — report_service.py::_CONFIDENCE_BY_KIND ile AYNI
+# eşleme (mirror). pdf_service.py bilinçli olarak SIFIR servis import'u
+# taşır (SADECE render eder, bkz. modül docstring'i), bu yüzden yukarıdaki
+# _data_source_label/_verdict_label ile AYNI desende burada küçük bir kopya
+# tutulur -- apps/web/src/lib/labels.ts::_CONFIDENCE_BY_SOURCE_KIND ile de
+# senkron kalmalı.
+_SCORECARD_CONFIDENCE_BY_KIND = {
+    "makineden_alinan": "Yüksek", "laboratuvar": "Yüksek", "firma_verisi": "Yüksek",
+    "laboratuvar_testi": "Yüksek", "kullanici_girisi": "Yüksek",
+    "ayni_sku": "Yüksek", "ayni_ambalaj_turu": "Yüksek",
+    "benzer_kullanim_alani": "Orta", "benzer_teknik_sartlar": "Orta",
+    "ayni_hat": "Düşük", "gecmis_uretim": "Orta", "teknik_veri_foyu": "Orta",
+    "hesaplanan": "Orta", "gecmis_uretim_verisi": "Orta",
+    "mevzuat": "Düşük", "sistem_referansi": "Düşük", "simulasyon": "Düşük",
+    "simulasyon_verisi": "Düşük", "tanimli_gercek": "Düşük",
+    "varsayimsal": "Varsayımsal", "tanimli_demo": "Varsayımsal",
+}
+
+
+def _scorecard_confidence_label(kind: str | None) -> str:
+    if kind is None:
+        return "—"
+    return _SCORECARD_CONFIDENCE_BY_KIND.get(kind, "—")
+
+
+def _scorecard_status_label(v: str | None) -> str:
+    if v is None:
+        return "—"
+    if v in _REGULATORY_VERDICT_CODES:
+        return _verdict_label(v)
+    return {
+        "henuz_uretilmedi": "Henüz Üretilmedi",
+        "kutle_verisi_eksik": "Kütle Verisi Eksik",
+        "degerlendirilmedi": "Değerlendirilmedi",
+        "gida_temasi_yok": "Gıda Teması Yok — Gerekli Değil",
+    }.get(v, v)
+
+
 def _table(rows: list[list], col_widths: list[float] | None = None) -> Table:
     t = Table(rows, colWidths=col_widths, repeatRows=1)
     t.setStyle(TableStyle(_TABLE_HEADER_STYLE))
@@ -671,12 +713,43 @@ def _section_benchmark_comparison(data: dict) -> list:
     return story
 
 
+def _section_sustainability_scorecard(data: dict) -> list:
+    """Faz O.2 (Madde 19) — 9 boyutlu Sürdürülebilirlik Karnesi (bkz.
+    app/services/scorecard_service.py::build_sustainability_scorecard).
+    Hiçbir sayı burada YENİDEN hesaplanmaz; `data["surdurulebilirlik_karnesi"]`
+    zaten hesaplanmış. Referans yoksa "Referans yok" yazılır -- ASLA uydurma
+    bir karşılaştırma yüzdesi gösterilmez (Faz A kuralı)."""
+    dims = data["surdurulebilirlik_karnesi"]["dimensions"]
+    story = [_p("24. Sürdürülebilirlik Karnesi", STYLE_H1)]
+    rows = [["Boyut", "Değer", "Durum", "Karşılaştırma", "Veri Güveni"]]
+    for d in dims:
+        deger = f"{d['deger']} {d['birim']}" if d.get("deger") is not None and d.get("birim") else _dash(d.get("deger"))
+        if d.get("deger") is None:
+            karsilastirma = "—"
+        elif d.get("has_reference") and d.get("karsilastirma_pct") is not None:
+            karsilastirma = _fmt_pct(d["karsilastirma_pct"])
+        else:
+            karsilastirma = "Referans yok"
+        rows.append(
+            [
+                d["label"],
+                deger,
+                _scorecard_status_label(d.get("durum_metni")),
+                karsilastirma,
+                _scorecard_confidence_label(d.get("veri_guveni_kind")),
+            ]
+        )
+    story.append(_table(rows, col_widths=[38 * mm, 28 * mm, 40 * mm, 28 * mm, 25 * mm]))
+    story.append(Spacer(1, 10))
+    return story
+
+
 def render_technical_report(data: dict, passport: dict | None = None) -> bytes:
     """Detaylı Teknik Rapor — Faz C.5'in 16 bölümü + Faz H.6'nın 5 ek bölümü
     (Hesaplama Metodolojisi/Kaynakça/Veri Kalitesi/Varsayımlar/Veri Kaynağı
     Matrisi) + Faz L.4'ün 1 ek bölümü (Kullanılan Mevzuat Sürümü ve
-    Değişiklik Geçmişi) + Faz N.2'nin 1 ek bölümü (Sektöre Göre Konum),
-    toplam 23 bölüm."""
+    Değişiklik Geçmişi) + Faz N.2'nin 1 ek bölümü (Sektöre Göre Konum) +
+    Faz O.2'nin 1 ek bölümü (Sürdürülebilirlik Karnesi), toplam 24 bölüm."""
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4, topMargin=18 * mm, bottomMargin=18 * mm, leftMargin=18 * mm, rightMargin=18 * mm,
@@ -706,6 +779,7 @@ def render_technical_report(data: dict, passport: dict | None = None) -> bytes:
     story += _section_source_matrix(data)
     story += _section_regulation_version_history(data)
     story += _section_benchmark_comparison(data)
+    story += _section_sustainability_scorecard(data)
     story += _qr_flowable(passport)
     doc.build(story)
     return buf.getvalue()

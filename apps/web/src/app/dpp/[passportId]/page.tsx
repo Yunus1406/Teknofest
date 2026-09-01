@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { StatTile } from "@/components/ui/StatTile";
 import { LayeredCompositionBar } from "@/components/visualizations/LayeredCompositionBar";
+import { DigitalTwinView } from "@/components/digital-twin/DigitalTwinView";
+import { SustainabilityScorecard } from "@/components/scorecard/SustainabilityScorecard";
 import { aggregateToSegments } from "@/lib/composition-segments";
 import {
   carbonEfStatusLabel,
@@ -59,6 +61,11 @@ export default function DigitalProductPassportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+
+  // Faz O.1 (Madde 18) — Yetkili Alan içinde iki sekme: mevcut ticari detay
+  // ile yeni Dijital İkiz görünümü AYNI Card içinde, ayrı bir route/istek
+  // gerektirmeden geçiş yapar.
+  const [authorizedTab, setAuthorizedTab] = useState<"detay" | "dijital_ikiz">("detay");
 
   const [showAuthorizedForm, setShowAuthorizedForm] = useState(false);
   const [authorizedKeyInput, setAuthorizedKeyInput] = useState("");
@@ -434,6 +441,14 @@ export default function DigitalProductPassportPage() {
         </ol>
       </Card>
 
+      {/* H) Sürdürülebilirlik Karnesi (özet) */}
+      <Card className="mt-6">
+        <CardTitle subtitle="Ambalajın 9 boyutta sürdürülebilirlik durumu. Karşılaştırma yüzdesi ve veri güveni detayı Yetkili Alan'da.">
+          H) Sürdürülebilirlik Karnesi
+        </CardTitle>
+        <SustainabilityScorecard dimensions={passport.public.sustainability_scorecard_summary} detailed={false} />
+      </Card>
+
       {/* Yetkili Alan */}
       <div className="mt-6">
         {!passport.authorized ? (
@@ -468,7 +483,28 @@ export default function DigitalProductPassportPage() {
           </>
         ) : (
           <Card className="border-petrol/30 bg-petrol/5">
-            <CardTitle subtitle="Sadece yetkili erişimle görünür.">Yetkili Alan — Katman Bazlı Ticari Detay</CardTitle>
+            <CardTitle subtitle="Sadece yetkili erişimle görünür.">Yetkili Alan</CardTitle>
+            <div className="mb-4 flex gap-2 border-b border-petrol/20 pb-2">
+              <button
+                type="button"
+                onClick={() => setAuthorizedTab("detay")}
+                className={`text-sm font-medium ${authorizedTab === "detay" ? "text-petrol underline underline-offset-4" : "text-ink/50"}`}
+              >
+                Ticari Detay
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthorizedTab("dijital_ikiz")}
+                className={`text-sm font-medium ${authorizedTab === "dijital_ikiz" ? "text-petrol underline underline-offset-4" : "text-ink/50"}`}
+              >
+                Dijital İkiz
+              </button>
+            </div>
+
+            {authorizedTab === "dijital_ikiz" ? (
+              <DigitalTwinView recipeId={passport.authorized.traceability.recipe.id} />
+            ) : (
+              <>
             <div className="space-y-2">
               {passport.authorized.layer_materials.map((m, i) => (
                 <div key={i} className="flex flex-wrap items-center gap-2 text-sm">
@@ -573,6 +609,15 @@ export default function DigitalProductPassportPage() {
                   ))}
                 </ul>
               </div>
+            )}
+
+            <div className="mt-5 border-t border-ink/10 pt-4">
+              <CardTitle subtitle="Karşılaştırma yüzdesi + Veri Güveni dahil tam detay.">
+                Sürdürülebilirlik Karnesi (Detaylı)
+              </CardTitle>
+              <SustainabilityScorecard dimensions={passport.authorized.sustainability_scorecard} detailed />
+            </div>
+              </>
             )}
           </Card>
         )}

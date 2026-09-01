@@ -119,3 +119,6 @@ class FinalResultOut(BaseModel):
     # sektör ortalaması ile doldurulmaz (bkz. report_service.
     # _benchmark_comparison_section).
     benchmark_karsilastirmasi: dict
+    # Faz O.2 (Madde 19) — additive. 9 boyutlu Sürdürülebilirlik Karnesi
+    # (bkz. app/services/scorecard_service.py).
+    surdurulebilirlik_karnesi: dict

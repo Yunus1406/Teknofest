@@ -28,6 +28,8 @@ from app.models.recipe import Recipe, RecipeAdditive, RegulatoryAssessment
 from app.models.regulation_requirement import RegulationRequirement
 from app.services import learning_memory_service, production_flow_service, traceability_service
 from app.services.packaging_service import _current_requirement_version
+from app.services.report_service import build_executive_summary
+from app.services.scorecard_service import build_sustainability_scorecard
 
 
 def _next_passport_no(db: Session) -> str:
@@ -262,6 +264,17 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
     version_history = production_flow_service.version_history(db, recipe)
     production_date = _production_date_for_recipe(db, recipe)
 
+    # Faz O.2 (Madde 19) — Sürdürülebilirlik Karnesi. TEK hesap: public
+    # tarafta özet projeksiyonu (deger/birim/durum_metni), authorized
+    # tarafta karşılaştırma+veri güveni dahil TAM detay (Faz I.2'nin
+    # Kamu/Firma ayrım deseniyle aynı disiplin).
+    executive_summary_for_scorecard = build_executive_summary(db, recipe, comparison)
+    scorecard = build_sustainability_scorecard(db, recipe, comparison, executive_summary_for_scorecard)
+    scorecard_summary = [
+        {"key": d["key"], "label": d["label"], "deger": d["deger"], "birim": d["birim"], "durum_metni": d["durum_metni"]}
+        for d in scorecard["dimensions"]
+    ]
+
     # Faz L.4 (Madde 17) — kimlik kartında "mevzuat değerlendirme tarihi,
     # kullanılan mevzuat sürümü, son kontrol tarihi, son değişiklikten
     # etkilenme durumu". `assess_regulations()` tüm satırları tek seferde
@@ -352,6 +365,9 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
             }
             for v in version_history
         ],
+        # Faz O.2 (Madde 19) — özet: sadece etiket/değer/durum, karşılaştırma
+        # yüzdesi ve veri güveni detayı YOK (bunlar Yetkili Alan'da).
+        "sustainability_scorecard_summary": scorecard_summary,
     }
 
     authorized = None
@@ -398,6 +414,9 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
             # fiziksel test → sonuç), "hepsi geriye doğru sorgulanabilir
             # olsun" kuralı.
             "causal_chain": learning_memory_service.causal_chain_for_recipe(db, recipe),
+            # Faz O.2 (Madde 19) — tam detay: karşılaştırma yüzdesi + veri
+            # güveni kind'i dahil tüm 9 boyut.
+            "sustainability_scorecard": scorecard["dimensions"],
         }
 
     settings = get_settings()

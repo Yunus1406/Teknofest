@@ -10,6 +10,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { StatTile } from "@/components/ui/StatTile";
+import { SustainabilityScorecard } from "@/components/scorecard/SustainabilityScorecard";
 import {
   carbonEfStatusLabel,
   carbonEfStatusTone,
@@ -328,6 +329,13 @@ export default function Stage12Page() {
             )}
           </Card>
 
+          <Card className="mb-8">
+            <CardTitle subtitle="Ambalajın 9 boyutta çok yönlü sürdürülebilirlik durumu — tek bir sayı yerine tam görünüm.">
+              Sürdürülebilirlik Karnesi
+            </CardTitle>
+            <SustainabilityScorecard dimensions={result.surdurulebilirlik_karnesi.dimensions} detailed />
+          </Card>
+
           <Card>
             <CardTitle>Reçete İzlenebilirlik Geçmişi</CardTitle>
             <ol className="space-y-2">
@@ -407,6 +415,21 @@ export default function Stage12Page() {
                   </Link>
                 </div>
               </div>
+            )}
+          </Card>
+
+          <Card className="mt-6">
+            <CardTitle subtitle="Reçete, katman, makine, proses, test, enerji/karbon/fire ve mevzuatın TEK bir birleşik görünümü — reçete yeni bir versiyon aldığında otomatik güncellenir.">
+              Ambalajın Dijital İkizi
+            </CardTitle>
+            {recipeId && (
+              <Link
+                href={`/dijital-ikiz/${recipeId}`}
+                target="_blank"
+                className="inline-block text-sm font-medium text-petrol underline underline-offset-2"
+              >
+                Dijital İkizi Görüntüle
+              </Link>
             )}
           </Card>
 

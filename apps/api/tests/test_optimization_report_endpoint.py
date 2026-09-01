@@ -116,23 +116,25 @@ def test_report_for_unknown_recipe_returns_404(client):
 
 
 def test_report_includes_qr_page_when_passport_exists(client, db_session):
+    """Faz O.2'nin Sürdürülebilirlik Karnesi bölümü eklendiğinden beri
+    rapor gövdesinin sayfa sayısı reçeteye göre değişken hale geldi --
+    iki AYRI reçetenin toplam sayfa sayısını kıyaslamak (eski yaklaşım)
+    bu yüzden kırılgan. Bunun yerine QR bloğunun kendi metninin (bkz.
+    pdf_service._qr_flowable) sadece pasaportlu reçetenin PDF'inde
+    bulunduğunu doğrudan doğruluyoruz."""
     recipe = _verified_recipe(db_session)
     get_or_create_passport(db_session, recipe.id)
 
-    resp_without = client.get(f"/api/v1/production-flow/recipes/{recipe.id}/optimization-report")
+    resp_with = client.get(f"/api/v1/production-flow/recipes/{recipe.id}/optimization-report")
 
-    # Aynı reçete için tekrar pasaport oluşturulmadan önceki hâliyle
-    # karşılaştırmak yerine, pasaportsuz bir reçeteyle sayfa sayısını
-    # karşılaştırıyoruz -- iki ayrı reçete, biri pasaportlu biri değil.
     other_recipe = _verified_recipe(db_session)
-    resp_other_without_passport = client.get(
-        f"/api/v1/production-flow/recipes/{other_recipe.id}/optimization-report"
-    )
+    resp_without = client.get(f"/api/v1/production-flow/recipes/{other_recipe.id}/optimization-report")
 
     from pypdf import PdfReader
     from io import BytesIO
 
-    pages_with = len(PdfReader(BytesIO(resp_without.content)).pages)
-    pages_without = len(PdfReader(BytesIO(resp_other_without_passport.content)).pages)
+    text_with = "".join(p.extract_text() for p in PdfReader(BytesIO(resp_with.content)).pages)
+    text_without = "".join(p.extract_text() for p in PdfReader(BytesIO(resp_without.content)).pages)
 
-    assert pages_with > pages_without
+    assert "Dijital Pasaportu Görüntüle" in text_with
+    assert "Dijital Pasaportu Görüntüle" not in text_without

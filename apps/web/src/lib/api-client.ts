@@ -14,6 +14,7 @@ import type {
   CostReferenceFactorOut,
   DashboardSummaryOut,
   DigitalProductPassportOut,
+  DigitalTwinOut,
   FacilityOut,
   FacilityUpsert,
   FinalResultOut,
@@ -205,6 +206,10 @@ export const api = {
     request<DigitalProductPassportOut>(
       `/passports/${passportNo}${authorizedKey ? `?authorized_key=${encodeURIComponent(authorizedKey)}` : ""}`
     ),
+
+  // Faz O.1 (Madde 18) — Ambalajın Dijital İkizi
+  getDigitalTwin: (recipeId: string) =>
+    request<DigitalTwinOut>(`/traceability/recipes/${recipeId}/digital-twin`),
 
   // Faz C.5-C.7 — Otomatik Optimizasyon Raporu (PDF indirme). JSON dönmediği
   // için `request()` yerine ham `fetch` + blob kullanılır; tarayıcı indirmesi

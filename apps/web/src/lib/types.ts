@@ -876,6 +876,7 @@ export interface FinalResultOut {
   }[];
   triple_comparison: TripleComparisonOut;
   benchmark_karsilastirmasi: BenchmarkComparisonOut;
+  surdurulebilirlik_karnesi: SustainabilityScorecardOut;
 }
 
 export interface DashboardSummaryOut {
@@ -1014,6 +1015,32 @@ export interface RecipeTraceabilityOut {
   regulatory_assessments: TraceabilityRegulatoryAssessmentOut[];
 }
 
+// Faz O.1 (Madde 18) — Ambalajın Dijital İkizi (bkz. apps/api/app/services/
+// digital_twin_service.py). `process_parameters`/`sustainability_per_1000_units`
+// gevşek tipli -- iç şekli report_service'in per_1000_units'iyle aynı serbest
+// hesaplanmış görünüm disiplinini izler.
+export interface DigitalTwinProcessParameterOut {
+  parameter_name: string;
+  typical_min: number | null;
+  typical_max: number | null;
+  unit: string;
+  source: string | null;
+  is_demo_placeholder: boolean;
+}
+
+export interface DigitalTwinOut {
+  traceability: RecipeTraceabilityOut;
+  process_parameters: DigitalTwinProcessParameterOut[];
+  sustainability_per_1000_units: (Record<string, number | string | boolean | null>) | null;
+  version_history: {
+    id: string;
+    version: number;
+    status: string;
+    is_verified: boolean;
+    created_at: string;
+  }[];
+}
+
 // Faz C.2 — Dijital Ürün Pasaportu (bkz. apps/api/app/schemas/passport.py).
 // `public` her zaman dolu; `authorized` sadece doğru `dpp_authorized_key`
 // ile istendiğinde dolar, aksi halde `null` (sessizce — sızıntı yok).
@@ -1096,6 +1123,28 @@ export interface PassportVersionOut {
   created_at: string;
 }
 
+// Faz O.2 (Madde 19) — Sürdürülebilirlik Karnesi (bkz. apps/api/app/services/
+// scorecard_service.py). `veri_guveni_kind` HAM bir kaynak kind'idir --
+// tone/etiket için `dataConfidenceFromSourceKind`/`dataConfidenceLabel`/
+// `dataConfidenceTone` (labels.ts) reuse edilir, yeni bir eşleme YOK.
+export interface SustainabilityScorecardSummaryItemOut {
+  key: string;
+  label: string;
+  deger: number | null;
+  birim: string | null;
+  durum_metni: string | null;
+}
+
+export interface SustainabilityScorecardDimensionOut extends SustainabilityScorecardSummaryItemOut {
+  has_reference: boolean;
+  karsilastirma_pct: number | null;
+  veri_guveni_kind: string | null;
+}
+
+export interface SustainabilityScorecardOut {
+  dimensions: SustainabilityScorecardDimensionOut[];
+}
+
 export interface PassportPublicOut {
   header: PassportHeaderOut;
   status_summary: PassportStatusSummaryOut;
@@ -1109,6 +1158,8 @@ export interface PassportPublicOut {
   regulatory: PassportRegulatoryItemOut[];
   regulatory_disclaimer: string;
   version_history: PassportVersionOut[];
+  // Faz O.2 (Madde 19) — özet: karşılaştırma yüzdesi/veri güveni YOK.
+  sustainability_scorecard_summary: SustainabilityScorecardSummaryItemOut[];
 }
 
 export interface PassportLayerMaterialDetailOut {
@@ -1165,6 +1216,8 @@ export interface PassportAuthorizedOut {
   } | null;
   // Faz I.3 — Bölüm G: V1→V2→V3 zincirinin nedensel halkaları.
   causal_chain: CausalChainNodeOut[];
+  // Faz O.2 (Madde 19) — tam detay: karşılaştırma yüzdesi + veri güveni dahil.
+  sustainability_scorecard: SustainabilityScorecardDimensionOut[];
 }
 
 export interface DigitalProductPassportOut {

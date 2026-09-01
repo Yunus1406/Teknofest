@@ -365,6 +365,23 @@ export function eliminationCategoryTone(v: string): Tone {
   return map[v] ?? "neutral";
 }
 
+// Faz O.2 (Madde 19) — Sürdürülebilirlik Karnesi'nin bazı boyutları
+// (malzeme_verimliligi/karbon/enerji/fire "henüz üretilmedi" gibi, ya da
+// dongusellik/mevzuat_hazirligi'nin değerlendirilmediği) ham durum kodu
+// taşır; zaten Türkçe serbest metin olan durumlar (ör. "3/5 madde uygun
+// görünüyor") ya da bilinen bir RegulatoryVerdict kodu (dongusellik'in
+// PPWR Md.6 verdict'i) OLDUĞU GİBİ/`regulatoryVerdictLabel` ile ele alınır
+// -- bu sadece geri kalan sabit kelime dağarcığı içindir.
+export function scorecardStatusLabel(v: string): string {
+  const map: Record<string, string> = {
+    henuz_uretilmedi: "Henüz Üretilmedi",
+    kutle_verisi_eksik: "Kütle Verisi Eksik",
+    degerlendirilmedi: "Değerlendirilmedi",
+    gida_temasi_yok: "Gıda Teması Yok — Gerekli Değil",
+  };
+  return map[v] ?? v;
+}
+
 export function recyclabilityDimensionLabel(v: string): string {
   const map: Record<string, string> = {
     tasarim_uyumu: "Tasarım Uyumu",

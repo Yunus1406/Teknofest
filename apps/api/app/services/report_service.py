@@ -24,6 +24,7 @@ from app.schemas.company import COMPANY_BENCHMARK_METRICS
 from app.services import production_flow_service, traceability_service
 from app.services.common import canonical_packaging_category
 from app.services.packaging_service import _current_requirement_version
+from app.services.scorecard_service import build_sustainability_scorecard
 
 _PPWR_DISCLAIMER = (
     "Bu değerlendirme mevzuat ön uyum karar desteğidir; hukuki uygunluk "
@@ -737,6 +738,10 @@ def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
         "mevzuat_versiyon_gecmisi": _regulation_version_history_section(db, packaging_request),
         # Faz N.2 (Madde 15) — mevcut hiçbir anahtar değişmedi, additive.
         "sektore_gore_konum": _benchmark_comparison_section(db, packaging_request, comparison),
+        # Faz O.2 (Madde 19) — mevcut hiçbir anahtar değişmedi, additive.
+        # `comparison`/`executive_summary` zaten hesaplanmış, yeniden sorgu
+        # YOK (bkz. scorecard_service.py modül docstring'i).
+        "surdurulebilirlik_karnesi": build_sustainability_scorecard(db, recipe, comparison, executive_summary),
     }
     result["veri_kaynagi_matrisi"] = _source_matrix_section(result)
     return result

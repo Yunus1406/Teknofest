@@ -25,6 +25,7 @@ from app.schemas.production import (
 from app.schemas.learning_memory import CausalChainNodeOut, ChangeOutcomeStatsOut
 from app.schemas.recipe import RecipeOut
 from app.services import learning_memory_service, passport_service, pdf_service, production_flow_service, report_service
+from app.services.scorecard_service import build_sustainability_scorecard
 from app.services.test_targets import suggested_physical_test_targets
 
 router = APIRouter(prefix="/production-flow", tags=["Aşama 8-12 - Üretim & Doğrulama & Sonuç"])
@@ -160,6 +161,7 @@ def finalize_result(recipe_id: str, db: Session = Depends(get_db)):
     tests = db.query(PhysicalTest).filter_by(recipe_id=recipe.id).all()
     tests_passed = all(t.passed for t in tests) if tests else False
     comparison = production_flow_service.build_comparison(db, recipe)
+    executive_summary = report_service.build_executive_summary(db, recipe, comparison)
     return FinalResultOut(
         recipe_id=recipe.id,
         per_1000_units=result.per_1000_units,
@@ -169,6 +171,7 @@ def finalize_result(recipe_id: str, db: Session = Depends(get_db)):
         benchmark_karsilastirmasi=report_service._benchmark_comparison_section(
             db, recipe.packaging_request, comparison
         ),
+        surdurulebilirlik_karnesi=build_sustainability_scorecard(db, recipe, comparison, executive_summary),
     )
 
 
