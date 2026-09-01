@@ -13,13 +13,16 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from app.models.company import Company, CompanyBenchmark
 from app.models.enums import RecipeSource
 from app.models.knowledge import Regulation
 from app.models.optimization import OptimizationCandidate, OptimizationRun
 from app.models.production import PhysicalTest, ProductionOrder, SustainabilityResult, WasteRecord
 from app.models.recipe import PackagingRequest, Recipe, RecipeEvaluation, RegulatoryAssessment
 from app.models.regulation_requirement import RegulationRequirement
+from app.schemas.company import COMPANY_BENCHMARK_METRICS
 from app.services import production_flow_service, traceability_service
+from app.services.common import canonical_packaging_category
 from app.services.packaging_service import _current_requirement_version
 
 _PPWR_DISCLAIMER = (
@@ -87,6 +90,14 @@ _CONFIDENCE_BY_KIND = {
     "firma_verisi": "Yüksek",
     "laboratuvar_testi": "Yüksek",
     "kullanici_girisi": "Yüksek",
+    # Faz N.1a — Faz G.4'ün 5 kademeli firma hafızası tier'ları
+    # (apps/web/src/lib/labels.ts::_CONFIDENCE_BY_SOURCE_KIND ile senkron
+    # tutulmalı, bkz. oradaki yorum).
+    "ayni_sku": "Yüksek",
+    "ayni_ambalaj_turu": "Yüksek",
+    "benzer_kullanim_alani": "Orta",
+    "benzer_teknik_sartlar": "Orta",
+    "ayni_hat": "Düşük",
     "gecmis_uretim": "Orta",
     "teknik_veri_foyu": "Orta",
     "hesaplanan": "Orta",
@@ -610,6 +621,62 @@ def _source_matrix_section(data: dict) -> list[dict]:
     return rows
 
 
+# Faz N.2 (Madde 15) — CompanyBenchmark.metric_name -> comparison["recommended"]
+# içindeki AYNI büyüklüğü taşıyan alan (bkz. production_flow_service.py
+# _composition_side). Reçetenin GERÇEK, sistemin zaten hesapladığı değeri
+# ile kıyaslanır -- ayrı bir hesap YAPILMAZ.
+_BENCHMARK_METRIC_TO_RECOMMENDED_FIELD = {
+    "karbon_kg_co2_per_kg": "carbon_kg_co2_per_kg",
+    "maliyet_tl_per_kg": "cost_per_kg",
+    "pcr_orani_pct": "pcr_pct",
+}
+
+
+def _benchmark_comparison_section(db: Session, packaging_request: PackagingRequest | None, comparison: dict) -> dict:
+    """Faz N.2 (Madde 15) — SADECE kullanıcının Firma Profili'nden gerçekten
+    girdiği `CompanyBenchmark` satırları kullanılır (bkz. app/models/
+    company.py::CompanyBenchmark). Firma yoksa, bu kategori için hiç
+    benchmark girilmemişse, `available: False` döner -- hiçbir zaman bir
+    sektör ortalaması sentezlenmez/enterpole edilmez; çağıran taraf
+    (PDF/frontend) bunu açıkça "Benchmark: Veri Yok" olarak göstermelidir."""
+    if packaging_request is None:
+        return {"available": False}
+    company = db.query(Company).first()
+    if company is None:
+        return {"available": False}
+    category = canonical_packaging_category(packaging_request.packaging_type)
+    rows = (
+        db.query(CompanyBenchmark)
+        .filter_by(company_id=company.id, packaging_category=category)
+        .order_by(CompanyBenchmark.metric_name)
+        .all()
+    )
+    if not rows:
+        return {"available": False, "packaging_category": category}
+
+    recommended = comparison["recommended"]
+    items = []
+    for row in rows:
+        recipe_field = _BENCHMARK_METRIC_TO_RECOMMENDED_FIELD.get(row.metric_name)
+        recipe_value = recommended.get(recipe_field) if recipe_field else None
+        fark_pct = None
+        if recipe_value is not None and row.value:
+            fark_pct = round(((recipe_value - row.value) / row.value) * 100, 1)
+        items.append(
+            {
+                "metric_name": row.metric_name,
+                "metric_label": COMPANY_BENCHMARK_METRICS.get(row.metric_name, row.metric_name),
+                "benchmark_value": row.value,
+                "benchmark_unit": row.unit,
+                "benchmark_source": row.source,
+                "benchmark_entered_at": row.created_at.isoformat(),
+                "recete_degeri": recipe_value,
+                "fark_pct": fark_pct,
+            }
+        )
+    return {"available": True, "packaging_category": category, "items": items}
+
+
 def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
     """Faz C.5'in 16 bölümü + Faz H.6'nın 5 ek bölümü. Sadece `recipe.is_verified=True` reçeteler için
     çağrılabilir (Dashboard 12'nin doğal uzantısı — aynı ön koşul DPP ile
@@ -668,6 +735,8 @@ def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
         "kullanilan_varsayimlar": _assumptions_section(data_traceability, sustainability_section["per_1000_units"]),
         # Faz L.4 — mevcut hiçbir anahtar değişmedi, additive.
         "mevzuat_versiyon_gecmisi": _regulation_version_history_section(db, packaging_request),
+        # Faz N.2 (Madde 15) — mevcut hiçbir anahtar değişmedi, additive.
+        "sektore_gore_konum": _benchmark_comparison_section(db, packaging_request, comparison),
     }
     result["veri_kaynagi_matrisi"] = _source_matrix_section(result)
     return result

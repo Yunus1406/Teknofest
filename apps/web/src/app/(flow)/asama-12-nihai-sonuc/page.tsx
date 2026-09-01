@@ -32,6 +32,12 @@ const TRIPLE_ROWS: { key: string; label: string; unit: string }[] = [
   { key: "enerji_kwh", label: "Enerji", unit: "kWh" },
 ];
 
+// Faz N.2 (Madde 15) — bu tek metrik için düşük değer İYİ değil, YÜKSEK
+// değer iyidir; rozet rengi bu yüzden diğer iki metrikten TERS yönde
+// değerlendirilir (bkz. apps/api/app/schemas/company.py
+// COMPANY_BENCHMARK_METRICS).
+const HIGHER_IS_BETTER_METRICS = new Set(["pcr_orani_pct"]);
+
 const GAIN_LABELS: Record<string, string> = {
   karbon_azaltimi_pct: "Karbon Azaltımı",
   virgin_azaltimi_pct: "Virgin Azaltımı",
@@ -265,6 +271,62 @@ export default function Stage12Page() {
               <StatTile label="Enerji" value={p.enerji_kwh ?? "—"} unit="kWh" />
             </div>
           </div>
+
+          <Card className="mb-8">
+            <CardTitle>Sektöre Göre Konum (Benchmark Karşılaştırması)</CardTitle>
+            {!result.benchmark_karsilastirmasi.available ? (
+              <p className="text-sm text-ink/50">
+                Benchmark: Veri Yok —{" "}
+                <Link href="/firma-profili" className="text-petrol underline underline-offset-2">
+                  Firma Profili
+                </Link>
+                &apos;nden kendi geçmiş üretim ortalamanızı ya da doğrulanmış bir sektör kaynağını girerek bu
+                karşılaştırmayı etkinleştirebilirsiniz.
+              </p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-ink/50">
+                    <th className="pb-2 font-medium">Metrik</th>
+                    <th className="pb-2 font-medium">Reçete Değeri</th>
+                    <th className="pb-2 font-medium">Benchmark</th>
+                    <th className="pb-2 font-medium">Fark</th>
+                    <th className="pb-2 font-medium">Kaynak</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(result.benchmark_karsilastirmasi.items ?? []).map((item) => (
+                    <tr key={item.metric_name} className="border-t border-ink/10">
+                      <td className="py-2">{item.metric_label}</td>
+                      <td className="py-2 font-mono">
+                        {item.recete_degeri ?? "—"} {item.benchmark_unit}
+                      </td>
+                      <td className="py-2 font-mono">
+                        {item.benchmark_value} {item.benchmark_unit}
+                      </td>
+                      <td className="py-2">
+                        {item.fark_pct != null ? (
+                          <Badge
+                            tone={
+                              (HIGHER_IS_BETTER_METRICS.has(item.metric_name) ? item.fark_pct >= 0 : item.fark_pct <= 0)
+                                ? "pcr"
+                                : "warn"
+                            }
+                          >
+                            {item.fark_pct > 0 ? "+" : ""}
+                            {item.fark_pct}%
+                          </Badge>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="py-2 text-xs text-ink/50">{item.benchmark_source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </Card>
 
           <Card>
             <CardTitle>Reçete İzlenebilirlik Geçmişi</CardTitle>

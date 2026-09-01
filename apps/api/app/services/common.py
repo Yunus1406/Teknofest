@@ -42,6 +42,11 @@ _PACKAGING_KEYWORD_RULES: list[tuple[str, str, list[str]]] = [
 ]
 _DEFAULT_POLYMER_PREFERENCE = ["PP", "PE", "PET"]
 
+# Faz N.2 (Madde 15) — sistemin tanıdığı 7 kanonik ambalaj kategorisi, TEK
+# kaynaktan (yukarıdaki kural tablosu) türetilir; elle ayrı bir liste
+# TUTULMAZ (aksi halde yeni bir kategori eklendiğinde biri unutulabilir).
+CANONICAL_PACKAGING_CATEGORIES: list[str] = sorted({category for _, category, _ in _PACKAGING_KEYWORD_RULES})
+
 
 def slugify(text: str) -> str:
     return text.strip().lower().replace(" ", "_").replace("ı", "i")

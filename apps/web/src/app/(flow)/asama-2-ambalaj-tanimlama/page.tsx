@@ -10,7 +10,7 @@ import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { fieldConfidencePct } from "@/lib/labels";
+import { dataConfidenceTone, fieldConfidencePct } from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
 const emptyForm: PackagingRequestCreate = {
@@ -28,22 +28,18 @@ const emptyForm: PackagingRequestCreate = {
 
 type Step = "form" | "review";
 
-function confidenceTone(c: string | undefined): "pcr" | "virgin" | "warn" | "neutral" {
-  if (c === "yuksek") return "pcr";
-  if (c === "orta") return "virgin";
-  if (c === "dusuk") return "warn";
-  return "neutral";
-}
-
 /** Bir alanın yanına, o alan LLM tarafından çıkarıldıysa güven rozetini
  * ekler -- Faz G.1: "Çıkarılan Bilgileri Kontrol Edin" ekranında her alanın
- * güvenilirliği o alanın YANINDA görünür, ayrı bir genel listede değil. */
+ * güvenilirliği o alanın YANINDA görünür, ayrı bir genel listede değil.
+ * Faz N.1a — eskiden burada lokal, `labels.ts::dataConfidenceTone`'u
+ * DUPLICATE eden ayrı bir `confidenceTone()` vardı ("varsayimsal" durumunu
+ * hiç ele almıyordu); artık sistem geneli tek kaynak reuse ediliyor. */
 function ConfidenceBadge({ extraction, field }: { extraction: SpecExtractionOut | null; field: string }) {
   const conf = extraction?.field_confidence[field];
   if (!conf) return null;
   const pct = fieldConfidencePct(conf);
   return (
-    <Badge tone={confidenceTone(conf)}>
+    <Badge tone={dataConfidenceTone(conf)}>
       %{pct} güven{conf === "dusuk" ? " → Kontrol Ediniz" : ""}
     </Badge>
   );

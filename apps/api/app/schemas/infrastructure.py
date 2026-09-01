@@ -74,6 +74,9 @@ class LineMatchOut(BaseModel):
     score_pct: int = 100
     criteria: LineMatchCriteriaOut | None = None
     missing: list[str] = []
+    # Faz N.1b (Madde 14) — "yuksek" (mikron_araligi gerçekten karşılaştırıldı)
+    # veya "varsayimsal" (hedef kalınlık girilmemiş, kriter geçti VARSAYILDI).
+    mikron_araligi_veri_guveni: str = "yuksek"
 
 
 class ProductionLineCreate(BaseModel):

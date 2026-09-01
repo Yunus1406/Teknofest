@@ -197,6 +197,12 @@ def _build_decision_trail(
             f"'{req.packaging_type}' ifadesinden tahmini tercih sırası: {'/'.join(preferred)} "
             "(reçete henüz üretilmediği için TAHMİNİ)"
         ),
+        # Faz N.1b (Madde 14) — bu alan HER ZAMAN "dusuk": reçete/malzeme
+        # Aşama 3'te henüz seçilmedi, bu yüzden hangi polimer kullanılacağı
+        # bir TAHMİNDİR (packaging_type serbest metninden çıkarılır). Bu
+        # dürüst bir sabit -- "hangi anahtar kelime eşleşti" gibi bir
+        # nüansla "orta" gibi uydurma bir ara güven seviyesi ÜRETİLMEZ.
+        "ambalaj_malzemesi_guveni": "dusuk",
         "kullanim_alani": req.usage_area,
         "gida_temasi": req.food_contact,
         "ambalaj_kategorisi": category,
@@ -672,6 +678,12 @@ def match_infrastructure(db: Session, packaging_request: PackagingRequest) -> li
                 "score_pct": score_pct,
                 "criteria": criteria,
                 "missing": missing,
+                # Faz N.1b (Madde 14) — `mikron_araligi` kriteri hedef kalınlık
+                # hiç girilmemişse GERÇEKTEN değerlendirilmiyor, sessizce
+                # "geçti" VARSAYILIYOR (bkz. yukarıdaki mikron_araligi_ok
+                # hesaplaması). Bu, score_pct'in bir kısmının varsayıma
+                # dayandığını AÇIKÇA işaretler -- önceden hiç belirtilmiyordu.
+                "mikron_araligi_veri_guveni": "varsayimsal" if target_thickness is None else "yuksek",
             }
         )
 

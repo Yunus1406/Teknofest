@@ -105,6 +105,7 @@ def get_infrastructure_matches(request_id: str, db: Session = Depends(get_db)):
             score_pct=m["score_pct"],
             criteria=LineMatchCriteriaOut(**m["criteria"]),
             missing=m["missing"],
+            mikron_araligi_veri_guveni=m["mikron_araligi_veri_guveni"],
         )
         for m in matches
     ]

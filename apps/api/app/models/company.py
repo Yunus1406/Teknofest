@@ -64,3 +64,26 @@ class Facility(Base, IdMixin, TimestampMixin):
     renewable_energy_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     company: Mapped["Company"] = relationship(back_populates="facilities")
+
+
+class CompanyBenchmark(Base, IdMixin, TimestampMixin):
+    """Faz N.2 (Madde 15) — Faz F.11'in `BenchmarkReference`'ından (sistem-
+    geneli, company_id YOK, kasıtlı boş -- uydurma sektör ortalaması ASLA
+    üretilmez) TAMAMEN AYRI: bu, kullanıcının/firmanın KENDİ girdiği gerçek
+    referans veridir (kendi geçmiş üretim ortalaması ya da doğrulanmış bir
+    dış kaynak, ör. sektör raporu). `source` HANGİSİ olduğunu serbest
+    metinle taşır -- sistem bunu asla otomatik üretmez/tahmin etmez.
+    `packaging_category`/`metric_name` sabit, bilinen kümelerden (bkz.
+    app/schemas/company.py COMPANY_BENCHMARK_METRICS ve app/services/
+    common.py CANONICAL_PACKAGING_CATEGORIES) -- serbest metin DEĞİL, ki
+    Aşama 12/Rapor'daki karşılaştırma GERÇEKTEN aynı büyüklüğü aynı
+    büyüklükle kıyaslasın."""
+
+    __tablename__ = "company_benchmarks"
+
+    company_id: Mapped[str] = mapped_column(ForeignKey("companies.id"))
+    packaging_category: Mapped[str] = mapped_column(String(80))
+    metric_name: Mapped[str] = mapped_column(String(40))
+    value: Mapped[float] = mapped_column(Float)
+    unit: Mapped[str] = mapped_column(String(20))
+    source: Mapped[str] = mapped_column(String(300))

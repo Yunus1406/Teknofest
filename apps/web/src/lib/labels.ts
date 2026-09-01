@@ -76,6 +76,16 @@ const _CONFIDENCE_BY_SOURCE_KIND: Record<string, string> = {
   firma_verisi: "yuksek",
   laboratuvar_testi: "yuksek",
   kullanici_girisi: "yuksek",
+  // Faz N.1a — Faz G.4'ün 5 kademeli firma hafızası taramasının tier'ları
+  // (bkz. packaging_service.find_reference_recipe_with_evidence). Kademe
+  // SIRASI zaten güven sırasına karşılık gelir: 1-2 (aynı SKU/ambalaj türü)
+  // en güçlü kanıt, 3-4 (benzer kullanım/teknik şart) orta, 5 (sadece aynı
+  // hat -- ambalaj türü/teknik şartlar hiç eşleşmeyebilir) en zayıf kanıt.
+  ayni_sku: "yuksek",
+  ayni_ambalaj_turu: "yuksek",
+  benzer_kullanim_alani: "orta",
+  benzer_teknik_sartlar: "orta",
+  ayni_hat: "dusuk",
   gecmis_uretim: "orta",
   teknik_veri_foyu: "orta",
   hesaplanan: "orta",

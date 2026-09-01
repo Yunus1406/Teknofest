@@ -123,6 +123,8 @@ export interface RegulatoryDecisionTrailOut {
   hedef_pazar: string | null;
   hedef_pazar_ab_mi: "evet" | "hayir" | "belirsiz";
   ambalaj_malzemesi_tahmini: string;
+  // Faz N.1b (Madde 14)
+  ambalaj_malzemesi_guveni: string;
   kullanim_alani: string;
   gida_temasi: boolean;
   ambalaj_kategorisi: string;
@@ -264,6 +266,8 @@ export interface LineMatchOut {
   score_pct: number;
   criteria: LineMatchCriteriaOut | null;
   missing: string[];
+  // Faz N.1b (Madde 14) — "yuksek" | "varsayimsal".
+  mikron_araligi_veri_guveni: string;
 }
 
 export interface MaterialOut {
@@ -837,6 +841,27 @@ export interface TripleComparisonOut {
   gains: Record<string, number> | null;
 }
 
+// Faz N.2 (Madde 15) — kullanıcının Firma Profili'nden girdiği gerçek
+// benchmark verisiyle karşılaştırma. `available: false` = veri girilmedi,
+// ASLA bir sektör ortalaması sentezlenmez (bkz. apps/api/app/services/
+// report_service.py::_benchmark_comparison_section).
+export interface BenchmarkComparisonItemOut {
+  metric_name: string;
+  metric_label: string;
+  benchmark_value: number;
+  benchmark_unit: string;
+  benchmark_source: string;
+  benchmark_entered_at: string;
+  recete_degeri: number | null;
+  fark_pct: number | null;
+}
+
+export interface BenchmarkComparisonOut {
+  available: boolean;
+  packaging_category?: string;
+  items?: BenchmarkComparisonItemOut[];
+}
+
 export interface FinalResultOut {
   recipe_id: string;
   // karbon_veri_kalitesi ve _uyari gibi metin alanları da taşıyabilir.
@@ -850,6 +875,7 @@ export interface FinalResultOut {
     created_at: string;
   }[];
   triple_comparison: TripleComparisonOut;
+  benchmark_karsilastirmasi: BenchmarkComparisonOut;
 }
 
 export interface DashboardSummaryOut {
@@ -1225,4 +1251,43 @@ export interface FacilityUpsert {
 export interface CompanyProfileOut {
   company: CompanyOut;
   facilities: FacilityOut[];
+}
+
+// Faz N.2 (Madde 15) — kullanıcının kendi girdiği gerçek benchmark verisi.
+// `packaging_category`/`metric_name` serbest metin DEĞİL; sabit kümeler
+// (bkz. apps/api/app/services/common.py::CANONICAL_PACKAGING_CATEGORIES,
+// apps/api/app/schemas/company.py::COMPANY_BENCHMARK_METRICS).
+export const CANONICAL_PACKAGING_CATEGORIES = [
+  "esnek_film_ambalaj",
+  "kapak",
+  "plastik_bardak",
+  "plastik_kap",
+  "plastik_tabak",
+  "plastik_tepsi",
+  "sise",
+] as const;
+
+export const COMPANY_BENCHMARK_METRICS: Record<string, string> = {
+  karbon_kg_co2_per_kg: "Karbon Yoğunluğu (kg CO2/kg)",
+  maliyet_tl_per_kg: "Birim Maliyet (TL/kg)",
+  pcr_orani_pct: "PCR Oranı (%)",
+};
+
+export interface CompanyBenchmarkOut {
+  id: string;
+  company_id: string;
+  packaging_category: string;
+  metric_name: string;
+  value: number;
+  unit: string;
+  source: string;
+  created_at: string;
+}
+
+export interface CompanyBenchmarkCreate {
+  packaging_category: string;
+  metric_name: string;
+  value: number;
+  unit: string;
+  source: string;
 }

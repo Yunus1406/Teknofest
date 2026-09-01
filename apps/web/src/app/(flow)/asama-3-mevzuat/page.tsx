@@ -9,6 +9,8 @@ import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import {
+  dataConfidenceLabel,
+  dataConfidenceTone,
   evidenceStatusLabel,
   evidenceStatusTone,
   recyclabilityDimensionLabel,
@@ -119,7 +121,12 @@ export default function Stage3Page() {
                           </div>
                           <div>
                             <dt className="text-ink/40">2. Ambalaj Malzemesi</dt>
-                            <dd>{a.decision_trail.ambalaj_malzemesi_tahmini}</dd>
+                            <dd className="flex items-center gap-1.5">
+                              {a.decision_trail.ambalaj_malzemesi_tahmini}
+                              <Badge tone={dataConfidenceTone(a.decision_trail.ambalaj_malzemesi_guveni)}>
+                                {dataConfidenceLabel(a.decision_trail.ambalaj_malzemesi_guveni)}
+                              </Badge>
+                            </dd>
                           </div>
                           <div>
                             <dt className="text-ink/40">3. Kullanım</dt>

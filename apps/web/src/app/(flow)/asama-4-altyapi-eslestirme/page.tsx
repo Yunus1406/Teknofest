@@ -185,6 +185,14 @@ export default function Stage4Page() {
                     {Object.entries(m.criteria).map(([key, ok]) => (
                       <span key={key} className={ok ? "text-pcr" : "text-warn"}>
                         {ok ? "✓" : "✕"} {matchCriterionLabel(key)}
+                        {/* Faz N.1b (Madde 14) — hedef kalınlık girilmemişse
+                            bu kriter değerlendirilmiyor, "geçti" VARSAYILIYOR;
+                            bu artık kullanıcıya açıkça belirtilir. */}
+                        {key === "mikron_araligi" && m.mikron_araligi_veri_guveni === "varsayimsal" && (
+                          <span className="ml-0.5 text-ink/40" title="Hedef kalınlık girilmediği için bu kriter değerlendirilmedi, geçti varsayıldı.">
+                            (varsayımsal)
+                          </span>
+                        )}
                       </span>
                     ))}
                   </div>

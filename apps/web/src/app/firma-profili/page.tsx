@@ -3,11 +3,84 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api-client";
-import type { CompanyOut, FacilityOut, FacilityUpsert } from "@/lib/types";
+import type { CompanyBenchmarkOut, CompanyOut, FacilityOut, FacilityUpsert } from "@/lib/types";
+import { CANONICAL_PACKAGING_CATEGORIES, COMPANY_BENCHMARK_METRICS } from "@/lib/types";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { NumberField, TagListField, TextField, TriStateField } from "@/components/ui/FormField";
+import { NumberField, SelectField, TagListField, TextField, TriStateField } from "@/components/ui/FormField";
+
+// Faz N.2 (Madde 15) — sabit metrik/kategori kümeleri serbest metin DEĞİL
+// (bkz. apps/api/app/schemas/company.py::COMPANY_BENCHMARK_METRICS,
+// apps/api/app/services/common.py::CANONICAL_PACKAGING_CATEGORIES).
+const EMPTY_BENCHMARK = { packaging_category: "", metric_name: "", value: null as number | null, unit: "", source: "" };
+
+function BenchmarkForm({
+  onSubmit,
+  submitting,
+}: {
+  onSubmit: (v: { packaging_category: string; metric_name: string; value: number; unit: string; source: string }) => void;
+  submitting: boolean;
+}) {
+  const [form, setForm] = useState(EMPTY_BENCHMARK);
+
+  function set<K extends keyof typeof EMPTY_BENCHMARK>(key: K, value: (typeof EMPTY_BENCHMARK)[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  const canSubmit = form.packaging_category && form.metric_name && form.value != null && form.unit && form.source;
+
+  function handleSubmit() {
+    if (!canSubmit) return;
+    onSubmit({
+      packaging_category: form.packaging_category,
+      metric_name: form.metric_name,
+      value: form.value as number,
+      unit: form.unit,
+      source: form.source,
+    });
+    setForm(EMPTY_BENCHMARK);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <SelectField
+          label="Ambalaj Kategorisi"
+          value={form.packaging_category}
+          onChange={(v) => set("packaging_category", v)}
+          options={[...CANONICAL_PACKAGING_CATEGORIES]}
+        />
+        <label className="block">
+          <span className="text-xs font-medium text-ink/60">Metrik</span>
+          <select
+            className="mt-1 w-full rounded-lg border border-ink/15 bg-white/70 px-2.5 py-1.5 text-sm"
+            value={form.metric_name}
+            onChange={(e) => set("metric_name", e.target.value)}
+          >
+            <option value="">— Seçilmedi —</option>
+            {Object.entries(COMPANY_BENCHMARK_METRICS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <NumberField label="Değer" value={form.value} onChange={(v) => set("value", v)} />
+        <TextField label="Birim" value={form.unit} onChange={(v) => set("unit", v)} placeholder="ör. kg CO2/kg" />
+        <TextField
+          label="Kaynak"
+          value={form.source}
+          onChange={(v) => set("source", v)}
+          placeholder="ör. Kendi 2025 üretim ortalamamız"
+        />
+      </div>
+      <Button onClick={handleSubmit} disabled={submitting || !canSubmit}>
+        {submitting ? "Kaydediliyor…" : "Benchmark Ekle"}
+      </Button>
+    </div>
+  );
+}
 
 const EMPTY_FACILITY: FacilityUpsert = {
   name: "",
@@ -111,6 +184,7 @@ function FacilityForm({
 export default function FirmaProfiliPage() {
   const [company, setCompany] = useState<CompanyOut | null>(null);
   const [facilities, setFacilities] = useState<FacilityOut[]>([]);
+  const [benchmarks, setBenchmarks] = useState<CompanyBenchmarkOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +192,8 @@ export default function FirmaProfiliPage() {
   const [addingFacility, setAddingFacility] = useState(false);
   const [savingFacilityId, setSavingFacilityId] = useState<string | null>(null);
   const [editingFacilityId, setEditingFacilityId] = useState<string | null>(null);
+  const [addingBenchmark, setAddingBenchmark] = useState(false);
+  const [deletingBenchmarkId, setDeletingBenchmarkId] = useState<string | null>(null);
 
   const [newCompanyName, setNewCompanyName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -128,7 +204,9 @@ export default function FirmaProfiliPage() {
       .then((p) => {
         setCompany(p.company);
         setFacilities(p.facilities);
+        return api.listCompanyBenchmarks();
       })
+      .then((b) => setBenchmarks(b))
       .catch((e) => {
         if (e instanceof ApiError && e.status === 404) setNotFound(true);
         else setError(String(e));
@@ -195,6 +273,38 @@ export default function FirmaProfiliPage() {
       setError(String(e));
     } finally {
       setSavingFacilityId(null);
+    }
+  }
+
+  async function handleAddBenchmark(form: {
+    packaging_category: string;
+    metric_name: string;
+    value: number;
+    unit: string;
+    source: string;
+  }) {
+    setAddingBenchmark(true);
+    setError(null);
+    try {
+      const b = await api.createCompanyBenchmark(form);
+      setBenchmarks((bs) => [...bs, b]);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setAddingBenchmark(false);
+    }
+  }
+
+  async function handleDeleteBenchmark(id: string) {
+    setDeletingBenchmarkId(id);
+    setError(null);
+    try {
+      await api.deleteCompanyBenchmark(id);
+      setBenchmarks((bs) => bs.filter((b) => b.id !== id));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setDeletingBenchmarkId(null);
     }
   }
 
@@ -358,6 +468,61 @@ export default function FirmaProfiliPage() {
               submitting={addingFacility}
               onSubmit={handleAddFacility}
             />
+          </Card>
+
+          <CardTitle>
+            <span className="mt-8 block">Benchmark Verileri</span>
+          </CardTitle>
+          <p className="-mt-2 mb-3 text-sm text-ink/60">
+            Kendi geçmiş üretim ortalamanız ya da doğrulanmış bir sektör kaynağı gibi gerçek verileri girin.
+            Bu veriler Nihai Sonuç ve Rapor'daki &quot;Sektöre Göre Konum&quot; karşılaştırmasında kullanılır;
+            veri girilmediği sürece hiçbir karşılaştırma/ortalama uydurulmaz.
+          </p>
+          <Card className="mb-4">
+            {benchmarks.length === 0 ? (
+              <p className="text-sm text-ink/50">Henüz benchmark verisi girilmedi.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-ink/50">
+                    <th className="pb-2 font-medium">Kategori</th>
+                    <th className="pb-2 font-medium">Metrik</th>
+                    <th className="pb-2 font-medium">Değer</th>
+                    <th className="pb-2 font-medium">Kaynak</th>
+                    <th className="pb-2 font-medium">Girilme Tarihi</th>
+                    <th className="pb-2 font-medium" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {benchmarks.map((b) => (
+                    <tr key={b.id} className="border-t border-ink/10">
+                      <td className="py-2">{b.packaging_category}</td>
+                      <td className="py-2">{COMPANY_BENCHMARK_METRICS[b.metric_name] ?? b.metric_name}</td>
+                      <td className="py-2 font-mono">
+                        {b.value} {b.unit}
+                      </td>
+                      <td className="py-2 text-ink/70">{b.source}</td>
+                      <td className="py-2 text-ink/50">{new Date(b.created_at).toLocaleDateString("tr-TR")}</td>
+                      <td className="py-2 text-right">
+                        <button
+                          type="button"
+                          className="text-xs text-warn underline underline-offset-2 disabled:opacity-50"
+                          disabled={deletingBenchmarkId === b.id}
+                          onClick={() => handleDeleteBenchmark(b.id)}
+                        >
+                          {deletingBenchmarkId === b.id ? "Siliniyor…" : "Sil"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </Card>
+
+          <Card>
+            <CardTitle>Yeni Benchmark Ekle</CardTitle>
+            <BenchmarkForm submitting={addingBenchmark} onSubmit={handleAddBenchmark} />
           </Card>
         </>
       )}

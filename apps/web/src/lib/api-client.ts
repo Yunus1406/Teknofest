@@ -5,6 +5,8 @@ import type {
   BenchmarkReferenceOut,
   CarbonEmissionFactorOut,
   ChemicalRestrictionOut,
+  CompanyBenchmarkCreate,
+  CompanyBenchmarkOut,
   CompanyCreate,
   CompanyProfileOut,
   CompanyUpdate,
@@ -246,6 +248,13 @@ export const api = {
     request<FacilityOut>("/company/facilities", { method: "POST", body: JSON.stringify(payload) }),
   updateFacility: (facilityId: string, payload: FacilityUpsert) =>
     request<FacilityOut>(`/company/facilities/${facilityId}`, { method: "PUT", body: JSON.stringify(payload) }),
+
+  // Faz N.2 (Madde 15) — Benchmark Verileri
+  listCompanyBenchmarks: () => request<CompanyBenchmarkOut[]>("/company/benchmarks"),
+  createCompanyBenchmark: (payload: CompanyBenchmarkCreate) =>
+    request<CompanyBenchmarkOut>("/company/benchmarks", { method: "POST", body: JSON.stringify(payload) }),
+  deleteCompanyBenchmark: (benchmarkId: string) =>
+    request<void>(`/company/benchmarks/${benchmarkId}`, { method: "DELETE" }),
 
   // Faz E.2 — Makine Parkı
   createProductionLine: (payload: ProductionLineCreate) =>

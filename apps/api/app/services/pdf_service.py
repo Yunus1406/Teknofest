@@ -643,11 +643,40 @@ def _section_regulation_version_history(data: dict) -> list:
     return story
 
 
+def _section_benchmark_comparison(data: dict) -> list:
+    """Faz N.2 (Madde 15) — kullanıcının Firma Profili'nden GERÇEKTEN girdiği
+    benchmark verisiyle karşılaştırma (bkz. report_service.
+    _benchmark_comparison_section). Veri girilmemişse hiçbir sayı
+    uydurulmaz, açıkça "Veri Yok" yazılır."""
+    benchmark = data["sektore_gore_konum"]
+    story = [_p("23. Sektöre Göre Konum (Benchmark Karşılaştırması)", STYLE_H1)]
+    if not benchmark.get("available"):
+        story.append(
+            _p(
+                "Benchmark: Veri Yok — Firma Profili'nden kendi geçmiş üretim ortalamanızı "
+                "ya da doğrulanmış bir sektör kaynağını girerek bu karşılaştırmayı etkinleştirebilirsiniz.",
+                STYLE_BODY,
+            )
+        )
+    else:
+        rows = [["Metrik", "Reçete Değeri", "Benchmark Değeri", "Fark", "Kaynak", "Girilme Tarihi"]]
+        for item in benchmark["items"]:
+            fark = f"%{item['fark_pct']:+.1f}" if item.get("fark_pct") is not None else "—"
+            recete_deger = f"{item['recete_degeri']} {item['benchmark_unit']}" if item.get("recete_degeri") is not None else "—"
+            benchmark_deger = f"{item['benchmark_value']} {item['benchmark_unit']}"
+            girilme_tarihi = item["benchmark_entered_at"][:10] if item.get("benchmark_entered_at") else "—"
+            rows.append([item["metric_label"], recete_deger, benchmark_deger, fark, item["benchmark_source"], girilme_tarihi])
+        story.append(_table(rows, col_widths=[38 * mm, 25 * mm, 28 * mm, 18 * mm, 40 * mm, 25 * mm]))
+    story.append(Spacer(1, 10))
+    return story
+
+
 def render_technical_report(data: dict, passport: dict | None = None) -> bytes:
     """Detaylı Teknik Rapor — Faz C.5'in 16 bölümü + Faz H.6'nın 5 ek bölümü
     (Hesaplama Metodolojisi/Kaynakça/Veri Kalitesi/Varsayımlar/Veri Kaynağı
     Matrisi) + Faz L.4'ün 1 ek bölümü (Kullanılan Mevzuat Sürümü ve
-    Değişiklik Geçmişi), toplam 22 bölüm."""
+    Değişiklik Geçmişi) + Faz N.2'nin 1 ek bölümü (Sektöre Göre Konum),
+    toplam 23 bölüm."""
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4, topMargin=18 * mm, bottomMargin=18 * mm, leftMargin=18 * mm, rightMargin=18 * mm,
@@ -676,6 +705,7 @@ def render_technical_report(data: dict, passport: dict | None = None) -> bytes:
     story += _section_assumptions(data)
     story += _section_source_matrix(data)
     story += _section_regulation_version_history(data)
+    story += _section_benchmark_comparison(data)
     story += _qr_flowable(passport)
     doc.build(story)
     return buf.getvalue()

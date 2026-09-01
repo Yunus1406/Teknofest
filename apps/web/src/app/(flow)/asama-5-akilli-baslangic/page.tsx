@@ -11,7 +11,13 @@ import { Badge } from "@/components/ui/Badge";
 import { LayerBreakdownTable } from "@/components/visualizations/LayerBreakdownTable";
 import { LayeredCompositionBar } from "@/components/visualizations/LayeredCompositionBar";
 import { recipeLayersToSegments, recipeLayersToTable } from "@/lib/composition-segments";
-import { recipeSourceLabel, referenceSearchTierLabel } from "@/lib/labels";
+import {
+  dataConfidenceFromSourceKind,
+  dataConfidenceLabel,
+  dataConfidenceTone,
+  recipeSourceLabel,
+  referenceSearchTierLabel,
+} from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
 export default function Stage5Page() {
@@ -96,9 +102,19 @@ export default function Stage5Page() {
           />
           {recipe.reference_search_evidence ? (
             <div className="mt-4 rounded-lg bg-petrol/5 p-3">
-              <p className="text-sm font-medium text-ink">
-                Karar Dayanağı: {recipe.reference_search_evidence.evidence_count} doğrulanmış benzer üretim
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-ink">
+                  Karar Dayanağı: {recipe.reference_search_evidence.evidence_count} doğrulanmış benzer üretim
+                </p>
+                {/* Faz N.1a — kademe SIRASI zaten güven sırasına karşılık gelir
+                    (bkz. labels.ts _CONFIDENCE_BY_SOURCE_KIND yorumu). */}
+                {(() => {
+                  const level = dataConfidenceFromSourceKind(recipe.reference_search_evidence.tier);
+                  return level ? (
+                    <Badge tone={dataConfidenceTone(level)}>{dataConfidenceLabel(level)}</Badge>
+                  ) : null;
+                })()}
+              </div>
               <p className="mt-1 text-xs text-ink/60">
                 Eşleşme kademesi: {referenceSearchTierLabel(recipe.reference_search_evidence.tier)} — bu reçete, firma
                 hafızasındaki {recipe.reference_search_evidence.evidence_count} doğrulanmış geçmiş üretimden en

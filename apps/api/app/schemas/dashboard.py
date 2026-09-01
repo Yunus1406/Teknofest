@@ -114,3 +114,8 @@ class FinalResultOut(BaseModel):
     physical_tests_passed: bool
     version_history: list[dict]
     triple_comparison: TripleComparisonOut
+    # Faz N.2 (Madde 15) — additive. `{"available": False}` = kullanıcı
+    # Firma Profili'nden henüz benchmark girmedi; ASLA sentezlenmiş bir
+    # sektör ortalaması ile doldurulmaz (bkz. report_service.
+    # _benchmark_comparison_section).
+    benchmark_karsilastirmasi: dict

@@ -159,12 +159,16 @@ def finalize_result(recipe_id: str, db: Session = Depends(get_db)):
         raise HTTPException(400, str(e))
     tests = db.query(PhysicalTest).filter_by(recipe_id=recipe.id).all()
     tests_passed = all(t.passed for t in tests) if tests else False
+    comparison = production_flow_service.build_comparison(db, recipe)
     return FinalResultOut(
         recipe_id=recipe.id,
         per_1000_units=result.per_1000_units,
         physical_tests_passed=tests_passed,
         version_history=production_flow_service.version_history(db, recipe),
         triple_comparison=production_flow_service.build_triple_comparison(db, recipe),
+        benchmark_karsilastirmasi=report_service._benchmark_comparison_section(
+            db, recipe.packaging_request, comparison
+        ),
     )
 
 
