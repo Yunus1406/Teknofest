@@ -53,6 +53,7 @@ class TraceabilityCarbonEfOut(BaseModel):
     unit: str
     is_demo_placeholder: bool
     source: str
+    version: str | None = None
 
 
 class TraceabilityLayerOut(BaseModel):

@@ -46,6 +46,9 @@ def build_recipe_traceability(db: Session, recipe_id: str) -> dict | None:
                         "unit": carbon_ef.unit,
                         "is_demo_placeholder": carbon_ef.is_demo_placeholder,
                         "source": carbon_ef.source,
+                        # Faz J.1 — Test 9: kaynak değişimi rapora yansımalı;
+                        # `version` DB'de zaten vardı, hiç dışa aktarılmıyordu.
+                        "version": carbon_ef.version,
                     }
                     if carbon_ef is not None
                     else None

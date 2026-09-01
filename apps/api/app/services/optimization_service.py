@@ -263,15 +263,20 @@ def _persist_finalist(
 
 
 def _eliminated_summary(candidate: RecipeCandidate, violations: list) -> dict:
+    """Faz J.0 — `reasons` artık düz metin değil, her elemenin GERÇEK
+    `EvaluationTier`'ını (kesin_teknik_kisit/malzeme_proses_kisiti) taşıyan
+    yapılandırılmış bir liste -- Dashboard 6'nın 'Neden Elendi?' bölümü bu
+    ikisini yapısal olarak ayırt edebilsin diye (önceden sadece serbest
+    metinde görünüyordu, tier bilgisi burada düşürülüyordu)."""
     composition = candidate.weighted_composition_pct()
-    reasons = [v.reason_text for v in violations]
+    reason_texts = [v.reason_text for v in violations]
     return {
         "composition_summary": (
             f"%{composition.get('virgin', 0):.0f} virgin / %{composition.get('pcr', 0):.0f} PCR / "
             f"%{composition.get('regranul', 0):.0f} regranül, toplam {candidate.total_micron:.0f} mikron"
         ),
-        "reasons": reasons,
-        "summary_text": build_elimination_summary(reasons),
+        "reasons": [{"tier": v.tier, "text": v.reason_text} for v in violations],
+        "summary_text": build_elimination_summary(reason_texts),
     }
 
 

@@ -446,6 +446,8 @@ def _data_traceability_section(
                     "unit": ef["unit"],
                     "is_demo_placeholder": ef["is_demo_placeholder"],
                     "source": ef["source"],
+                    # Faz J.1 — Test 9: kaynak değişimi rapora yansımalı.
+                    "version": ef.get("version"),
                 }
             )
     return {

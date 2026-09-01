@@ -8,7 +8,7 @@ import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import { Badge } from "@/components/ui/Badge";
-import { dataConfidenceFromSourceKind, dataConfidenceLabel, dataConfidenceTone } from "@/lib/labels";
+import { dataConfidenceFromSourceKind, dataConfidenceLabel, dataConfidenceTone, tierLabel } from "@/lib/labels";
 import { useCaseStore } from "@/stores/case-store";
 
 export default function Stage6Page() {
@@ -107,6 +107,17 @@ export default function Stage6Page() {
                 {run.notable_eliminated.map((e, i) => (
                   <li key={i} className="rounded-lg bg-warn/5 p-3">
                     <p className="font-mono text-xs text-ink/50">{e.composition_summary}</p>
+                    {/* Faz J.0 — her gerekçenin GERÇEK EvaluationTier'ı (Kesin
+                        Teknik Kısıt / Malzeme-Proses Kısıtı) ayrı ayrı gösterilir. */}
+                    {e.reasons.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {Array.from(new Set(e.reasons.map((r) => r.tier))).map((tier) => (
+                          <Badge key={tier} tone={tier === "kesin_teknik_kisit" ? "warn" : "virgin"}>
+                            {tierLabel(tier)}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                     <p className="mt-1 text-sm text-ink/70">{e.summary_text}</p>
                   </li>
                 ))}

@@ -511,11 +511,11 @@ def _section_data_traceability(data: dict) -> list:
     story.append(_p(f"Üretim verisi kaynağı: {', '.join(dt['production_data_sources']) or '—'}", STYLE_BODY))
     story.append(_p(f"Fiziksel test verisi kaynağı: {', '.join(dt['physical_test_sources']) or '—'}", STYLE_BODY))
     if dt["carbon_ef_sources"]:
-        rows = [["Malzeme", "EF (kg CO2e/kg)", "Kaynak"]]
+        rows = [["Malzeme", "EF (kg CO2e/kg)", "Kaynak", "Versiyon"]]
         for ef in dt["carbon_ef_sources"]:
-            rows.append([_dash(ef["material_name"]), _fmt_num(ef["ef_value"], 3), _dash(ef["source"])])
+            rows.append([_dash(ef["material_name"]), _fmt_num(ef["ef_value"], 3), _dash(ef["source"]), _dash(ef.get("version"))])
         story.append(Spacer(1, 4))
-        story.append(_table(rows, col_widths=[55 * mm, 35 * mm, 70 * mm]))
+        story.append(_table(rows, col_widths=[45 * mm, 30 * mm, 65 * mm, 20 * mm]))
     story.append(Spacer(1, 10))
     return story
 
@@ -562,10 +562,10 @@ def _section_bibliography(data: dict) -> list:
         story.append(Spacer(1, 6))
     if bib["karbon_ef_kaynaklari"]:
         story.append(_p("Karbon Emisyon Faktörü Kaynakları", STYLE_H2))
-        rows = [["Malzeme", "EF (kg CO2e/kg)", "Kaynak"]]
+        rows = [["Malzeme", "EF (kg CO2e/kg)", "Kaynak", "Versiyon"]]
         for ef in bib["karbon_ef_kaynaklari"]:
-            rows.append([_dash(ef.get("material_name")), _fmt_num(ef.get("ef_value"), 3), _dash(ef.get("source"))])
-        story.append(_table(rows, col_widths=[55 * mm, 35 * mm, 70 * mm]))
+            rows.append([_dash(ef.get("material_name")), _fmt_num(ef.get("ef_value"), 3), _dash(ef.get("source")), _dash(ef.get("version"))])
+        story.append(_table(rows, col_widths=[45 * mm, 30 * mm, 65 * mm, 20 * mm]))
     if not bib["mevzuat_versiyonlari"] and not bib["karbon_ef_kaynaklari"]:
         story.append(_p("Bu reçete için henüz derlenmiş bir kaynakça yok.", STYLE_BODY))
     story.append(Spacer(1, 10))

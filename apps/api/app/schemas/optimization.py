@@ -17,12 +17,21 @@ class OptimizationCandidateOut(BaseModel):
     recipe: RecipeOut
 
 
+class EliminationReasonOut(BaseModel):
+    """Faz J.0 — her eleme gerekçesinin GERÇEK `EvaluationTier`'ı
+    (kesin_teknik_kisit/malzeme_proses_kisiti, bkz. app/constraint_engine/
+    types.py) burada korunur; önceden sadece düz metin taşınıyordu."""
+
+    tier: str
+    text: str
+
+
 class EliminatedCandidateOut(BaseModel):
     """Elenen bir aday — reçetenin tam kaydı yok (DB'ye yazılmaz), sadece
     kompozisyon özeti + gerekçeler gösterilir ('Neden Elendi?')."""
 
     composition_summary: str
-    reasons: list[str]
+    reasons: list[EliminationReasonOut]
     summary_text: str
 
 

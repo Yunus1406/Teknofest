@@ -581,9 +581,17 @@ export interface OptimizationCandidateOut {
   recipe: RecipeOut;
 }
 
+// Faz J.0 — her gerekçenin GERÇEK EvaluationTier'ı (kesin_teknik_kisit/
+// malzeme_proses_kisiti) korunur; Dashboard 6 bunu yapısal olarak
+// ayırt edebilsin diye (önceden sadece düz metin taşınıyordu).
+export interface EliminationReasonOut {
+  tier: string;
+  text: string;
+}
+
 export interface EliminatedCandidateOut {
   composition_summary: string;
-  reasons: string[];
+  reasons: EliminationReasonOut[];
   summary_text: string;
 }
 
@@ -860,6 +868,7 @@ export interface TraceabilityCarbonEfOut {
   unit: string;
   is_demo_placeholder: boolean;
   source: string;
+  version: string | null;
 }
 
 export interface TraceabilityLayerOut {
