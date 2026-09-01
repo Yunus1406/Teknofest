@@ -20,6 +20,11 @@ class PassportHeaderOut(BaseModel):
     line_name: str | None = None
     packaging_type: str | None = None
     target_market: str | None = None
+    # Faz L.4 (Madde 17)
+    regulatory_assessment_date: str | None = None
+    regulation_versions_used: list[str] = []
+    last_checked_date: str | None = None
+    affected_by_recent_change: bool = False
 
 
 class PassportStatusSummaryOut(BaseModel):

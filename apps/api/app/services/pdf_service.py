@@ -614,10 +614,40 @@ def _section_source_matrix(data: dict) -> list:
     return story
 
 
+def _section_regulation_version_history(data: dict) -> list:
+    """Faz L.4 (Madde 17) — bu reçetenin mevzuat değerlendirmelerinde
+    GERÇEKTEN kullanılan versiyon(lar) + güncel versiyondan farklıysa
+    değişiklik özeti (bkz. report_service._regulation_version_history_section)."""
+    history = data["mevzuat_versiyon_gecmisi"]
+    story = [_p("22. Kullanılan Mevzuat Sürümü ve Değişiklik Geçmişi", STYLE_H1)]
+    if not history["items"]:
+        story.append(_p("Bu reçete için mevzuat değerlendirmesi bulunamadı.", STYLE_BODY))
+    else:
+        rows = [["Madde", "Kullanılan Sürüm", "Güncel Sürüm", "Değişti mi?"]]
+        for item in history["items"]:
+            rows.append(
+                [
+                    _dash(item["regulation_code"]),
+                    _dash(item["used_version"]),
+                    _dash(item["current_version"]),
+                    "Evet" if item["changed_since_assessment"] else "Hayır",
+                ]
+            )
+        story.append(_table(rows, col_widths=[45 * mm, 35 * mm, 35 * mm, 25 * mm]))
+        for item in history["items"]:
+            if item["changed_since_assessment"] and item.get("change_summary"):
+                story.append(
+                    _p(f"{_dash(item['regulation_code'])}: {item['change_summary']}", STYLE_SMALL)
+                )
+    story.append(Spacer(1, 10))
+    return story
+
+
 def render_technical_report(data: dict, passport: dict | None = None) -> bytes:
     """Detaylı Teknik Rapor — Faz C.5'in 16 bölümü + Faz H.6'nın 5 ek bölümü
     (Hesaplama Metodolojisi/Kaynakça/Veri Kalitesi/Varsayımlar/Veri Kaynağı
-    Matrisi), toplam 21 bölüm."""
+    Matrisi) + Faz L.4'ün 1 ek bölümü (Kullanılan Mevzuat Sürümü ve
+    Değişiklik Geçmişi), toplam 22 bölüm."""
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4, topMargin=18 * mm, bottomMargin=18 * mm, leftMargin=18 * mm, rightMargin=18 * mm,
@@ -645,6 +675,7 @@ def render_technical_report(data: dict, passport: dict | None = None) -> bytes:
     story += _section_data_quality(data)
     story += _section_assumptions(data)
     story += _section_source_matrix(data)
+    story += _section_regulation_version_history(data)
     story += _qr_flowable(passport)
     doc.build(story)
     return buf.getvalue()

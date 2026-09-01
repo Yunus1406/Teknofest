@@ -20,6 +20,7 @@ from app.models.production import PhysicalTest, ProductionOrder, SustainabilityR
 from app.models.recipe import PackagingRequest, Recipe, RecipeEvaluation, RegulatoryAssessment
 from app.models.regulation_requirement import RegulationRequirement
 from app.services import production_flow_service, traceability_service
+from app.services.packaging_service import _current_requirement_version
 
 _PPWR_DISCLAIMER = (
     "Bu değerlendirme mevzuat ön uyum karar desteğidir; hukuki uygunluk "
@@ -403,6 +404,48 @@ def _ppwr_section(db: Session, packaging_request: PackagingRequest | None) -> di
     return {"items": items, "disclaimer": _PPWR_DISCLAIMER}
 
 
+def _regulation_version_history_section(db: Session, packaging_request: PackagingRequest | None) -> dict:
+    """Faz L.4 (Madde 17) — bu reçetenin mevzuat değerlendirmelerinde
+    GERÇEKTEN KULLANILAN versiyon(lar) (`RegulatoryAssessment.
+    regulation_version_snapshot`, assessment ANINDA dondurulur, Faz L.3) +
+    güncel versiyondan farklıysa değişiklik özeti. `ppwr_on_uyum` bölümünün
+    `requirement_version`'ı ile KARIŞTIRILMAMALI -- o HER ZAMAN güncel
+    versiyonu gösterir, bu bölüm ise "o an ne kullanıldı" sorusuna cevap
+    verir."""
+    if packaging_request is None:
+        return {"items": []}
+    assessments = db.query(RegulatoryAssessment).filter_by(packaging_request_id=packaging_request.id).all()
+    items = []
+    for a in assessments:
+        reg = db.get(Regulation, a.regulation_id)
+        current_version = _current_requirement_version(db, a.regulation_id)
+        changed = (
+            a.regulation_version_snapshot is not None
+            and current_version is not None
+            and a.regulation_version_snapshot != current_version
+        )
+        change_summary = None
+        if changed:
+            row = (
+                db.query(RegulationRequirement)
+                .filter_by(regulation_id=a.regulation_id)
+                .order_by(RegulationRequirement.target_year)
+                .first()
+            )
+            change_summary = row.change_summary if row else None
+        items.append(
+            {
+                "regulation_code": reg.code if reg is not None else None,
+                "used_version": a.regulation_version_snapshot,
+                "current_version": current_version,
+                "changed_since_assessment": changed,
+                "change_summary": change_summary,
+                "assessed_at": a.created_at,
+            }
+        )
+    return {"items": items}
+
+
 # Faz C.5 — "İklim ve Döngüsellik Perspektifi" KASITLI olarak kavramsal bir
 # çerçeve etiketidir. Burada ya da raporun hiçbir yerinde "COP31 Uyumlu"
 # gibi doğrulanmamış bir uygunluk/sertifikasyon iddiası ÜRETİLMEZ — buna
@@ -623,6 +666,8 @@ def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
         "kaynakca": _bibliography_section(data_traceability),
         "veri_kalitesi_notu": _data_quality_section(db, recipe, sustainability_section["per_1000_units"], data_traceability),
         "kullanilan_varsayimlar": _assumptions_section(data_traceability, sustainability_section["per_1000_units"]),
+        # Faz L.4 — mevcut hiçbir anahtar değişmedi, additive.
+        "mevzuat_versiyon_gecmisi": _regulation_version_history_section(db, packaging_request),
     }
     result["veri_kaynagi_matrisi"] = _source_matrix_section(result)
     return result

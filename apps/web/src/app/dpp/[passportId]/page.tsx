@@ -183,6 +183,21 @@ export default function DigitalProductPassportPage() {
           <dd>{header.packaging_type ?? "—"}</dd>
           <dt className="text-ink/50">Hedef Pazar</dt>
           <dd>{header.target_market ?? "—"}</dd>
+          {/* Faz L.4 (Madde 17) */}
+          <dt className="text-ink/50">Mevzuat Değerlendirme Tarihi</dt>
+          <dd>{header.regulatory_assessment_date ? new Date(header.regulatory_assessment_date).toLocaleDateString("tr-TR") : "—"}</dd>
+          <dt className="text-ink/50">Kullanılan Mevzuat Sürümü</dt>
+          <dd>{header.regulation_versions_used.length > 0 ? header.regulation_versions_used.join(", ") : "—"}</dd>
+          <dt className="text-ink/50">Son Kontrol Tarihi</dt>
+          <dd>{header.last_checked_date ? new Date(header.last_checked_date).toLocaleDateString("tr-TR") : "—"}</dd>
+          <dt className="text-ink/50">Son Değişiklikten Etkilenme</dt>
+          <dd>
+            {header.affected_by_recent_change ? (
+              <Badge tone="warn">⚠ Etkilendi — mevzuat güncellendi</Badge>
+            ) : (
+              "Etkilenmedi"
+            )}
+          </dd>
         </dl>
       </Card>
 

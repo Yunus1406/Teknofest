@@ -60,4 +60,15 @@ class RegulationRequirement(Base, IdMixin, TimestampMixin):
     # incelemeden set edilir; bilinmiyorsa None kalır.
     last_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # --- Faz L.3: versiyon geçmişi ----------------------------------------
+    # `load_regulation_requirements()` (loader.py) her yüklemede SİL+YENİDEN
+    # YAZ yapar; silmeden ÖNCE aynı doğal anahtarla (regulation_id+article+
+    # sub_article+packaging_category+target_year) eşleşen eski satırla
+    # version/threshold_value/requirement_text KARŞILAŞTIRILIR -- gerçek bir
+    # fark varsa bu 3 alan doldurulur, yoksa None kalır (uydurma bir
+    # "değişiklik" ASLA üretilmez).
+    previous_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    change_summary: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     regulation: Mapped["Regulation"] = relationship()  # noqa: F821

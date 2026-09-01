@@ -228,3 +228,15 @@ class RegulationOut(BaseModel):
     description: str
     criteria: dict
     applicable_packaging_types: list[str]
+
+
+class RegulationChangeImpactOut(BaseModel):
+    """Faz L.4 (Madde 17) — bkz. app/services/regulation_impact_service.py."""
+
+    regulation_code: str
+    current_version: str | None
+    total_active_skus: int
+    affected_sku_count: int
+    evidence_needed_count: int
+    recipe_reassessment_count: int
+    affected_sku_codes: list[str]

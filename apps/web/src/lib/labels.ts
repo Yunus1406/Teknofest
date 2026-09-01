@@ -307,6 +307,31 @@ export function matchCriterionLabel(key: string): string {
   return map[key] ?? key;
 }
 
+// Faz L.2 — gıda teması kanıt yönetim listesi durumları.
+export function evidenceStatusLabel(v: string): string {
+  switch (v) {
+    case "mevcut":
+      return "Mevcut ✓";
+    case "eksik":
+      return "Eksik ⚠";
+    case "gerekli_degil":
+      return "Gerekli Değil";
+    default:
+      return v;
+  }
+}
+
+export function evidenceStatusTone(v: string): Tone {
+  switch (v) {
+    case "mevcut":
+      return "pcr";
+    case "eksik":
+      return "warn";
+    default:
+      return "neutral";
+  }
+}
+
 export function recyclabilityDimensionLabel(v: string): string {
   const map: Record<string, string> = {
     tasarim_uyumu: "Tasarım Uyumu",

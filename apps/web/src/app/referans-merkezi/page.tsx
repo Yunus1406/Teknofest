@@ -15,6 +15,8 @@ import type {
   PolymerTechnicalReferenceOut,
   ProcessReferenceOut,
   RecyclabilityCriterionOut,
+  RegulationChangeImpactOut,
+  RegulationOut,
   RegulationRequirementOut,
 } from "@/lib/types";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -115,7 +117,11 @@ export default function ReferansMerkeziPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [carbon, setCarbon] = useState<CarbonEmissionFactorOut[]>([]);
+  const [regulations, setRegulations] = useState<RegulationOut[]>([]);
   const [regulation, setRegulation] = useState<RegulationRequirementOut[]>([]);
+  // Faz L.4 (Madde 17) — regulation_id -> etki analizi sonucu (isteğe bağlı,
+  // sadece kullanıcı "Etki Analizi" butonuna basınca doldurulur).
+  const [impactByRegId, setImpactByRegId] = useState<Record<string, RegulationChangeImpactOut | "loading" | "error">>({});
   const [foodContact, setFoodContact] = useState<FoodContactRequirementOut[]>([]);
   const [chemical, setChemical] = useState<ChemicalRestrictionOut[]>([]);
   const [polymers, setPolymers] = useState<PolymerOut[]>([]);
@@ -130,6 +136,7 @@ export default function ReferansMerkeziPage() {
   useEffect(() => {
     Promise.all([
       api.listCarbonEmissionFactors(),
+      api.listRegulations(),
       api.listRegulationRequirements(),
       api.listFoodContactRequirements(),
       api.listChemicalRestrictions(),
@@ -142,8 +149,9 @@ export default function ReferansMerkeziPage() {
       api.listCostReferenceFactors(),
       api.listBenchmarkReferences(),
     ])
-      .then(([c, r, fc, ch, poly, pt, mt, proc, ls, rc, cost_, bm]) => {
+      .then(([c, regs, r, fc, ch, poly, pt, mt, proc, ls, rc, cost_, bm]) => {
         setCarbon(c);
+        setRegulations(regs);
         setRegulation(r);
         setFoodContact(fc);
         setChemical(ch);
@@ -161,6 +169,17 @@ export default function ReferansMerkeziPage() {
   }, []);
 
   const polymerCodeById = new Map(polymers.map((p) => [p.id, p.code]));
+  const regulationCodeById = new Map(regulations.map((r) => [r.id, r.code]));
+
+  function fetchImpact(regulationId: string) {
+    const code = regulationCodeById.get(regulationId);
+    if (!code) return;
+    setImpactByRegId((prev) => ({ ...prev, [regulationId]: "loading" }));
+    api
+      .getRegulationChangeImpact(code)
+      .then((result) => setImpactByRegId((prev) => ({ ...prev, [regulationId]: result })))
+      .catch(() => setImpactByRegId((prev) => ({ ...prev, [regulationId]: "error" })));
+  }
 
   const counts: Record<Category, number> = {
     carbon: carbon.length,
@@ -254,16 +273,49 @@ export default function ReferansMerkeziPage() {
                 if (r.exception_text) extraParts.push(`İstisna: ${r.exception_text}`);
                 extraParts.push(`Uygulanma Tarihi: ${r.effective_date ? new Date(r.effective_date).toLocaleDateString("tr-TR") : "Belirtilmedi"}`);
                 extraParts.push(`Son Güncelleme: ${r.last_reviewed_at ? new Date(r.last_reviewed_at).toLocaleDateString("tr-TR") : "Belirtilmedi"}`);
+                // Faz L.3 — SADECE gerçekten bir değişiklik tespit edildiyse
+                // (loader'ın snapshot karşılaştırması) görünür.
+                if (r.change_summary) {
+                  extraParts.push(
+                    `Önceki Sürüm: ${r.previous_version ?? "—"} (${r.change_summary})${r.changed_at ? ` — ${new Date(r.changed_at).toLocaleDateString("tr-TR")}` : ""}`
+                  );
+                }
+                const impact = impactByRegId[r.regulation_id];
                 return (
-                  <ReferenceRow
-                    key={r.id}
-                    title={`${r.regulation_no} — ${r.article}${r.sub_article ? ` (${r.sub_article})` : ""}`}
-                    subtitle={r.requirement_text}
-                    extra={extraParts.join(" · ")}
-                    source={r.source}
-                    year={r.target_year}
-                    version={r.version}
-                  />
+                  <div key={r.id}>
+                    <ReferenceRow
+                      title={`${r.regulation_no} — ${r.article}${r.sub_article ? ` (${r.sub_article})` : ""}`}
+                      subtitle={r.requirement_text}
+                      extra={extraParts.join(" · ")}
+                      source={r.source}
+                      year={r.target_year}
+                      version={r.version}
+                    />
+                    {/* Faz L.4 (Madde 17) — mevzuat değişiklik etki analizi,
+                        talep üzerine (buton) hesaplanır -- her satırda otomatik
+                        tetiklenmez, gereksiz sorgu yapılmaz. */}
+                    {regulationCodeById.has(r.regulation_id) && (
+                      <div className="-mt-2 mb-2 pl-1">
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-petrol hover:underline"
+                          onClick={() => fetchImpact(r.regulation_id)}
+                          disabled={impact === "loading"}
+                        >
+                          {impact === "loading" ? "Analiz ediliyor…" : "Etki Analizi"}
+                        </button>
+                        {impact && impact !== "loading" && impact !== "error" && (
+                          <p className="mt-1 text-xs text-ink/60">
+                            ⚠ {impact.total_active_skus} aktif SKU incelendi. {impact.affected_sku_count} ürün
+                            değişiklikten etkileniyor. {impact.evidence_needed_count} ürün için yeni kanıt gerekli.{" "}
+                            {impact.recipe_reassessment_count} reçete yeniden değerlendirilmelidir.
+                            {impact.affected_sku_codes.length > 0 && ` (${impact.affected_sku_codes.join(", ")})`}
+                          </p>
+                        )}
+                        {impact === "error" && <p className="mt-1 text-xs text-warn">Analiz alınamadı.</p>}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

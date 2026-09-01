@@ -27,6 +27,7 @@ from app.models.production import PhysicalTest, ProductionOrder, SustainabilityR
 from app.models.recipe import Recipe, RecipeAdditive, RegulatoryAssessment
 from app.models.regulation_requirement import RegulationRequirement
 from app.services import learning_memory_service, production_flow_service, traceability_service
+from app.services.packaging_service import _current_requirement_version
 
 
 def _next_passport_no(db: Session) -> str:
@@ -261,6 +262,22 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
     version_history = production_flow_service.version_history(db, recipe)
     production_date = _production_date_for_recipe(db, recipe)
 
+    # Faz L.4 (Madde 17) — kimlik kartında "mevzuat değerlendirme tarihi,
+    # kullanılan mevzuat sürümü, son kontrol tarihi, son değişiklikten
+    # etkilenme durumu". `assess_regulations()` tüm satırları tek seferde
+    # yazdığı için hepsi AYNI `created_at`'i taşır -- en yenisi alınır.
+    regulatory_assessment_date = (
+        max((a.created_at for a in regulatory_assessments), default=None) if regulatory_assessments else None
+    )
+    regulation_versions_used = sorted(
+        {a.regulation_version_snapshot for a in regulatory_assessments if a.regulation_version_snapshot}
+    )
+    affected_by_recent_change = any(
+        a.regulation_version_snapshot is not None
+        and a.regulation_version_snapshot != _current_requirement_version(db, a.regulation_id)
+        for a in regulatory_assessments
+    )
+
     public = {
         "header": {
             "passport_no": passport.passport_no,
@@ -275,6 +292,12 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
             "line_name": line.name if line is not None else None,
             "packaging_type": packaging_request.packaging_type if packaging_request is not None else None,
             "target_market": packaging_request.target_market if packaging_request is not None else None,
+            # Faz L.4 — dürüstçe: ayrı bir "kontrol" eylemi bu sistemde
+            # izlenmiyor, "son kontrol" = "son değerlendirme" olarak alias'lanır.
+            "regulatory_assessment_date": regulatory_assessment_date.isoformat() if regulatory_assessment_date else None,
+            "regulation_versions_used": regulation_versions_used,
+            "last_checked_date": regulatory_assessment_date.isoformat() if regulatory_assessment_date else None,
+            "affected_by_recent_change": affected_by_recent_change,
         },
         "status_summary": _status_summary(recipe, physical_tests, regulatory_assessments, trace, passport),
         "material_summary": {

@@ -63,11 +63,27 @@ class RegulatoryAssessmentOut(BaseModel):
     # Faz F.9 — SADECE PPWR Md.6 (geri dönüştürülebilirlik) değerlendirmesinde
     # dolu, diğer maddelerde None. verdict/reasoning DEĞİŞMEDİ.
     recyclability_breakdown: dict | None = None
+    # Faz L.1 — "Bu kural neden uygulanıyor?" paneli için yapılandırılmış
+    # karar izi (bkz. packaging_service._build_decision_trail).
+    decision_trail: dict | None = None
+    # Faz L.3 — bu değerlendirme anında dondurulan RegulationRequirement.version.
+    regulation_version_snapshot: str | None = None
+
+
+class EvidenceChecklistItemOut(BaseModel):
+    """Faz L.2 — gıda teması kanıt yönetim listesindeki tek bir satır."""
+
+    evidence_type: str
+    regulation_ref: str | None
+    status: str  # "mevcut" | "eksik" | "gerekli_degil"
+    notes: str
 
 
 class RegulatoryAssessmentSummaryOut(BaseModel):
     overall_verdict: str  # RegulatoryVerdict
     assessments: list[RegulatoryAssessmentOut]
+    # Faz L.2 (Madde 4) — sadece food_contact=True iken dolu, değilse [].
+    evidence_checklist: list[EvidenceChecklistItemOut] = []
 
 
 class RecipeLayerOut(BaseModel):

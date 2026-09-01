@@ -114,11 +114,35 @@ export interface RegulatoryAssessmentOut {
   // Faz F.9 — SADECE PPWR Md.6 (geri dönüştürülebilirlik) değerlendirmesinde
   // dolu, diğer maddelerde null.
   recyclability_breakdown: { dimensions: RecyclabilityDimensionOut[] } | null;
+  // Faz L.1 — "Bu kural neden uygulanıyor?" paneli için yapılandırılmış
+  // karar izi.
+  decision_trail: RegulatoryDecisionTrailOut | null;
+}
+
+export interface RegulatoryDecisionTrailOut {
+  hedef_pazar: string | null;
+  hedef_pazar_ab_mi: "evet" | "hayir" | "belirsiz";
+  ambalaj_malzemesi_tahmini: string;
+  kullanim_alani: string;
+  gida_temasi: boolean;
+  ambalaj_kategorisi: string;
+  istisna: string | null;
+  uygulanan_madde: string;
+  hedef_tarih: number | null;
 }
 
 export interface RegulatoryAssessmentSummaryOut {
   overall_verdict: RegulatoryVerdictValue;
   assessments: RegulatoryAssessmentOut[];
+  // Faz L.2 — sadece food_contact=True iken dolu.
+  evidence_checklist: EvidenceChecklistItemOut[];
+}
+
+export interface EvidenceChecklistItemOut {
+  evidence_type: string;
+  regulation_ref: string | null;
+  status: "mevcut" | "eksik" | "gerekli_degil";
+  notes: string;
 }
 
 export interface RegulationOut {
@@ -400,6 +424,21 @@ export interface RegulationRequirementOut {
   threshold_value: number | null;
   threshold_unit: string | null;
   last_reviewed_at: string | null;
+  // Faz L.3 (Madde 16) — üçü de null ise bu satır son yüklemede değişmemiş.
+  previous_version: string | null;
+  changed_at: string | null;
+  change_summary: string | null;
+}
+
+// Faz L.4 (Madde 17)
+export interface RegulationChangeImpactOut {
+  regulation_code: string;
+  current_version: string | null;
+  total_active_skus: number;
+  affected_sku_count: number;
+  evidence_needed_count: number;
+  recipe_reassessment_count: number;
+  affected_sku_codes: string[];
 }
 
 export interface ChemicalRestrictionOut {
@@ -951,6 +990,11 @@ export interface PassportHeaderOut {
   line_name: string | null;
   packaging_type: string | null;
   target_market: string | null;
+  // Faz L.4 (Madde 17)
+  regulatory_assessment_date: string | null;
+  regulation_versions_used: string[];
+  last_checked_date: string | null;
+  affected_by_recent_change: boolean;
 }
 
 export interface PassportStatusSummaryOut {

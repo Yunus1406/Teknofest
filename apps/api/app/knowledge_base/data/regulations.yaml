@@ -111,3 +111,39 @@
     specific_migration_limits_are_substance_based: true
     pcr_requires_authorised_decontamination_process: true
   applicable_packaging_types: []
+
+# Faz L.2 (Madde 4) — İyi Üretim Uygulamaları tüzüğü, gıda temaslı malzeme/
+# madde ÜRETİMİ için geçerlidir. EU-10-2011 ile AYNI sebeple
+# applicable_packaging_types BİLİNÇLİ BOŞ: kategori eşleşmesiyle değil,
+# assess_regulations()'ta PFAS'ınkiyle AYNI desende food_contact bayrağına
+# göre koşullu dahil edilir (bkz. packaging_service.py).
+- code: EU-GMP-2023-2006
+  title: Gıda Temaslı Madde ve Malzemeler için İyi Üretim Uygulamaları (GMP)
+  category: gida_temasi
+  description: >
+    Gıda ile temas eden madde ve malzemelerin üretiminde iyi üretim
+    uygulamaları (GMP) uygulanmalıdır — kalite güvence/kalite kontrol
+    sistemi, izlenebilirlik ve dokümantasyon şartları içerir. Otomatik
+    doğrulanamaz; üretici/tedarikçi denetim ve belge kanıtı gerektirir.
+  criteria:
+    requires_documented_qa_qc_system: true
+    applies_to_food_contact_material_manufacturing: true
+  applicable_packaging_types: []
+
+# Faz L.2 (Madde 4) — Geri dönüştürülmüş plastik gıda temas malzemeleri
+# çerçevesi. SADECE gıda temaslı VE bilgi tabanında gıda sınıfı sertifikalı
+# PCR/regranül malzeme varsa (food_grade_pcr_exists) devreye girer -- (EU)
+# 10/2011'in YERİNE değil, EK OLARAK (bkz. packaging_service.py).
+- code: EU-2022-1616
+  title: Geri Dönüştürülmüş Plastik Gıda Temas Malzemeleri Çerçevesi
+  category: gida_temasi
+  description: >
+    Gıda ile temas etmesi amaçlanan geri dönüştürülmüş plastik malzeme ve
+    ürünlere ilişkin çerçeve — yetkilendirilmiş geri dönüşüm teknolojisi,
+    dekontaminasyon süreç onayı ve izlenebilirlik şartları içerir. (EU)
+    10/2011'in genel migrasyon/gıda-temas şartlarına EK OLARAK uygulanır,
+    onun yerine geçmez.
+  criteria:
+    requires_authorised_recycling_technology: true
+    applies_in_addition_to_eu_10_2011: true
+  applicable_packaging_types: []

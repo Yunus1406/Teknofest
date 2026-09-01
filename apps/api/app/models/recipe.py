@@ -54,6 +54,18 @@ class RegulatoryAssessment(Base, IdMixin, TimestampMixin):
     # hesaplanma mantığı bu alanla HİÇ değişmedi (bkz. packaging_service.py
     # _recyclability_breakdown) -- bu tamamen ek/opsiyonel bir zenginleştirme.
     recyclability_breakdown: Mapped[dict | None] = mapped_column(nullable=True)
+    # Faz L.1 — "Bu kural neden uygulanıyor?" için yapılandırılmış karar izi
+    # (hedef_pazar/ambalaj_malzemesi_tahmini/kullanim_alani/gida_temasi/
+    # ambalaj_kategorisi/istisna/uygulanan_madde/hedef_tarih). `reasoning`
+    # serbest metni HİÇ değişmedi -- bu SADECE aynı bilginin UI'da adım adım
+    # gösterilebilen ek/opsiyonel bir yapılandırılmış görünümü.
+    decision_trail: Mapped[dict | None] = mapped_column(nullable=True)
+    # Faz L.3 (Madde 16) — bu değerlendirme YAPILDIĞI ANDA eşleşen
+    # `RegulationRequirement.version`'ı DONDURUR (birden fazla satır varsa,
+    # ör. PPWR Md.7'nin yıl kırılımı, ilk satırın versiyonu). Mevzuat daha
+    # sonra güncellenirse bu alan DEĞİŞMEZ -- L.4'ün "hangi ürünler eski
+    # versiyonla değerlendirildi" analizi tam olarak buna dayanır.
+    regulation_version_snapshot: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     packaging_request: Mapped["PackagingRequest"] = relationship(
         back_populates="regulatory_assessments"

@@ -27,6 +27,11 @@ class RegulationRequirementOut(BaseModel):
     threshold_unit: str | None = None
     # Faz G.2
     last_reviewed_at: datetime | None = None
+    # Faz L.3 (Madde 16) — versiyon geçmişi. Üçü de None ise bu satır son
+    # yüklemede hiç değişmemiş (ya da ilk kez yüklenmiş) demektir.
+    previous_version: str | None = None
+    changed_at: datetime | None = None
+    change_summary: str | None = None
 
 
 class ChemicalRestrictionOut(BaseModel):

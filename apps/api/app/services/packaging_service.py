@@ -1,5 +1,6 @@
 """Aşama 2-5 orkestrasyonu: ambalaj tanımlama, mevzuat değerlendirmesi,
 firma altyapısı eşleştirmesi ve akıllı başlangıç reçetesi."""
+import re
 from dataclasses import dataclass, field
 
 from sqlalchemy import select
@@ -73,20 +74,6 @@ def assess_regulations(db: Session, packaging_request: PackagingRequest) -> tupl
     if not matched:
         matched = list(regulations)
 
-    # PFAS (PPWR Md.5) yalnızca gıda temaslı ambalajlarda uygulanır —
-    # ambalaj TÜRÜNE (kategoriye) göre değil, food_contact bayrağına göre
-    # dahil edilir/çıkarılır (kategori eşleşmesi bunu garanti etmez).
-    pfas_reg = next((r for r in regulations if r.code == "PPWR-ART-5"), None)
-    if pfas_reg is not None:
-        matched = [r for r in matched if r.code != "PPWR-ART-5"]
-        if packaging_request.food_contact:
-            matched.append(pfas_reg)
-
-    # Var olan değerlendirmeleri temizle (aşama yeniden çalıştırılabilir)
-    db.query(RegulatoryAssessment).filter_by(
-        packaging_request_id=packaging_request.id
-    ).delete()
-
     food_grade_pcr_exists = (
         db.query(Material)
         .filter(Material.material_type.in_(["pcr", "regranul"]), Material.food_contact_eligible.is_(True))
@@ -94,15 +81,56 @@ def assess_regulations(db: Session, packaging_request: PackagingRequest) -> tupl
         is not None
     )
 
+    # PFAS (PPWR Md.5) ve GMP (EU 2023/2006) yalnızca gıda temaslı
+    # ambalajlarda uygulanır — ambalaj TÜRÜNE (kategoriye) göre değil,
+    # food_contact bayrağına göre dahil edilir/çıkarılır (kategori
+    # eşleşmesi bunu garanti etmez, applicable_packaging_types BİLİNÇLİ BOŞ).
+    for code in ("PPWR-ART-5", "EU-GMP-2023-2006"):
+        reg = next((r for r in regulations if r.code == code), None)
+        if reg is not None:
+            matched = [r for r in matched if r.code != code]
+            if packaging_request.food_contact:
+                matched.append(reg)
+
+    # Faz L.2 (Madde 4) — (EU) 2022/1616, gıda temaslı geri dönüştürülmüş
+    # plastik (rPET/PCR) çerçevesi: (EU) 10/2011'in YERİNE değil, EK OLARAK,
+    # SADECE gıda temaslı VE bilgi tabanında gıda sınıfı sertifikalı bir
+    # PCR/regranül malzeme varsa devreye girer (aynı `food_grade_pcr_exists`
+    # sinyali FCM'nin zaten kullandığı sorgu -- yeni bir DB taraması gerekmez).
+    recycled_fcm_reg = next((r for r in regulations if r.code == "EU-2022-1616"), None)
+    if recycled_fcm_reg is not None:
+        matched = [r for r in matched if r.code != "EU-2022-1616"]
+        if packaging_request.food_contact and food_grade_pcr_exists:
+            matched.append(recycled_fcm_reg)
+
+    # Var olan değerlendirmeleri temizle (aşama yeniden çalıştırılabilir)
+    db.query(RegulatoryAssessment).filter_by(
+        packaging_request_id=packaging_request.id
+    ).delete()
+
+    # Faz L.1 — Hedef Pazar karar düğümü. Bu mevzuatlar (PPWR/EU) AB
+    # mevzuatıdır; hedef pazar AÇIKÇA AB-dışıysa bu SADECE bilgilendirme
+    # amaçlı işaretlenir (reasoning'e not eklenir, decision_trail'e yazılır)
+    # -- verdict/sayaçlar ASLA değişmez, hiçbir madde sessizce filtrelenmez
+    # (yanlış negatif riski, yanlış pozitiften daha tehlikelidir).
+    market_status = _target_market_eu_status(packaging_request.target_market)
+
     assessments: list[RegulatoryAssessment] = []
     for reg in matched:
         verdict, reasoning = _assess_single_regulation(db, reg, packaging_request, food_grade_pcr_exists)
+        if market_status == "hayir":
+            reasoning += (
+                f" | Not: Hedef pazar '{packaging_request.target_market}' — bu mevzuat (AB) bu pazar "
+                "için doğrudan yürürlükte olmayabilir, hedef pazarın kendi mevzuatı ayrıca kontrol edilmeli."
+            )
         row = RegulatoryAssessment(
             packaging_request_id=packaging_request.id,
             regulation_id=reg.id,
             verdict=verdict,
             reasoning=reasoning,
             recyclability_breakdown=_recyclability_breakdown(db, reg),
+            decision_trail=_build_decision_trail(db, reg, packaging_request, category, market_status),
+            regulation_version_snapshot=_current_requirement_version(db, reg.id),
         )
         db.add(row)
         assessments.append(row)
@@ -113,6 +141,69 @@ def assess_regulations(db: Session, packaging_request: PackagingRequest) -> tupl
     for a in assessments:
         db.refresh(a)
     return overall, assessments
+
+
+def _target_market_eu_status(target_market: str | None) -> str:
+    """Faz L.1 — "evet" (AB/Avrupa açıkça belirtilmiş), "hayir" (açıkça
+    başka bir pazar belirtilmiş) veya "belirsiz" (boş/tanınmayan metin)
+    döner. "belirsiz" durumunda mevcut davranış (mevzuat değerlendirilir)
+    KORUNUR -- eksik/belirsiz veriden dolayı bir madde asla sessizce
+    atlanmaz."""
+    if not target_market:
+        return "belirsiz"
+    lowered = target_market.strip().lower()
+    if re.search(r"avrupa|\bab\b|\beu\b", lowered):
+        return "evet"
+    if re.search(r"t[üu]rkiye|\babd\b|amerika|\busa\b|ingiltere|\buk\b|birle[şs]ik krall", lowered):
+        return "hayir"
+    return "belirsiz"
+
+
+def _current_requirement_version(db: Session, regulation_id: str) -> str | None:
+    """Faz L.3 (Madde 16) — bu regülasyonun İLK `RegulationRequirement`
+    satırının GÜNCEL `version`'ını döner (yoksa None). `RegulatoryAssessment.
+    regulation_version_snapshot`'a donmuş olarak yazılır -- mevzuat daha
+    sonra güncellenirse bu snapshot DEĞİŞMEZ, L.4'ün etki analizinin
+    dayandığı sinyal budur."""
+    row = (
+        db.query(RegulationRequirement)
+        .filter_by(regulation_id=regulation_id)
+        .order_by(RegulationRequirement.target_year)
+        .first()
+    )
+    return row.version if row else None
+
+
+def _build_decision_trail(
+    db: Session, reg: Regulation, req: PackagingRequest, category: str, market_status: str
+) -> dict:
+    """Faz L.1 — "Bu kural neden uygulanıyor?" panelinin yapılandırılmış
+    verisi: Hedef Pazar → Ambalaj Malzemesi (tahmini) → Kullanım → Gıda
+    Teması → Ambalaj Kategorisi → İstisna → Uygulanacak Madde → Hedef
+    Tarih. Her adım ZATEN hesaplanmış/DB'den okunan gerçek veriye dayanır,
+    hiçbir adım uydurulmaz."""
+    requirements = (
+        db.query(RegulationRequirement)
+        .filter_by(regulation_id=reg.id)
+        .order_by(RegulationRequirement.target_year)
+        .all()
+    )
+    row = requirements[0] if requirements else None
+    preferred = preferred_polymer_codes(req.packaging_type)
+    return {
+        "hedef_pazar": req.target_market,
+        "hedef_pazar_ab_mi": market_status,
+        "ambalaj_malzemesi_tahmini": (
+            f"'{req.packaging_type}' ifadesinden tahmini tercih sırası: {'/'.join(preferred)} "
+            "(reçete henüz üretilmediği için TAHMİNİ)"
+        ),
+        "kullanim_alani": req.usage_area,
+        "gida_temasi": req.food_contact,
+        "ambalaj_kategorisi": category,
+        "istisna": row.exception_text if row else None,
+        "uygulanan_madde": _article_citation(row, reg.code),
+        "hedef_tarih": row.target_year if row else None,
+    }
 
 
 def _overall_verdict(verdicts: list[str]) -> str:
@@ -254,6 +345,96 @@ def _assess_fcm(
         f"geçtiği anlamına gelmez ({regulation_no}). Bu doğrulama otomatikleştirilemez, "
         "laboratuvar testi gerekir.",
     )
+
+
+def build_food_contact_evidence_checklist(db: Session, req: PackagingRequest) -> list[dict]:
+    """Faz L.2 (Madde 4) — gıda temaslı ambalajlar için otomatik kanıt
+    yönetim listesi: 1935/2004, (EU) 10/2011, GMP 2023/2006, (varsa) (EU)
+    2022/1616, DoC, Genel/Spesifik Migrasyon, Hammadde Uygunluk Belgeleri,
+    PCR/rPET Kaynak-Proses Kanıtları, Kimyasal/Test Kanıtları. Reçete henüz
+    üretilmediği (Aşama 5-6'dan önce) için hammadde-bazlı kanıtlar KB
+    GENELİNDE bir sinyal olup olmadığına bakar (`food_grade_pcr_exists` ile
+    AYNI disiplin) -- hiçbir kanıt, gerçek bir veri sinyali olmadan "mevcut"
+    işaretlenmez; belge-yükleme gerektiren kanıtlar (DoC, GMP denetimi,
+    migrasyon/PFAS testi) bu sistemde hiç izlenmediğinden dürüstçe "eksik"
+    kalır."""
+    if not req.food_contact:
+        return []
+
+    certified_material_exists = (
+        db.query(Material).filter(Material.certification_status.isnot(None)).first() is not None
+    )
+    pcr_source_documented = (
+        db.query(Material)
+        .filter(Material.material_type.in_(["pcr", "regranul"]), Material.source.isnot(None))
+        .first()
+        is not None
+    )
+    food_grade_pcr_exists = (
+        db.query(Material)
+        .filter(Material.material_type.in_(["pcr", "regranul"]), Material.food_contact_eligible.is_(True))
+        .first()
+        is not None
+    )
+
+    def _item(evidence_type: str, regulation_ref: str | None, status: str, notes: str) -> dict:
+        return {"evidence_type": evidence_type, "regulation_ref": regulation_ref, "status": status, "notes": notes}
+
+    return [
+        _item(
+            "1935/2004 Çerçeve Uygunluğu (DoC)", "EU 1935/2004", "eksik",
+            "Uygunluk Beyanı (DoC) belgesi bu sistemde yüklenmedi; tedarikçiden temin edilmeli.",
+        ),
+        _item(
+            "(EU) 10/2011 Migrasyon Limitleri", "EU 10/2011", "eksik",
+            "Genel/spesifik migrasyon test sonucu bu sistemde kayıtlı değil; laboratuvar testi gerekir.",
+        ),
+        _item(
+            "GMP 2023/2006 İyi Üretim Uygulamaları", "EC 2023/2006", "eksik",
+            "Üretici GMP denetim/sertifika kaydı bu sistemde izlenmiyor.",
+        ),
+        _item(
+            "(EU) 2022/1616 Geri Dönüştürülmüş Plastik Çerçevesi", "EU 2022/1616",
+            "eksik" if food_grade_pcr_exists else "gerekli_degil",
+            (
+                "Gıda temaslı geri dönüşüm teknolojisi yetkilendirme belgesi gerekir "
+                "((EU) 10/2011'e ek olarak)."
+                if food_grade_pcr_exists
+                else "Bilgi tabanında gıda sınıfı sertifikalı PCR/regranül malzeme yok; "
+                "bu çerçeve şu an tetiklenmiyor."
+            ),
+        ),
+        _item(
+            "DoC (Uygunluk Beyanı)", None, "eksik",
+            "Genel uygunluk beyanı belgesi bu sistemde yüklenmedi.",
+        ),
+        _item(
+            "Genel/Spesifik Migrasyon Testi", "EU 10/2011", "eksik",
+            "Migrasyon test raporu bu sistemde kayıtlı değil.",
+        ),
+        _item(
+            "Hammadde Uygunluk Belgeleri", None,
+            "mevcut" if certified_material_exists else "eksik",
+            (
+                "Bilgi tabanında sertifikasyon durumu girilmiş en az bir hammadde var."
+                if certified_material_exists
+                else "Bilgi tabanında sertifikasyon durumu girilmiş hiçbir hammadde henüz yok."
+            ),
+        ),
+        _item(
+            "PCR/rPET Kaynak ve Proses Kanıtları", None,
+            "mevcut" if pcr_source_documented else "eksik",
+            (
+                "Bilgi tabanında kaynağı belgelenmiş en az bir PCR/regranül malzeme var."
+                if pcr_source_documented
+                else "Bilgi tabanında kaynağı belgelenmiş bir PCR/regranül malzeme henüz yok."
+            ),
+        ),
+        _item(
+            "Kimyasal/Test Kanıtları (PFAS vb.)", "PPWR Md.5(5)", "eksik",
+            "PFAS içerik testi bu sistemde kayıtlı değil; laboratuvar testi gerekir.",
+        ),
+    ]
 
 
 _VERDICT_LABELS: dict[str, str] = {

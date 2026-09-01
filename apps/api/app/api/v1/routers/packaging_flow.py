@@ -86,6 +86,7 @@ def run_regulatory_assessment(request_id: str, db: Session = Depends(get_db)):
     return RegulatoryAssessmentSummaryOut(
         overall_verdict=overall,
         assessments=[RegulatoryAssessmentOut.model_validate(a) for a in assessments],
+        evidence_checklist=packaging_service.build_food_contact_evidence_checklist(db, req),
     )
 
 

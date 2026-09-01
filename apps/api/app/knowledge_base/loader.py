@@ -479,17 +479,64 @@ def load_regulations(db: Session) -> dict[str, str]:
     return code_to_id
 
 
+def _requirement_natural_key(
+    regulation_id: str, article: str, sub_article: str | None, packaging_category: str | None, target_year: int | None
+) -> tuple:
+    return (regulation_id, article, sub_article, packaging_category, target_year)
+
+
+def _snapshot_requirement_change(
+    old: dict | None, new_version: str, new_threshold: float | None, new_text: str
+) -> tuple[str | None, datetime | None, str | None]:
+    """Faz L.3 (Madde 16) — eski satır (varsa) ile yeni satır arasında
+    version/threshold_value/requirement_text bakımından GERÇEK bir fark
+    varsa (`previous_version`, `changed_at`, `change_summary`) döner; fark
+    yoksa (ya da eski satır hiç yoksa -- ilk yükleme) üçü de None kalır.
+    Uydurma bir "değişiklik" ASLA üretilmez, sadece iki gerçek satır
+    karşılaştırılır."""
+    if old is None:
+        return None, None, None
+    changed_parts = []
+    if old["version"] != new_version:
+        changed_parts.append(f"sürüm {old['version']} → {new_version}")
+    if old["threshold_value"] != new_threshold:
+        changed_parts.append(f"eşik değeri {old['threshold_value']} → {new_threshold}")
+    if old["requirement_text"] != new_text:
+        changed_parts.append("gereklilik metni güncellendi")
+    if not changed_parts:
+        return None, None, None
+    return old["version"], datetime.now(timezone.utc), "; ".join(changed_parts)
+
+
 def load_regulation_requirements(db: Session, regulation_ids: dict[str, str]) -> int:
     """PPWR Kural Kütüphanesi (Faz B.8). Kategori+yıl kombinasyonu doğal bir
     eşleşme anahtarı olmadığından (aynı maddenin birden fazla satırı olabilir,
     bkz. PPWR Md.7), idempotentlik 'var olanı güncelle' yerine SİL+YENİDEN
     YAZ ile sağlanır — sadece bu YAML'da geçen regulation_id'lere ait satırlar
-    silinir, diğer verilere dokunulmaz."""
+    silinir, diğer verilere dokunulmaz.
+
+    Faz L.3 — silmeden ÖNCE her satırın (regulation_id+article+sub_article+
+    packaging_category+target_year) doğal anahtarıyla bir STANTAJ (snapshot)
+    alınır; yeni satır yazılırken bu snapshot'la karşılaştırılıp GERÇEK bir
+    fark varsa `previous_version`/`changed_at`/`change_summary` doldurulur."""
     rows = _load_yaml("regulation_requirements.yaml")
     touched_regulation_ids = {
         regulation_ids[row["regulation_code"]] for row in rows if row["regulation_code"] in regulation_ids
     }
+    previous_by_key: dict[tuple, dict] = {}
     if touched_regulation_ids:
+        existing = (
+            db.query(RegulationRequirement)
+            .filter(RegulationRequirement.regulation_id.in_(touched_regulation_ids))
+            .all()
+        )
+        for r in existing:
+            key = _requirement_natural_key(r.regulation_id, r.article, r.sub_article, r.packaging_category, r.target_year)
+            previous_by_key[key] = {
+                "version": r.version,
+                "threshold_value": r.threshold_value,
+                "requirement_text": r.requirement_text,
+            }
         db.query(RegulationRequirement).filter(
             RegulationRequirement.regulation_id.in_(touched_regulation_ids)
         ).delete(synchronize_session=False)
@@ -500,24 +547,40 @@ def load_regulation_requirements(db: Session, regulation_ids: dict[str, str]) ->
         regulation_id = regulation_ids.get(row["regulation_code"])
         if regulation_id is None:
             continue
+        article = row["article"]
+        sub_article = row.get("sub_article")
+        packaging_category = row.get("packaging_category")
+        target_year = row.get("target_year")
+        version = row.get("version", "1.0")
+        threshold_value = row.get("threshold_value")
+        requirement_text = row["requirement_text"].strip()
+
+        key = _requirement_natural_key(regulation_id, article, sub_article, packaging_category, target_year)
+        previous_version, changed_at, change_summary = _snapshot_requirement_change(
+            previous_by_key.get(key), version, threshold_value, requirement_text
+        )
+
         db.add(
             RegulationRequirement(
                 regulation_id=regulation_id,
                 regulation_no=row["regulation_no"],
-                article=row["article"],
-                sub_article=row.get("sub_article"),
-                packaging_category=row.get("packaging_category"),
-                target_year=row.get("target_year"),
-                requirement_text=row["requirement_text"].strip(),
+                article=article,
+                sub_article=sub_article,
+                packaging_category=packaging_category,
+                target_year=target_year,
+                requirement_text=requirement_text,
                 pcr_only=row.get("pcr_only", False),
                 exception_text=row.get("exception_text"),
                 effective_date=_parse_date(row.get("effective_date")),
-                version=row.get("version", "1.0"),
+                version=version,
                 source=row.get("source"),
                 default_verdict=row.get("default_verdict", "inceleme_gerekli"),
-                threshold_value=row.get("threshold_value"),
+                threshold_value=threshold_value,
                 threshold_unit=row.get("threshold_unit"),
                 last_reviewed_at=_parse_date(row.get("last_reviewed_at")),
+                previous_version=previous_version,
+                changed_at=changed_at,
+                change_summary=change_summary,
             )
         )
         count += 1

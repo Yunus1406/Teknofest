@@ -1,6 +1,6 @@
 """Bilgi Tabanı okuma uçları — frontend'in malzeme/hat seçimi, mevzuat
 görüntüleme gibi ihtiyaçları için."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -12,8 +12,10 @@ from app.schemas.knowledge import (
     CarbonEmissionFactorOut,
     MaterialOut,
     PolymerOut,
+    RegulationChangeImpactOut,
     RegulationOut,
 )
+from app.services.regulation_impact_service import analyze_regulation_change_impact
 
 router = APIRouter(prefix="/kb", tags=["Bilgi Tabanı"])
 
@@ -36,6 +38,16 @@ def list_additives(db: Session = Depends(get_db)):
 @router.get("/regulations", response_model=list[RegulationOut])
 def list_regulations(db: Session = Depends(get_db)):
     return db.query(Regulation).all()
+
+
+@router.get("/regulations/{code}/change-impact", response_model=RegulationChangeImpactOut)
+def get_regulation_change_impact(code: str, db: Session = Depends(get_db)):
+    """Faz L.4 (Madde 17) — bir mevzuat kaydı güncellendiğinde hangi ürünleri/
+    SKU'ları etkilediğini gösterir (bkz. regulation_impact_service.py)."""
+    try:
+        return analyze_regulation_change_impact(db, code)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
 
 
 @router.get("/production-lines", response_model=list[ProductionLineOut])

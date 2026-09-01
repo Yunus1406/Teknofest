@@ -42,6 +42,7 @@ import type {
   ProductSkuUpdate,
   RecipeOut,
   RecyclabilityCriterionOut,
+  RegulationChangeImpactOut,
   RegulationOut,
   RegulationRequirementOut,
   RegulatoryAssessmentSummaryOut,
@@ -91,6 +92,9 @@ export const api = {
 
   // Bilgi Tabanı
   listRegulations: () => request<RegulationOut[]>("/kb/regulations"),
+  // Faz L.4 (Madde 17)
+  getRegulationChangeImpact: (code: string) =>
+    request<RegulationChangeImpactOut>(`/kb/regulations/${encodeURIComponent(code)}/change-impact`),
   listPolymers: () => request<PolymerOut[]>("/kb/polymers"),
   listMaterials: () => request<MaterialOut[]>("/kb/materials"),
   listAdditives: () => request<AdditiveOut[]>("/kb/additives"),

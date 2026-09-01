@@ -135,3 +135,44 @@
   source: "EU 1935/2004 — sadeleştirilmiş temsil"
   default_verdict: inceleme_gerekli
   last_reviewed_at: "2026-08-31"
+
+# Faz L.2 (Madde 4) — GMP ve 2022/1616: ikisi de otomatik doğrulanamaz
+# (denetim/belge kanıtı gerektirir), bu yüzden diğer maddelerdeki
+# NO_METHODOLOGY (henuz_metodoloji_yok) disiplinine uyar -- REVIEW değil,
+# çünkü "kullanıcı karar versin" değil, "bu yapısal olarak otomatikleşemez".
+- regulation_code: EU-GMP-2023-2006
+  regulation_no: "EC 2023/2006"
+  article: "Tüm Tüzük"
+  sub_article: null
+  packaging_category: null
+  target_year: null
+  requirement_text: >
+    Gıda temaslı madde/malzeme üreticisinin dokümante bir kalite güvence/
+    kalite kontrol (GMP) sistemi işlettiğinin kanıtlanması gerekir —
+    denetim/sertifika kaydı otomatik doğrulanamaz.
+  pcr_only: false
+  exception_text: null
+  effective_date: null
+  version: "1.0"
+  source: "Komisyon Tüzüğü (EC) No 2023/2006 — sadeleştirilmiş temsil"
+  default_verdict: henuz_metodoloji_yok
+  last_reviewed_at: "2026-08-31"
+
+- regulation_code: EU-2022-1616
+  regulation_no: "EU 2022/1616"
+  article: "Tüm Tüzük"
+  sub_article: null
+  packaging_category: null
+  target_year: null
+  requirement_text: >
+    Gıda temaslı geri dönüştürülmüş plastik (rPET/PCR) kullanımı için
+    yetkilendirilmiş bir geri dönüşüm teknolojisi + dekontaminasyon süreç
+    onayı belgelenmelidir — (EU) 10/2011'in genel gıda-temas şartlarına EK
+    OLARAK uygulanır, otomatik doğrulanamaz.
+  pcr_only: true
+  exception_text: null
+  effective_date: null
+  version: "1.0"
+  source: "Komisyon Tüzüğü (EU) 2022/1616 — sadeleştirilmiş temsil"
+  default_verdict: henuz_metodoloji_yok
+  last_reviewed_at: "2026-08-31"
