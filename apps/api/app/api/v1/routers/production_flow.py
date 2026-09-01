@@ -9,10 +9,18 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.models.digital_product_passport import DigitalProductPassport
+from app.models.enums import RecipeSource
 from app.models.mechanical_test_standard import MechanicalTestStandard
+from app.models.optimization import OptimizationCandidate, OptimizationRun
 from app.models.production import PhysicalTest, ProductionOrder, WasteRecord
 from app.models.recipe import Recipe
-from app.schemas.dashboard import ComparisonOut, FinalResultOut
+from app.schemas.dashboard import (
+    ComparisonOut,
+    EcoDesignSuggestionOut,
+    FinalResultOut,
+    ScenarioOverridesIn,
+    ScenarioResultOut,
+)
 from app.schemas.production import (
     PhysicalTestOut,
     PhysicalVerificationSubmit,
@@ -25,6 +33,9 @@ from app.schemas.production import (
 from app.schemas.learning_memory import CausalChainNodeOut, ChangeOutcomeStatsOut
 from app.schemas.recipe import RecipeOut
 from app.services import learning_memory_service, passport_service, pdf_service, production_flow_service, report_service
+from app.services.eco_design_service import build_eco_design_suggestions
+from app.services.explainability_service import build_finalist_explanation_bullets
+from app.services.scenario_service import run_scenario
 from app.services.scorecard_service import build_sustainability_scorecard
 from app.services.test_targets import suggested_physical_test_targets
 
@@ -162,6 +173,20 @@ def finalize_result(recipe_id: str, db: Session = Depends(get_db)):
     tests_passed = all(t.passed for t in tests) if tests else False
     comparison = production_flow_service.build_comparison(db, recipe)
     executive_summary = report_service.build_executive_summary(db, recipe, comparison)
+
+    # Faz P.3 (Madde 22) — bu reçete bir optimizasyon koşusundan geldiyse
+    # (ör. referans reçeteden gelmediyse) aynı adayın açıklama maddeleri +
+    # o koşunun "Neden Elendi?" özeti Dashboard 12'ye de taşınır.
+    aciklama_maddeleri: list[str] = []
+    notable_eliminated: list[dict] = []
+    if recipe.source == RecipeSource.URETILDI.value:
+        candidate = db.query(OptimizationCandidate).filter_by(recipe_id=recipe.id).first()
+        if candidate is not None:
+            aciklama_maddeleri = build_finalist_explanation_bullets(db, candidate)
+            run = db.get(OptimizationRun, candidate.run_id)
+            if run is not None:
+                notable_eliminated = run.notable_eliminated
+
     return FinalResultOut(
         recipe_id=recipe.id,
         per_1000_units=result.per_1000_units,
@@ -172,7 +197,35 @@ def finalize_result(recipe_id: str, db: Session = Depends(get_db)):
             db, recipe.packaging_request, comparison
         ),
         surdurulebilirlik_karnesi=build_sustainability_scorecard(db, recipe, comparison, executive_summary),
+        aciklama_maddeleri=aciklama_maddeleri,
+        notable_eliminated=notable_eliminated,
     )
+
+
+# --- Faz P.1 (Madde 20): Senaryo Laboratuvarı -------------------------------
+
+@router.post("/recipes/{recipe_id}/scenario", response_model=ScenarioResultOut)
+def run_recipe_scenario(recipe_id: str, payload: ScenarioOverridesIn, db: Session = Depends(get_db)):
+    """Hiçbir şey DB'ye yazılmaz -- saf, istek başına what-if hesabı (bkz.
+    app/services/scenario_service.py modül docstring'i)."""
+    try:
+        result = run_scenario(db, recipe_id, payload.model_dump())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if result is None:
+        raise HTTPException(404, "Reçete bulunamadı")
+    return result
+
+
+# --- Faz P.2 (Madde 21): Otomatik Eko-Tasarım Önerileri ---------------------
+
+@router.get("/recipes/{recipe_id}/eco-design-suggestions", response_model=list[EcoDesignSuggestionOut])
+def get_eco_design_suggestions(recipe_id: str, db: Session = Depends(get_db)):
+    """Hem Dashboard 7'nin finalist (henüz doğrulanmamış) reçeteleri hem
+    Dashboard 12'nin doğrulanmış reçetesi için çalışır -- ikisi de gerçek
+    RecipeLayer taşır (bkz. app/services/eco_design_service.py)."""
+    recipe = _get_recipe_or_404(db, recipe_id)
+    return build_eco_design_suggestions(db, recipe)
 
 
 # --- Faz I.3: Gerçek Öğrenme Hafızası ---------------------------------------

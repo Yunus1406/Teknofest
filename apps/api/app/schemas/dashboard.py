@@ -122,3 +122,35 @@ class FinalResultOut(BaseModel):
     # Faz O.2 (Madde 19) — additive. 9 boyutlu Sürdürülebilirlik Karnesi
     # (bkz. app/services/scorecard_service.py).
     surdurulebilirlik_karnesi: dict
+    # Faz P.3 (Madde 22) — additive. Bu reçete bir optimizasyon koşusundan
+    # gelmiyorsa (ör. referans reçeteden) ikisi de boş -- uydurulmaz.
+    aciklama_maddeleri: list[str] = []
+    notable_eliminated: list[dict] = []
+
+
+# Faz P.1 (Madde 20) — Senaryo Laboratuvarı. Tüm alanlar opsiyonel: None =
+# mevcut değer korunur (bkz. app/services/scenario_service.py::run_scenario).
+class ScenarioOverridesIn(BaseModel):
+    pcr_pct: float | None = None
+    kalinlik_micron: float | None = None
+    fire_pct: float | None = None
+    yenilenebilir_enerji_pct: float | None = None
+
+
+class ScenarioResultOut(BaseModel):
+    baseline: dict
+    senaryo: dict
+    fark: dict
+    teknik_risk: dict
+    mevzuat: dict
+    uyarilar: list[str]
+
+
+# Faz P.2 (Madde 21) — Otomatik Eko-Tasarım Önerileri (bkz. app/services/
+# eco_design_service.py). Yeterli veri yoksa öneri türü hiç üretilmez --
+# boş liste dönmesi normaldir.
+class EcoDesignSuggestionOut(BaseModel):
+    key: str
+    title: str
+    detay_metni: str
+    veri_guveni_kind: str

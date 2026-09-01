@@ -15,6 +15,10 @@ class OptimizationCandidateOut(BaseModel):
     justification_text: str | None = None
     decision_basis: dict
     recipe: RecipeOut
+    # Faz P.3 (Madde 22) — additive. ORM'de bir kolon DEĞİL, router'da
+    # `explainability_service.build_finalist_explanation_bullets()` ile
+    # doldurulur (bkz. app/api/v1/routers/optimization.py).
+    explanation_bullets: list[str] = []
 
 
 class EliminationReasonOut(BaseModel):

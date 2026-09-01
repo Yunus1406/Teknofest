@@ -744,12 +744,29 @@ def _section_sustainability_scorecard(data: dict) -> list:
     return story
 
 
+def _section_eco_design_suggestions(data: dict) -> list:
+    """Faz P.2 (Madde 21) — Otomatik Eko-Tasarım Önerileri (bkz.
+    app/services/eco_design_service.py). Hiçbir öneri burada YENİDEN
+    üretilmez; `data["tasarim_iyilestirme_onerileri"]` zaten hesaplanmış.
+    Boş liste normaldir -- yeterli veri/eşik yoksa öneri türü hiç üretilmez."""
+    suggestions = data["tasarim_iyilestirme_onerileri"]
+    story = [_p("25. Tasarım İyileştirme Önerileri", STYLE_H1)]
+    if not suggestions:
+        story.append(_p("Bu reçete için şu an somut bir tasarım iyileştirme önerisi yok.", STYLE_BODY))
+    else:
+        for s in suggestions:
+            story.append(_p(f"<b>{s['title']}</b> — {s['detay_metni']}", STYLE_BODY))
+    story.append(Spacer(1, 10))
+    return story
+
+
 def render_technical_report(data: dict, passport: dict | None = None) -> bytes:
     """Detaylı Teknik Rapor — Faz C.5'in 16 bölümü + Faz H.6'nın 5 ek bölümü
     (Hesaplama Metodolojisi/Kaynakça/Veri Kalitesi/Varsayımlar/Veri Kaynağı
     Matrisi) + Faz L.4'ün 1 ek bölümü (Kullanılan Mevzuat Sürümü ve
     Değişiklik Geçmişi) + Faz N.2'nin 1 ek bölümü (Sektöre Göre Konum) +
-    Faz O.2'nin 1 ek bölümü (Sürdürülebilirlik Karnesi), toplam 24 bölüm."""
+    Faz O.2'nin 1 ek bölümü (Sürdürülebilirlik Karnesi) + Faz P.2'nin 1 ek
+    bölümü (Tasarım İyileştirme Önerileri), toplam 25 bölüm."""
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4, topMargin=18 * mm, bottomMargin=18 * mm, leftMargin=18 * mm, rightMargin=18 * mm,
@@ -780,6 +797,7 @@ def render_technical_report(data: dict, passport: dict | None = None) -> bytes:
     story += _section_regulation_version_history(data)
     story += _section_benchmark_comparison(data)
     story += _section_sustainability_scorecard(data)
+    story += _section_eco_design_suggestions(data)
     story += _qr_flowable(passport)
     doc.build(story)
     return buf.getvalue()

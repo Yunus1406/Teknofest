@@ -635,6 +635,9 @@ export interface OptimizationCandidateOut {
     karbon_ef_versiyonu: string | null;
   };
   recipe: RecipeOut;
+  // Faz P.3 (Madde 22) — additive, okuma anında hesaplanır (bkz.
+  // apps/api/app/services/explainability_service.py).
+  explanation_bullets: string[];
 }
 
 // Faz J.0 — her gerekçenin GERÇEK EvaluationTier'ı (kesin_teknik_kisit/
@@ -877,6 +880,62 @@ export interface FinalResultOut {
   triple_comparison: TripleComparisonOut;
   benchmark_karsilastirmasi: BenchmarkComparisonOut;
   surdurulebilirlik_karnesi: SustainabilityScorecardOut;
+  // Faz P.3 (Madde 22) — additive. Reçete bir optimizasyon koşusundan
+  // gelmiyorsa (ör. referans reçeteden) ikisi de boş.
+  aciklama_maddeleri: string[];
+  notable_eliminated: EliminatedCandidateOut[];
+}
+
+// Faz P.1 (Madde 20) — Senaryo Laboratuvarı (bkz. apps/api/app/services/
+// scenario_service.py). Hiçbir alan DB'ye yazılmaz -- saf, istek başına
+// hesap. `veri_kaynagi` her zaman "hesaplanan" (baseline) ya da
+// "senaryo_simulasyonu" (senaryo) taşır.
+export interface ScenarioOverridesIn {
+  pcr_pct?: number | null;
+  kalinlik_micron?: number | null;
+  fire_pct?: number | null;
+  yenilenebilir_enerji_pct?: number | null;
+}
+
+export interface ScenarioSnapshotOut {
+  virgin_pct: number;
+  pcr_pct: number;
+  regranul_pct: number;
+  total_micron: number;
+  maliyet_tl_per_kg: number;
+  karbon_kg_co2_per_kg: number;
+  carbon_ef_status: string;
+  fire_pct: number | null;
+  yenilenebilir_enerji_pct: number | null;
+  enerji_karbon_yogunlugu_kg_co2_per_kwh: number | null;
+  veri_kaynagi: string;
+}
+
+export interface ScenarioResultOut {
+  baseline: ScenarioSnapshotOut;
+  senaryo: ScenarioSnapshotOut;
+  fark: Record<string, number | null>;
+  teknik_risk: {
+    kalinlik_hat_sinirlari_icinde: boolean | null;
+    pcr_tavanini_asiyor_mu: boolean | null;
+    notlar: string[];
+  };
+  mevzuat: {
+    hedef_pct: number | null;
+    hedefi_karsiliyor_mu: boolean | null;
+    not: string | null;
+  };
+  uyarilar: string[];
+}
+
+// Faz P.2 (Madde 21) — Otomatik Eko-Tasarım Önerileri (bkz. apps/api/app/
+// services/eco_design_service.py). Yeterli veri yoksa öneri türü hiç
+// üretilmez -- boş liste normaldir.
+export interface EcoDesignSuggestionOut {
+  key: string;
+  title: string;
+  detay_metni: string;
+  veri_guveni_kind: string;
 }
 
 export interface DashboardSummaryOut {

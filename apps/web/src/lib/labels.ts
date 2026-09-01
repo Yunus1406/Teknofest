@@ -95,6 +95,10 @@ const _CONFIDENCE_BY_SOURCE_KIND: Record<string, string> = {
   simulasyon: "dusuk",
   simulasyon_verisi: "dusuk",
   tanimli_gercek: "dusuk",
+  // Faz P.1 (Madde 20) — Senaryo Laboratuvarı'nın hipotetik what-if çıktısı.
+  // `simulasyon_verisi`'den KASITLI OLARAK ayrı (bkz. backend
+  // report_service.py::_CONFIDENCE_BY_KIND aynı yorum).
+  senaryo_simulasyonu: "dusuk",
   varsayimsal: "varsayimsal",
   tanimli_demo: "varsayimsal",
 };

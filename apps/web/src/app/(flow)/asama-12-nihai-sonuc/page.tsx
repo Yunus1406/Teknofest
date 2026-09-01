@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api-client";
-import type { DigitalProductPassportOut, FinalResultOut } from "@/lib/types";
+import type { DigitalProductPassportOut, EcoDesignSuggestionOut, FinalResultOut } from "@/lib/types";
 import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { StatTile } from "@/components/ui/StatTile";
 import { SustainabilityScorecard } from "@/components/scorecard/SustainabilityScorecard";
+import { EcoDesignSuggestions } from "@/components/eco-design/EcoDesignSuggestions";
+import { FinalistExplanation } from "@/components/explainability/FinalistExplanation";
 import {
   carbonEfStatusLabel,
   carbonEfStatusTone,
@@ -59,6 +61,8 @@ export default function Stage12Page() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [ecoDesignSuggestions, setEcoDesignSuggestions] = useState<EcoDesignSuggestionOut[]>([]);
+
   const [passport, setPassport] = useState<DigitalProductPassportOut | null>(null);
   const [creatingPassport, setCreatingPassport] = useState(false);
   const [passportError, setPassportError] = useState<string | null>(null);
@@ -73,6 +77,11 @@ export default function Stage12Page() {
     try {
       const r = await api.finalizeResult(recipeId);
       setResult(r);
+      // Faz P.2 (Madde 21) — sonucun gösterimini engellemesin diye ayrı try/catch.
+      api
+        .getEcoDesignSuggestions(recipeId)
+        .then(setEcoDesignSuggestions)
+        .catch(() => setEcoDesignSuggestions([]));
     } catch (e) {
       setError(String(e));
     } finally {
@@ -336,6 +345,22 @@ export default function Stage12Page() {
             <SustainabilityScorecard dimensions={result.surdurulebilirlik_karnesi.dimensions} detailed />
           </Card>
 
+          <Card className="mb-8">
+            <CardTitle subtitle="Gerçek reçete verisinden türetilen, somut iyileştirme fırsatları — yeterli veri yoksa öneri hiç gösterilmez.">
+              Tasarım İyileştirme Önerileri
+            </CardTitle>
+            <EcoDesignSuggestions suggestions={ecoDesignSuggestions} />
+          </Card>
+
+          {(result.aciklama_maddeleri.length > 0 || result.notable_eliminated.length > 0) && (
+            <Card className="mb-8">
+              <CardTitle subtitle="Optimizasyon motorunun kararının somut, sayısal gerekçesi.">
+                Neden Bu Reçeteyi Seçtin?
+              </CardTitle>
+              <FinalistExplanation bullets={result.aciklama_maddeleri} eliminated={result.notable_eliminated} />
+            </Card>
+          )}
+
           <Card>
             <CardTitle>Reçete İzlenebilirlik Geçmişi</CardTitle>
             <ol className="space-y-2">
@@ -429,6 +454,21 @@ export default function Stage12Page() {
                 className="inline-block text-sm font-medium text-petrol underline underline-offset-2"
               >
                 Dijital İkizi Görüntüle
+              </Link>
+            )}
+          </Card>
+
+          <Card className="mt-6">
+            <CardTitle subtitle="PCR/kalınlık/fire/yenilenebilir enerji oranını değiştirerek maliyet, karbon, teknik risk ve mevzuat etkisini anında görün — sonuçlar Simülasyon/Tahminidir, kaydedilmez.">
+              &quot;Bu Ambalajı Nasıl Daha İyi Yaparım?&quot;
+            </CardTitle>
+            {recipeId && (
+              <Link
+                href={`/senaryo-laboratuvari/${recipeId}`}
+                target="_blank"
+                className="inline-block text-sm font-medium text-petrol underline underline-offset-2"
+              >
+                Senaryo Laboratuvarını Aç
               </Link>
             )}
           </Card>

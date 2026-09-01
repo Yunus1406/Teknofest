@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
-import type { MaterialOut, OptimizationRunOut } from "@/lib/types";
+import type { EcoDesignSuggestionOut, MaterialOut, OptimizationRunOut } from "@/lib/types";
 import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
+import { EcoDesignSuggestions } from "@/components/eco-design/EcoDesignSuggestions";
+import { FinalistExplanation } from "@/components/explainability/FinalistExplanation";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Meter } from "@/components/ui/Meter";
@@ -33,15 +35,23 @@ export default function Stage7Page() {
 
   const [run, setRun] = useState<OptimizationRunOut | null>(null);
   const [materials, setMaterials] = useState<MaterialOut[]>([]);
+  const [ecoDesignByRecipeId, setEcoDesignByRecipeId] = useState<Record<string, EcoDesignSuggestionOut[]>>({});
   const [showEliminated, setShowEliminated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!optimizationRunId) return;
     Promise.all([api.getOptimizationRun(optimizationRunId), api.listMaterials()])
-      .then(([r, mats]) => {
+      .then(async ([r, mats]) => {
         setRun(r);
         setMaterials(mats);
+        // Faz P.2 (Madde 21) — her finalist için ayrı, gerçek veriye dayalı öneri listesi.
+        const lists = await Promise.all(r.finalists.map((f) => api.getEcoDesignSuggestions(f.recipe.id)));
+        const byRecipeId: Record<string, EcoDesignSuggestionOut[]> = {};
+        r.finalists.forEach((f, i) => {
+          byRecipeId[f.recipe.id] = lists[i];
+        });
+        setEcoDesignByRecipeId(byRecipeId);
       })
       .catch((e) => setError(String(e)));
   }, [optimizationRunId]);
@@ -128,6 +138,8 @@ export default function Stage7Page() {
                 <p className="mt-1 text-sm text-ink/80">{f.justification_text}</p>
               </div>
 
+              <FinalistExplanation bullets={f.explanation_bullets} />
+
               {f.recipe.data_source_tags && f.recipe.data_source_tags.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {f.recipe.data_source_tags.map((tag) => (
@@ -174,6 +186,13 @@ export default function Stage7Page() {
                     <span className="font-mono">{f.decision_basis.karbon_ef_versiyonu ?? "Belirtilmedi"}</span>
                   </p>
                 </div>
+              </div>
+
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink/50">
+                  Tasarım İyileştirme Önerileri
+                </p>
+                <EcoDesignSuggestions suggestions={ecoDesignByRecipeId[f.recipe.id] ?? []} />
               </div>
             </Card>
           );

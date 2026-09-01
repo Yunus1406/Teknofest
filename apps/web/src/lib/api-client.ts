@@ -15,6 +15,9 @@ import type {
   DashboardSummaryOut,
   DigitalProductPassportOut,
   DigitalTwinOut,
+  EcoDesignSuggestionOut,
+  ScenarioOverridesIn,
+  ScenarioResultOut,
   FacilityOut,
   FacilityUpsert,
   FinalResultOut,
@@ -195,6 +198,17 @@ export const api = {
   // Aşama 12
   finalizeResult: (recipeId: string) =>
     request<FinalResultOut>(`/production-flow/recipes/${recipeId}/finalize`, { method: "POST" }),
+
+  // Faz P.1 (Madde 20) — Senaryo Laboratuvarı
+  runScenario: (recipeId: string, overrides: ScenarioOverridesIn) =>
+    request<ScenarioResultOut>(`/production-flow/recipes/${recipeId}/scenario`, {
+      method: "POST",
+      body: JSON.stringify(overrides),
+    }),
+
+  // Faz P.2 (Madde 21) — Otomatik Eko-Tasarım Önerileri
+  getEcoDesignSuggestions: (recipeId: string) =>
+    request<EcoDesignSuggestionOut[]>(`/production-flow/recipes/${recipeId}/eco-design-suggestions`),
 
   // Faz C.1/C.2 — Dijital Ürün Pasaportu
   createOrGetPassport: (recipeId: string) =>

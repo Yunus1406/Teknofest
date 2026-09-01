@@ -16,8 +16,17 @@ from app.schemas.optimization import (
     ZeroFinalistDiagnosisOut,
 )
 from app.services import optimization_service
+from app.services.explainability_service import build_finalist_explanation_bullets
 
 router = APIRouter(prefix="/optimization", tags=["Aşama 6-7 - Optimizasyon & Reçete Önerileri"])
+
+
+def _to_candidate_out(db: Session, candidate: OptimizationCandidate) -> OptimizationCandidateOut:
+    """Faz P.3 (Madde 22) — `explanation_bullets` ORM'de bir kolon değil,
+    okuma anında hesaplanır (bkz. explainability_service.py)."""
+    out = OptimizationCandidateOut.model_validate(candidate)
+    out.explanation_bullets = build_finalist_explanation_bullets(db, candidate)
+    return out
 
 
 def _load_candidate_with_recipe(db: Session, candidate_id: str) -> OptimizationCandidate:
@@ -50,7 +59,7 @@ def run_optimization(
     return OptimizationRunOut(
         id=result["run"].id,
         packaging_request_id=request_id,
-        finalists=[OptimizationCandidateOut.model_validate(f) for f in finalists],
+        finalists=[_to_candidate_out(db, f) for f in finalists],
         notable_eliminated=[EliminatedCandidateOut(**e) for e in result["notable_eliminated"]],
         generated_candidate_count=result["generated_candidate_count"],
         survived_constraint_engine_count=result["survived_constraint_engine_count"],
@@ -72,7 +81,7 @@ def get_run(run_id: str, db: Session = Depends(get_db)):
     return OptimizationRunOut(
         id=run.id,
         packaging_request_id=run.packaging_request_id,
-        finalists=[OptimizationCandidateOut.model_validate(f) for f in finalists],
+        finalists=[_to_candidate_out(db, f) for f in finalists],
         notable_eliminated=[],
         generated_candidate_count=run.parameters.get("candidate_count_generated", 0),
         survived_constraint_engine_count=run.parameters.get("survived_constraint_engine_count", 0),

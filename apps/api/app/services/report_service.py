@@ -24,6 +24,8 @@ from app.schemas.company import COMPANY_BENCHMARK_METRICS
 from app.services import production_flow_service, traceability_service
 from app.services.common import canonical_packaging_category
 from app.services.packaging_service import _current_requirement_version
+from app.services.eco_design_service import build_eco_design_suggestions
+from app.services.explainability_service import build_finalist_explanation_bullets
 from app.services.scorecard_service import build_sustainability_scorecard
 
 _PPWR_DISCLAIMER = (
@@ -108,6 +110,11 @@ _CONFIDENCE_BY_KIND = {
     "simulasyon": "Düşük",
     "simulasyon_verisi": "Düşük",
     "tanimli_gercek": "Düşük",
+    # Faz P.1 (Madde 20) — Senaryo Laboratuvarı'nın hipotetik what-if
+    # çıktısı. `simulasyon_verisi`'den KASITLI OLARAK ayrı: o "gerçek
+    # üretim beslemesi eksik" anlamına gelir, bu ise kullanıcının kendi
+    # seçtiği hipotetik bir senaryodur (bkz. app/services/scenario_service.py).
+    "senaryo_simulasyonu": "Düşük",
     "varsayimsal": "Varsayımsal",
     "tanimli_demo": "Varsayımsal",
 }
@@ -312,7 +319,7 @@ def _elimination_section(recipe: Recipe, run: OptimizationRun | None) -> dict:
     return {"applicable": True, "note": None, "items": run.notable_eliminated}
 
 
-def _selected_recipe_section(recipe: Recipe, trace: dict) -> dict:
+def _selected_recipe_section(db: Session, recipe: Recipe, trace: dict, candidate: OptimizationCandidate | None) -> dict:
     return {
         "version": recipe.version,
         "status": recipe.status,
@@ -325,6 +332,9 @@ def _selected_recipe_section(recipe: Recipe, trace: dict) -> dict:
         # deterministik çıktısıdır -- "Hesaplanan".
         "_kaynak": report_source_label("hesaplanan"),
         "_guven": data_confidence_level("hesaplanan"),
+        # Faz P.3 (Madde 22) — additive. Aday bir optimizasyon koşusundan
+        # gelmiyorsa (ör. referans reçeteden) boş liste -- uydurulmaz.
+        "aciklama_maddeleri": build_finalist_explanation_bullets(db, candidate) if candidate is not None else [],
     }
 
 
@@ -693,6 +703,7 @@ def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
     comparison = production_flow_service.build_comparison(db, recipe)
 
     run: OptimizationRun | None = None
+    candidate: OptimizationCandidate | None = None
     if recipe.source == RecipeSource.URETILDI.value:
         candidate = db.query(OptimizationCandidate).filter_by(recipe_id=recipe.id).first()
         if candidate is not None:
@@ -712,7 +723,7 @@ def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
         "referans_recete": _reference_section(comparison),
         "optimizasyon_sureci": _optimization_process_section(recipe, run),
         "neden_elendi": _elimination_section(recipe, run),
-        "secilen_recete": _selected_recipe_section(recipe, trace),
+        "secilen_recete": _selected_recipe_section(db, recipe, trace, candidate),
         # Faz H.5 — comparison["recommended"] paylaşılan bir sözlük (Aşama
         # 8'in kendi API yanıtında da kullanılıyor); burada YENİ bir kopya
         # (spread) üzerine `_kaynak` eklenir, orijinal dict MUTATE edilmez.
@@ -742,6 +753,8 @@ def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
         # `comparison`/`executive_summary` zaten hesaplanmış, yeniden sorgu
         # YOK (bkz. scorecard_service.py modül docstring'i).
         "surdurulebilirlik_karnesi": build_sustainability_scorecard(db, recipe, comparison, executive_summary),
+        # Faz P.2 (Madde 21) — mevcut hiçbir anahtar değişmedi, additive.
+        "tasarim_iyilestirme_onerileri": build_eco_design_suggestions(db, recipe),
     }
     result["veri_kaynagi_matrisi"] = _source_matrix_section(result)
     return result
