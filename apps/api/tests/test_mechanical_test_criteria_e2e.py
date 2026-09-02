@@ -128,3 +128,77 @@ def test_full_flow_criteria_entered_then_test_actually_evaluated_against_it(clie
     result = submit_resp.json()["results"][0]
     assert result["result"] == "basarili"
     assert result["target_min"] == 20.0
+
+
+def test_real_asama2_flow_create_draft_then_update_with_criteria(client, db_session):
+    """Bu, gerçek kullanıcı akışının BİREBİR aynısı: Aşama 2'nin
+    `ensureDraftRequest()`'i şartname çıkarımı sırasında BOŞ
+    mechanical_test_criteria ile bir taslak POST'lar; kullanıcı mekanik
+    kriterleri doldurup "Onaylıyorum"a bastığında ayrı bir PUT ile
+    güncellenir. Önceki test (`test_suggested_test_targets_uses_real_user_
+    criteria`) reçeteyi/talebi TEK ADIMDA, kriter zaten dolu olarak
+    DB session'a yazıyordu -- bu, gerçek çift adımlı HTTP akışını (POST boş
+    → PUT dolu) hiç sınamıyordu. Bir canlı dev sunucusunda (kod
+    değişikliklerini hiç yeniden yüklememiş, eski bir süreç) bu iki adımlı
+    akış sessizce kriterleri kaybediyordu; bu test o senaryoyu kilitler."""
+    # 1) Aşama 2 "Alanları Çıkar" anı — boş taslak POST.
+    create_resp = client.post(
+        "/api/v1/packaging-flow/requests",
+        json={
+            "packaging_type": "esnek film ambalaj", "usage_area": "test", "product": "test ürün",
+            "target_market": "AB", "food_contact": True, "target_volume_units": 1000,
+            "dimensions": {}, "mechanical_test_criteria": {},
+        },
+    )
+    assert create_resp.status_code == 200, create_resp.text
+    req_id = create_resp.json()["id"]
+    assert create_resp.json()["mechanical_test_criteria"] == {}
+
+    # 2) Kullanıcı Mekanik Test Kabul Kriterleri'ni doldurup "Bilgileri
+    # Onaylıyorum, Devam Et"e basar -- AYRI bir PUT isteği.
+    update_resp = client.put(
+        f"/api/v1/packaging-flow/requests/{req_id}",
+        json={
+            "packaging_type": "esnek film ambalaj", "usage_area": "test", "product": "test ürün",
+            "target_market": "AB", "food_contact": True, "target_volume_units": 1000,
+            "dimensions": {},
+            "mechanical_test_criteria": {
+                "tensile": {"min": 25.0, "max": 40.0},
+                "seal": {"min": 5.0, "max": None},
+            },
+        },
+    )
+    assert update_resp.status_code == 200, update_resp.text
+    assert update_resp.json()["mechanical_test_criteria"] == {
+        "tensile": {"min": 25.0, "max": 40.0},
+        "seal": {"min": 5.0, "max": None},
+    }
+
+    # 3) Veritabanında GERÇEKTEN kalıcı olduğunu (aynı satır, yeniden okuma
+    # ile) doğrula -- response body'nin kendisi değil, DB'nin kendisi.
+    get_resp = client.get(f"/api/v1/packaging-flow/requests/{req_id}")
+    assert get_resp.json()["mechanical_test_criteria"]["tensile"] == {"min": 25.0, "max": 40.0}
+
+    # 4) Bu talebe bağlı bir reçete için Aşama 11'in hedef önerisi bu
+    # kriteri GERÇEKTEN kullanmalı -- tam zincir: POST → PUT → Recipe →
+    # suggested-test-targets.
+    from app.models.recipe import PackagingRequest, Recipe, RecipeLayer
+
+    req = db_session.get(PackagingRequest, req_id)
+    material = _material(db_session)
+    recipe = Recipe(packaging_request_id=req.id, version=1, source="sistem_uretti", status="dogrulandi", is_verified=True, total_micron=70.0)
+    db_session.add(recipe)
+    db_session.flush()
+    db_session.add(RecipeLayer(recipe_id=recipe.id, layer_index=0, layer_label="A", material_id=material.id, ratio_pct=100.0, thickness_micron=70.0))
+    db_session.commit()
+    db_session.refresh(recipe)
+
+    targets_resp = client.get(f"/api/v1/production-flow/recipes/{recipe.id}/suggested-test-targets")
+    assert targets_resp.status_code == 200, targets_resp.text
+    tensile = next(t for t in targets_resp.json() if t["test_type"] == "tensile")
+    seal = next(t for t in targets_resp.json() if t["test_type"] == "seal")
+    assert tensile["target_min"] == 25.0
+    assert tensile["target_max"] == 40.0
+    assert tensile["target_source"] == "kullanici_girisi"
+    assert seal["target_min"] == 5.0
+    assert seal["target_max"] is None
