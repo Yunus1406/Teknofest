@@ -239,6 +239,54 @@ def _qr_flowable(passport: dict | None) -> list:
     ]
 
 
+# Faz S.2 (Madde 30) — Bir Ambalajın Dönüşüm Hikâyesi. `data.get(
+# "donusum_hikayesi")` (report_service.py::build_optimization_report_data,
+# story_service.py::build_conversion_story REUSE eder) doluysa, Yönetici
+# Özeti'nin İÇİNDE, mevcut anlatı/tablodan HEMEN ÖNCE render edilir --
+# rapor bölüm numaralandırması (16+5 bölüm) DEĞİŞMEZ.
+
+def _story_stage_summary(stage: dict) -> str:
+    key = stage["key"]
+    veri = stage["veri"]
+    if key == "baslangic":
+        if not veri["has_reference"]:
+            return veri["note"] or _NO_REFERENCE_NOTE
+        ref = veri["reference"]
+        return f"Virgin {_fmt_pct(ref['virgin_pct'])}, PCR {_fmt_pct(ref['pcr_pct'])}, {_fmt_num(ref['total_micron'], 0, ' µm')}"
+    if key == "oneri":
+        line = f", Hat: {veri['line_name']}" if veri.get("line_name") else ""
+        return f"V{veri['version']} — {_fmt_num(veri.get('total_micron'), 0, ' µm')}{line}"
+    if key == "uretim":
+        line = veri.get("line")
+        orders = veri.get("orders") or []
+        return f"{line['name'] if line else '—'} — {len(orders)} üretim emri"
+    if key == "dogrulama":
+        ozet = veri["ozet"]
+        return f"{ozet['basarili']} başarılı / {ozet['basarisiz']} başarısız / {ozet['beklemede']} beklemede"
+    if key == "sonuc":
+        return veri["narrative"]
+    if key == "mevzuat":
+        items = veri["items"]
+        if not items:
+            return "Mevzuat değerlendirmesi yok."
+        degisen = sum(1 for i in items if i["changed_since_assessment"])
+        return f"{len(items)} mevzuat değerlendirmesi — {degisen} güncel versiyondan farklı"
+    return "—"
+
+
+def _conversion_story_flowables(hikaye: dict | None) -> list:
+    if not hikaye:
+        return []
+    rows = [["Aşama", "Özet"]]
+    for stage in hikaye["stages"]:
+        rows.append([stage["baslik"], _story_stage_summary(stage)])
+    return [
+        _p("Dönüşüm Hikâyesi", STYLE_H2),
+        _table(rows, col_widths=[30 * mm, 135 * mm]),
+        Spacer(1, 8),
+    ]
+
+
 # --- Bölüm render fonksiyonları (16 bölüm, sırayla) -------------------------
 
 def _section_cover(data: dict) -> list:
@@ -266,7 +314,9 @@ def _section_cover(data: dict) -> list:
 
 def _section_executive_summary(data: dict) -> list:
     ys = data["yonetici_ozeti"]
-    story = [_p("2. Yönetici Özeti", STYLE_H1), _p(ys["narrative"], STYLE_BODY)]
+    story = [_p("2. Yönetici Özeti", STYLE_H1)]
+    story += _conversion_story_flowables(data.get("donusum_hikayesi"))
+    story += [_p(ys["narrative"], STYLE_BODY)]
     if ys["has_reference"] and ys["gains_pct"]:
         rows = [["Kalem", "Değişim"]]
         labels = [
@@ -821,6 +871,9 @@ def render_executive_summary(data: dict, passport: dict | None = None) -> bytes:
             + (f" ({kapak['sku_code']})" if kapak.get("sku_code") else ""),
             STYLE_SUBTITLE,
         ),
+    ]
+    story += _conversion_story_flowables(data.get("donusum_hikayesi"))
+    story += [
         _p(ys["narrative"], STYLE_BODY),
         Spacer(1, 12),
     ]

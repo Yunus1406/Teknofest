@@ -138,7 +138,7 @@ export default function DigitalProductPassportPage() {
 
   const {
     header, status_summary, material_summary, environmental, circularity, food_contact,
-    physical_tests, regulatory, version_history,
+    physical_tests, regulatory, version_history, geri_donusum_rehberi,
   } = passport.public;
   const segments = aggregateToSegments(
     material_summary.virgin_pct,
@@ -268,6 +268,17 @@ export default function DigitalProductPassportPage() {
         ) : (
           <p className="mt-2 text-sm text-ink/50">Geri dönüştürülebilirlik değerlendirmesi henüz yapılmadı.</p>
         )}
+      </Card>
+
+      {/* Faz S.1 (Madde 29) — Geri Dönüşüm Rehberi. Bilinçli olarak
+          HARFSİZ: mevcut A)-G) sırasına yeni bir kart eklemek sonraki tüm
+          harfleri kaydırırdı. */}
+      <Card className="mt-6">
+        <CardTitle>Geri Dönüşüm Rehberi</CardTitle>
+        <p className="text-sm text-ink/70">{geri_donusum_rehberi.malzeme_aciklamasi}</p>
+        <p className="mt-2 text-sm font-medium text-ink/80">{geri_donusum_rehberi.kutu_talimati}</p>
+        <p className="mt-3 text-sm text-ink/60">{geri_donusum_rehberi.yerel_yonlendirme}</p>
+        <p className="mt-4 text-xs text-ink/40">{geri_donusum_rehberi.aciklama}</p>
       </Card>
 
       {/* D) Çevresel Performans */}

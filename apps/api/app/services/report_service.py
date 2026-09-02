@@ -28,6 +28,14 @@ from app.services.eco_design_service import build_eco_design_suggestions
 from app.services.explainability_service import build_finalist_explanation_bullets
 from app.services.scorecard_service import build_sustainability_scorecard
 
+# Faz S.2 (Madde 30) — `story_service` bu modülün `_reference_section`/
+# `_selected_recipe_section`/`_physical_verification_section`/
+# `_production_results_section`/`_regulation_version_history_section`/
+# `build_executive_summary`'sini REUSE eder (aşağıda `build_conversion_
+# story` ÇAĞRILIR). Modül seviyesinde değil, fonksiyon içinde import
+# edilir -- iki modül birbirini import etmeye çalışırsa döngüsel import
+# oluşur (story_service zaten bu modülden import ediyor).
+
 _PPWR_DISCLAIMER = (
     "Bu değerlendirme mevzuat ön uyum karar desteğidir; hukuki uygunluk "
     "sertifikasyonu değildir."
@@ -716,8 +724,14 @@ def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
     executive_summary = build_executive_summary(db, recipe, comparison)
     data_traceability = _data_traceability_section(production_section, physical_section, ppwr_section, trace)
 
+    from app.services.story_service import build_conversion_story
+
     result = {
         "kapak": _cover(recipe, packaging_request, run, trace),
+        # Faz S.2 (Madde 30) — additive. Yönetici Özeti'nin hemen başında
+        # gösterilecek 6 aşamalı anlatı (bkz. pdf_service.py
+        # _section_executive_summary/render_executive_summary).
+        "donusum_hikayesi": build_conversion_story(db, recipe.id),
         "yonetici_ozeti": executive_summary,
         "ambalaj_bilgileri": _packaging_info(packaging_request) if packaging_request is not None else None,
         "referans_recete": _reference_section(comparison),

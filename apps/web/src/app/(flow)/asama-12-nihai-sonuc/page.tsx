@@ -14,6 +14,7 @@ import { SustainabilityScorecard } from "@/components/scorecard/SustainabilitySc
 import { EcoDesignSuggestions } from "@/components/eco-design/EcoDesignSuggestions";
 import { FinalistExplanation } from "@/components/explainability/FinalistExplanation";
 import { LifecycleTimeline } from "@/components/lifecycle/LifecycleTimeline";
+import { ConversionStoryCard } from "@/components/story/ConversionStoryCard";
 import {
   carbonEfStatusLabel,
   carbonEfStatusTone,
@@ -359,6 +360,15 @@ export default function Stage12Page() {
                 Neden Bu Reçeteyi Seçtin?
               </CardTitle>
               <FinalistExplanation bullets={result.aciklama_maddeleri} eliminated={result.notable_eliminated} />
+            </Card>
+          )}
+
+          {recipeId && (
+            <Card className="mb-8">
+              <CardTitle subtitle="Başlangıçtan sonuca, mevcut verilerden derlenen önce-sonra özeti.">
+                Dönüşüm Hikâyesi
+              </CardTitle>
+              <ConversionStoryCard recipeId={recipeId} />
             </Card>
           )}
 

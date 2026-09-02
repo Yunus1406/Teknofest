@@ -971,6 +971,20 @@ export interface LifecycleEventOut {
   detay: Record<string, unknown>;
 }
 
+// Faz S.2 (Madde 30) — Bir Ambalajın Dönüşüm Hikâyesi. `veri` bilinçli
+// olarak gevşek — her aşama farklı bir şekle sahip (bkz. app/services/
+// story_service.py).
+export interface ConversionStoryStageOut {
+  key: string;
+  baslik: string;
+  veri: Record<string, unknown>;
+}
+
+export interface ConversionStoryOut {
+  recipe_id: string;
+  stages: ConversionStoryStageOut[];
+}
+
 export interface EcoDesignSuggestionOut {
   key: string;
   title: string;
@@ -1258,6 +1272,14 @@ export interface SustainabilityScorecardOut {
   dimensions: SustainabilityScorecardDimensionOut[];
 }
 
+// Faz S.1 (Madde 29) — bkz. app/services/recycling_guidance_service.py.
+export interface PassportRecyclingGuidanceOut {
+  malzeme_aciklamasi: string;
+  kutu_talimati: string;
+  yerel_yonlendirme: string;
+  aciklama: string;
+}
+
 export interface PassportPublicOut {
   header: PassportHeaderOut;
   status_summary: PassportStatusSummaryOut;
@@ -1273,6 +1295,8 @@ export interface PassportPublicOut {
   version_history: PassportVersionOut[];
   // Faz O.2 (Madde 19) — özet: karşılaştırma yüzdesi/veri güveni YOK.
   sustainability_scorecard_summary: SustainabilityScorecardSummaryItemOut[];
+  // Faz S.1 (Madde 29) — tüketiciye yönelik sade geri dönüşüm rehberi.
+  geri_donusum_rehberi: PassportRecyclingGuidanceOut;
 }
 
 export interface PassportLayerMaterialDetailOut {

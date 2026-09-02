@@ -6,6 +6,7 @@ import type {
   CarbonEmissionFactorOut,
   ChemicalRestrictionOut,
   ComplianceDossierOut,
+  ConversionStoryOut,
   CompanyBenchmarkCreate,
   CompanyBenchmarkOut,
   CompanyCreate,
@@ -218,6 +219,10 @@ export const api = {
   // Faz R.1 (Madde 26) — Ambalaj Yaşam Döngüsü Zaman Çizelgesi
   getLifecycleTimeline: (recipeId: string) =>
     request<LifecycleEventOut[]>(`/traceability/recipes/${recipeId}/lifecycle-timeline`),
+
+  // Faz S.2 (Madde 30) — Bir Ambalajın Dönüşüm Hikâyesi
+  getConversionStory: (recipeId: string) =>
+    request<ConversionStoryOut>(`/traceability/recipes/${recipeId}/conversion-story`),
 
   // Faz P.2 (Madde 21) — Otomatik Eko-Tasarım Önerileri
   getEcoDesignSuggestions: (recipeId: string) =>

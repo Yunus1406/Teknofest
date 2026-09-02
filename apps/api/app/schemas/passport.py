@@ -90,6 +90,14 @@ class PassportVersionOut(BaseModel):
     created_at: str
 
 
+# Faz S.1 (Madde 29) — bkz. app/services/recycling_guidance_service.py.
+class PassportRecyclingGuidanceOut(BaseModel):
+    malzeme_aciklamasi: str
+    kutu_talimati: str
+    yerel_yonlendirme: str
+    aciklama: str
+
+
 class PassportPublicOut(BaseModel):
     header: PassportHeaderOut
     status_summary: PassportStatusSummaryOut
@@ -108,6 +116,8 @@ class PassportPublicOut(BaseModel):
     # key/label/deger/birim/durum_metni (karşılaştırma yüzdesi ve veri
     # güveni detayı YOK -- bkz. app/services/scorecard_service.py).
     sustainability_scorecard_summary: list[dict] = []
+    # Faz S.1 (Madde 29) — tüketiciye yönelik sade geri dönüşüm rehberi.
+    geri_donusum_rehberi: PassportRecyclingGuidanceOut
 
 
 class PassportLayerMaterialDetailOut(BaseModel):

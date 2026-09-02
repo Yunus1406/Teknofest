@@ -28,6 +28,7 @@ from app.models.recipe import Recipe, RecipeAdditive, RegulatoryAssessment
 from app.models.regulation_requirement import RegulationRequirement
 from app.services import learning_memory_service, production_flow_service, traceability_service
 from app.services.packaging_service import _current_requirement_version
+from app.services.recycling_guidance_service import build_recycling_guidance
 from app.services.report_service import build_executive_summary
 from app.services.scorecard_service import build_sustainability_scorecard
 
@@ -368,6 +369,9 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
         # Faz O.2 (Madde 19) — özet: sadece etiket/değer/durum, karşılaştırma
         # yüzdesi ve veri güveni detayı YOK (bunlar Yetkili Alan'da).
         "sustainability_scorecard_summary": scorecard_summary,
+        # Faz S.1 (Madde 29) — QR ile ulaşılan tüketici görünümü için sade
+        # geri dönüşüm rehberi (bkz. app/services/recycling_guidance_service.py).
+        "geri_donusum_rehberi": build_recycling_guidance(recipe),
     }
 
     authorized = None

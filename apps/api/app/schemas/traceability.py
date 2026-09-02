@@ -121,3 +121,17 @@ class DigitalTwinOut(BaseModel):
     process_parameters: list[dict] = []
     sustainability_per_1000_units: dict | None = None
     version_history: list[dict] = []
+
+
+# Faz S.2 (Madde 30) — Bir Ambalajın Dönüşüm Hikâyesi (bkz. app/services/
+# story_service.py). `veri` bilinçli olarak gevşek `dict` -- her aşama farklı,
+# zaten mevcut report_service.py fonksiyonlarının döndüğü şekli birebir taşır.
+class ConversionStoryStageOut(BaseModel):
+    key: str
+    baslik: str
+    veri: dict
+
+
+class ConversionStoryOut(BaseModel):
+    recipe_id: str
+    stages: list[ConversionStoryStageOut]
