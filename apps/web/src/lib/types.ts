@@ -1358,6 +1358,10 @@ export interface PassportAuthorizedOut {
   causal_chain: CausalChainNodeOut[];
   // Faz O.2 (Madde 19) — tam detay: karşılaştırma yüzdesi + veri güveni dahil.
   sustainability_scorecard: SustainabilityScorecardDimensionOut[];
+  // Faz T.1e (Madde 31) — additive. `kanit_tamamlanma_orani` SKU yoksa None.
+  risk_skoru: RiskScoreOut | null;
+  kanit_tamamlanma_orani: { items: ComplianceDossierItemOut[]; tamam_sayisi: number; toplam: number } | null;
+  sektore_gore_konum: BenchmarkComparisonOut | null;
 }
 
 export interface DigitalProductPassportOut {

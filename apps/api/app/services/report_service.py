@@ -23,9 +23,13 @@ from app.models.regulation_requirement import RegulationRequirement
 from app.schemas.company import COMPANY_BENCHMARK_METRICS
 from app.services import production_flow_service, traceability_service
 from app.services.common import canonical_packaging_category
-from app.services.packaging_service import _current_requirement_version
+from app.services.learning_memory_service import causal_chain_for_recipe
+from app.services.lifecycle_service import build_lifecycle_timeline
+from app.services.recycling_guidance_service import build_recycling_guidance
+from app.services.packaging_service import _current_requirement_version, match_infrastructure
 from app.services.eco_design_service import build_eco_design_suggestions
 from app.services.explainability_service import build_finalist_explanation_bullets
+from app.services.risk_service import compute_risk_score
 from app.services.scorecard_service import build_sustainability_scorecard
 
 # Faz S.2 (Madde 30) — `story_service` bu modülün `_reference_section`/
@@ -314,6 +318,11 @@ def _optimization_process_section(recipe: Recipe, run: OptimizationRun | None) -
         "generated_candidate_count": run.parameters.get("candidate_count_generated"),
         "survived_constraint_engine_count": run.parameters.get("survived_constraint_engine_count"),
         "finalist_count": len(run.candidates),
+        # Faz T.1a (Madde 31, madde 8+16) — additive. Faz Q.2b'nin
+        # `categorize_eliminations()`'ı zaten `run.parameters` içine
+        # yazıyordu (optimization_service.py) ama rapor hiç okumuyordu;
+        # burada YENİDEN hesaplanmaz, sadece taşınır.
+        "elimination_category_counts": run.parameters.get("elimination_category_counts"),
     }
 
 
@@ -325,6 +334,19 @@ def _elimination_section(recipe: Recipe, run: OptimizationRun | None) -> dict:
     if not run.notable_eliminated:
         return {"applicable": True, "note": _NO_ELIMINATED_DATA_NOTE, "items": []}
     return {"applicable": True, "note": None, "items": run.notable_eliminated}
+
+
+def _line_match_reason(db: Session, recipe: Recipe) -> str | None:
+    """Faz T.1a (Madde 31, madde 17) — Faz K.4'ün `match_infrastructure()`'ı
+    (packaging_service.py) REUSE edilir; seçilen hattın 5 kritere göre NEDEN
+    uygun bulunduğu gerekçesi taşınır, yeniden hesaplanmaz."""
+    if recipe.line_id is None or recipe.packaging_request is None:
+        return None
+    matches = match_infrastructure(db, recipe.packaging_request)
+    for m in matches:
+        if m["line"].id == recipe.line_id:
+            return m["match_reason"]
+    return None
 
 
 def _selected_recipe_section(db: Session, recipe: Recipe, trace: dict, candidate: OptimizationCandidate | None) -> dict:
@@ -343,6 +365,8 @@ def _selected_recipe_section(db: Session, recipe: Recipe, trace: dict, candidate
         # Faz P.3 (Madde 22) — additive. Aday bir optimizasyon koşusundan
         # gelmiyorsa (ör. referans reçeteden) boş liste -- uydurulmaz.
         "aciklama_maddeleri": build_finalist_explanation_bullets(db, candidate) if candidate is not None else [],
+        # Faz T.1a (Madde 31, madde 17) — additive.
+        "line_match_reason": _line_match_reason(db, recipe),
     }
 
 
@@ -415,8 +439,18 @@ def _ppwr_section(db: Session, packaging_request: PackagingRequest | None) -> di
     items = []
     for a in assessments:
         reg = db.get(Regulation, a.regulation_id)
+        # Faz T.4 (Madde 31) — ÖNCEDEN sırasız bir `.first()` kullanılıyordu;
+        # birden fazla RegulationRequirement satırı olan maddelerde (ör.
+        # PPWR-ART-7'nin 2030/2040 satırları) bu, `_current_requirement_
+        # version()` (packaging_service.py, §22/DPP'nin kullandığı KANONİK
+        # kaynak) ile FARKLI bir "güncel versiyon" gösterebilirdi -- aynı
+        # `target_year` sıralaması eklenerek tek bir doğruluk kaynağına
+        # hizalandı.
         requirement = (
-            db.query(RegulationRequirement).filter_by(regulation_id=a.regulation_id).first()
+            db.query(RegulationRequirement)
+            .filter_by(regulation_id=a.regulation_id)
+            .order_by(RegulationRequirement.target_year)
+            .first()
             if reg is not None
             else None
         )
@@ -429,6 +463,11 @@ def _ppwr_section(db: Session, packaging_request: PackagingRequest | None) -> di
                 "requirement_version": requirement.version if requirement is not None else None,
                 "requirement_source": requirement.source if requirement is not None else None,
                 "exception_text": requirement.exception_text if requirement is not None else None,
+                # Faz T.1b (Madde 31, madde 18) — additive. Faz L.1'in karar
+                # izi (hedef_pazar/ambalaj_malzemesi_tahmini/kullanim_alani/
+                # gida_temasi/ambalaj_kategorisi/istisna/uygulanan_madde/
+                # hedef_tarih) zaten DB'de duruyordu, hiç okunmuyordu.
+                "decision_trail": a.decision_trail,
             }
         )
     return {"items": items, "disclaimer": _PPWR_DISCLAIMER}
@@ -750,9 +789,25 @@ def build_optimization_report_data(db: Session, recipe_id: str) -> dict:
         "fiziksel_dogrulama": physical_section,
         "surdurulebilirlik_performansi": sustainability_section,
         "ppwr_on_uyum": ppwr_section,
+        # Faz T.1b (Madde 31, madde 6+11) — additive, YENİ §13. Faz Q.1'in
+        # 8 bileşenli risk skoru (Faz R.3'ün tedarikçi kanıt radarı 8.
+        # bileşen olarak OTOMATIK dahil) — Mevzuat'tan hemen sonra,
+        # "Riskler" konumunda.
+        "risk_skoru": compute_risk_score(db, recipe),
         "iklim_dongusellik": _climate_circularity_section(comparison, sustainability_section["per_1000_units"]),
+        # Faz T.1d (Madde 31, madde 12) — additive, MEVCUT "İklim ve
+        # Döngüsellik Perspektifi" (§14) bölümünü zenginleştirir (Faz S.1,
+        # DPP'de zaten vardı, rapor hiç okumuyordu).
+        "geri_donusum_rehberi": build_recycling_guidance(recipe),
         "veri_izlenebilirligi": data_traceability,
         "recete_izlenebilirligi": production_flow_service.version_history(db, recipe),
+        # Faz T.1c (Madde 31, madde 7+9) — additive, MEVCUT "Reçete
+        # İzlenebilirliği" (§16) bölümünü zenginleştirir. İkisi de REUSE:
+        # Faz I.3/Q.0'ın nedensel zinciri (DPP authorized'da zaten vardı,
+        # rapor hiç okumuyordu) ve Faz R.1'in yaşam döngüsü zaman
+        # çizelgesi (DPP'de ayrı sekmesi vardı, rapor hiç okumuyordu).
+        "nedensel_zincir": causal_chain_for_recipe(db, recipe),
+        "yasam_dongusu": build_lifecycle_timeline(db, recipe.id),
         "sonuc": _conclusion_section(executive_summary),
         # --- Faz H.6 — ek bölümler (mevcut 16 anahtarın hiçbiri değişmedi) ---
         "hesaplama_metodolojisi": _methodology_section(),

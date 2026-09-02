@@ -170,6 +170,34 @@ def _verdict_label(v: str | None) -> str:
     }.get(v, v or "—")
 
 
+# Faz T.1b (Madde 31, madde 6+11) — Faz Q.1'in risk skoru etiketleri.
+# apps/web/src/lib/labels.ts::riskLevelLabel/riskComponentLabel ile senkron
+# kalmalı (pdf_service.py'nin "sıfır servis import'u" kuralı, bkz. üstteki
+# _SCORECARD_CONFIDENCE_BY_KIND ile AYNI mirror deseni).
+_RISK_LEVEL_LABELS = {"dusuk": "Düşük Risk", "orta": "Orta Risk", "yuksek": "Yüksek Risk"}
+
+_RISK_COMPONENT_LABELS = {
+    "yeni_hammadde": "Yeni Hammadde", "pcr_seviyesi": "PCR Seviyesi", "kalinlik_azaltimi": "Kalınlık Azaltımı",
+    "makine_uyumu": "Makine Uyumu", "gecmis_uretim_benzerligi": "Geçmiş Üretim Benzerliği",
+    "teknik_performans": "Teknik Performans Tahmini", "mevzuat_kanit_eksikleri": "Mevzuat/Kanıt Eksikleri",
+    "tedarikci_kanit_tamligi": "Tedarikçi Kanıt Tamlığı",
+}
+
+
+# Faz T.1a (Madde 31, madde 8+16) — Faz M.2/Q.2b'nin `categorize_
+# eliminations()` (constraint_engine) kategori kodlarının Türkçe etiketi.
+# pdf_service.py servis import'u taşımadığından (bkz. modül docstring'i)
+# küçük bir mirror — apps/web/src/lib/labels.ts::eliminationCategoryLabel
+# ile senkron kalmalı.
+_ELIMINATION_CATEGORY_LABELS = {
+    "malzeme_uyumsuzlugu": "Malzeme Uyumsuzluğu",
+    "mevzuat": "Mevzuat",
+    "makine_hat_kisiti": "Makine/Hat Kısıtı",
+    "gecmis_basarisizlik": "Geçmiş Başarısızlığa Benzerlik",
+    "diger": "Diğer",
+}
+
+
 _REGULATORY_VERDICT_CODES = {
     "uygun_gorunuyor", "inceleme_gerekli", "uygun_degil", "veri_eksik", "henuz_metodoloji_yok",
 }
@@ -400,6 +428,16 @@ def _section_optimization_process(data: dict) -> list:
             ["Oran Adımı", _fmt_num(proc.get("ratio_step_pct"), 0, "%")],
         ]
         story.append(_table(rows, col_widths=[65 * mm, 100 * mm]))
+        # Faz T.1a (Madde 31, madde 8+16) — Optimizasyon Hunisi / Başarısız
+        # Reçetelerden Öğrenme'nin etkisi: eleme kategorisi kırılımı.
+        counts = proc.get("elimination_category_counts")
+        if counts:
+            story.append(Spacer(1, 6))
+            cat_rows = [["Eleme Kategorisi", "Sayı"]] + [
+                [_ELIMINATION_CATEGORY_LABELS.get(k, k), str(v)] for k, v in counts.items() if v
+            ]
+            if len(cat_rows) > 1:
+                story.append(_table(cat_rows, col_widths=[100 * mm, 65 * mm]))
     story.append(Spacer(1, 10))
     return story
 
@@ -442,6 +480,23 @@ def _section_selected_recipe(data: dict) -> list:
                 ]
             )
         story.append(_table(layer_rows, col_widths=[20 * mm, 75 * mm, 30 * mm, 25 * mm]))
+    if sel.get("line_match_reason"):
+        story.append(Spacer(1, 6))
+        story.append(_p(f"Hat Uygunluk Gerekçesi: {sel['line_match_reason']}", STYLE_SMALL))
+    # Faz T.1a (Madde 31, madde 5) — Açıklanabilir AI (Faz P.3): veri
+    # zaten hesaplanmıştı, önceden hiç render edilmiyordu.
+    if sel.get("aciklama_maddeleri"):
+        story.append(Spacer(1, 6))
+        story.append(_p("Neden Bu Reçete?", STYLE_H2))
+        for madde in sel["aciklama_maddeleri"]:
+            story.append(_p(f"• {madde}", STYLE_BODY))
+    story.append(
+        _p(
+            "Dijital İkiz görünümü (proses/enerji/fire/karbon canlı karşılaştırması) "
+            "Dashboard 12 ve DPP Yetkili Alan'da ayrıca mevcuttur.",
+            STYLE_SMALL,
+        )
+    )
     if sel.get("_kaynak"):
         story.append(_p(f"Veri Kaynağı: {sel['_kaynak']}", STYLE_SMALL))
     if sel.get("_guven"):
@@ -552,6 +607,20 @@ def _section_sustainability(data: dict) -> list:
     return story
 
 
+_DECISION_TRAIL_LABELS = {
+    "hedef_pazar": "Hedef Pazar", "ambalaj_malzemesi_tahmini": "Ambalaj Malzemesi (Tahmini)",
+    "kullanim_alani": "Kullanım Alanı", "gida_temasi": "Gıda Teması", "ambalaj_kategorisi": "Ambalaj Kategorisi",
+    "istisna": "İstisna", "uygulanan_madde": "Uygulanan Madde", "hedef_tarih": "Hedef Tarih",
+}
+
+
+def _decision_trail_line(trail: dict | None) -> str | None:
+    if not trail:
+        return None
+    parts = [f"{_DECISION_TRAIL_LABELS.get(k, k)}: {v}" for k, v in trail.items() if v is not None]
+    return " · ".join(parts) if parts else None
+
+
 def _section_ppwr(data: dict) -> list:
     ppwr = data["ppwr_on_uyum"]
     story = [_p("12. PPWR Ön Uyum Değerlendirmesi", STYLE_H1)]
@@ -569,14 +638,34 @@ def _section_ppwr(data: dict) -> list:
                 ]
             )
         story.append(_table(rows, col_widths=[55 * mm, 35 * mm, 25 * mm, 45 * mm]))
+        # Faz T.1b (Madde 31, madde 18) — Faz L.1'in karar izi, zaten
+        # hesaplı, önceden hiç render edilmiyordu.
+        for item in ppwr["items"]:
+            trail_line = _decision_trail_line(item.get("decision_trail"))
+            if trail_line:
+                story.append(Spacer(1, 3))
+                story.append(_p(f"Karar İzi ({_dash(item['regulation_code'])}): {trail_line}", STYLE_SMALL))
     story.append(_p(ppwr["disclaimer"], STYLE_DISCLAIMER))
+    story.append(Spacer(1, 10))
+    return story
+
+
+def _section_risk_score(data: dict) -> list:
+    """Faz T.1b (Madde 31, madde 6+11) — YENİ §13. Faz Q.1'in risk skoru
+    (Faz R.3'ün tedarikçi kanıt radarı 8. bileşen olarak dahil)."""
+    risk = data["risk_skoru"]
+    story = [_p("13. Üretim Öncesi Risk Skoru", STYLE_H1), _p(f"Genel Risk: {_RISK_LEVEL_LABELS.get(risk['genel_risk'], risk['genel_risk'])}", STYLE_H2)]
+    rows = [["Bileşen", "Risk Katkısı", "Açıklama"]]
+    for key, c in risk["bilesenler"].items():
+        rows.append([_RISK_COMPONENT_LABELS.get(key, key), _RISK_LEVEL_LABELS.get(c["risk_katkisi"], c["risk_katkisi"]), c["aciklama"]])
+    story.append(_table(rows, col_widths=[45 * mm, 25 * mm, 95 * mm]))
     story.append(Spacer(1, 10))
     return story
 
 
 def _section_climate(data: dict) -> list:
     c = data["iklim_dongusellik"]
-    story = [_p(f"13. {c['perspective_label']}", STYLE_H1)]
+    story = [_p(f"14. {c['perspective_label']}", STYLE_H1)]
     rows = [
         ["Kalem", "Değer"],
         ["Virgin / PCR / PIR-Regranül", f"{_fmt_pct(c['virgin_pct'])} / {_fmt_pct(c['pcr_pct'])} / {_fmt_pct(c['regranule_pct'])}"],
@@ -593,13 +682,22 @@ def _section_climate(data: dict) -> list:
         story.append(_p(f"Fire/Enerji Veri Kaynağı: {c['_kaynak_fire_enerji']}", STYLE_SMALL))
     if c.get("_guven_fire_enerji"):
         story.append(_p(f"Fire/Enerji Veri Güveni: {c['_guven_fire_enerji']}", STYLE_SMALL))
+    # Faz T.1d (Madde 31, madde 12) — QR Geri Dönüşüm Yönlendirmesi
+    # (Faz S.1, DPP'de zaten vardı, REUSE).
+    guidance = data.get("geri_donusum_rehberi")
+    if guidance:
+        story.append(Spacer(1, 6))
+        story.append(_p("Geri Dönüşüm Rehberi", STYLE_H2))
+        story.append(_p(guidance["malzeme_aciklamasi"], STYLE_BODY))
+        story.append(_p(guidance["kutu_talimati"], STYLE_BODY))
+        story.append(_p(guidance["aciklama"], STYLE_DISCLAIMER))
     story.append(Spacer(1, 10))
     return story
 
 
 def _section_data_traceability(data: dict) -> list:
     dt = data["veri_izlenebilirligi"]
-    story = [_p("14. Veri ve Hesaplama İzlenebilirliği", STYLE_H1)]
+    story = [_p("15. Veri ve Hesaplama İzlenebilirliği", STYLE_H1)]
     story.append(_p(f"Üretim verisi kaynağı: {', '.join(dt['production_data_sources']) or '—'}", STYLE_BODY))
     story.append(_p(f"Fiziksel test verisi kaynağı: {', '.join(dt['physical_test_sources']) or '—'}", STYLE_BODY))
     if dt["carbon_ef_sources"]:
@@ -612,24 +710,49 @@ def _section_data_traceability(data: dict) -> list:
     return story
 
 
+def _fmt_date(v) -> str:
+    return v.strftime("%d.%m.%Y") if hasattr(v, "strftime") else str(v)
+
+
 def _section_recipe_traceability(data: dict) -> list:
     history = data["recete_izlenebilirligi"]
-    story = [_p("15. Reçete İzlenebilirliği", STYLE_H1)]
+    story = [_p("16. Reçete İzlenebilirliği", STYLE_H1)]
     if not history:
         story.append(_p("Versiyon geçmişi bulunamadı.", STYLE_BODY))
     else:
         rows = [["Versiyon", "Durum", "Doğrulandı mı?", "Tarih"]]
         for v in history:
-            created = v["created_at"]
-            created_str = created.strftime("%d.%m.%Y") if hasattr(created, "strftime") else str(created)
-            rows.append([f"V{v['version']}", v["status"], "Evet" if v["is_verified"] else "Hayır", created_str])
+            rows.append([f"V{v['version']}", v["status"], "Evet" if v["is_verified"] else "Hayır", _fmt_date(v["created_at"])])
         story.append(_table(rows, col_widths=[25 * mm, 45 * mm, 35 * mm, 35 * mm]))
+
+    # Faz T.1c (Madde 31, madde 7) — Öğrenen Firma Hafızası: nedensel
+    # zincirin her halkasının hat + sonuç özeti (DPP authorized'daki
+    # "Nedensel Öğrenme Zinciri" ile AYNI veri, REUSE).
+    chain = data.get("nedensel_zincir")
+    if chain:
+        story.append(Spacer(1, 6))
+        story.append(_p("Nedensel Öğrenme Zinciri", STYLE_H2))
+        chain_rows = [["Versiyon", "Hat", "Sonuç"]]
+        for node in chain:
+            sonuc = "Başarısız — " + (node.get("basarisizlik_nedeni") or "—") if node.get("outcome") == "basarisiz" else (node.get("outcome") or "—")
+            chain_rows.append([f"V{node['version']}", _dash(node.get("line_name")), sonuc])
+        story.append(_table(chain_rows, col_widths=[20 * mm, 45 * mm, 100 * mm]))
+
+    # Faz T.1c (Madde 31, madde 9) — Yaşam Döngüsü Zaman Çizelgesi (DPP'nin
+    # ayrı sekmesiyle AYNI veri, REUSE).
+    events = data.get("yasam_dongusu")
+    if events:
+        story.append(Spacer(1, 6))
+        story.append(_p("Yaşam Döngüsü Zaman Çizelgesi", STYLE_H2))
+        event_rows = [["Tarih", "Olay"]] + [[_fmt_date(e["tarih"]), e["baslik"]] for e in events]
+        story.append(_table(event_rows, col_widths=[35 * mm, 130 * mm]))
+
     story.append(Spacer(1, 10))
     return story
 
 
 def _section_conclusion(data: dict) -> list:
-    return [_p("16. Sonuç", STYLE_H1), _p(data["sonuc"]["summary_text"], STYLE_BODY)]
+    return [_p("26. Sonuç", STYLE_H1), _p(data["sonuc"]["summary_text"], STYLE_BODY)]
 
 
 # --- Faz H.6 — Optimizasyon Raporuna Ek Bölümler ----------------------------
@@ -835,10 +958,10 @@ def render_technical_report(data: dict, passport: dict | None = None) -> bytes:
     story += _section_physical_verification(data)
     story += _section_sustainability(data)
     story += _section_ppwr(data)
+    story += _section_risk_score(data)
     story += _section_climate(data)
     story += _section_data_traceability(data)
     story += _section_recipe_traceability(data)
-    story += _section_conclusion(data)
     story += _section_methodology(data)
     story += _section_bibliography(data)
     story += _section_data_quality(data)
@@ -848,6 +971,10 @@ def render_technical_report(data: dict, passport: dict | None = None) -> bytes:
     story += _section_benchmark_comparison(data)
     story += _section_sustainability_scorecard(data)
     story += _section_eco_design_suggestions(data)
+    # Faz T.1c/T.2 (Madde 31) — Sonuç mantıksal akışın SON adımı olmalı
+    # (Başlangıç→...→Kanıt Seviyesi→Sonuç); önceden ortalarda (eski §16)
+    # duruyordu, en sona taşındı.
+    story += _section_conclusion(data)
     story += _qr_flowable(passport)
     doc.build(story)
     return buf.getvalue()

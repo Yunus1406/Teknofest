@@ -27,9 +27,11 @@ from app.models.production import PhysicalTest, ProductionOrder, SustainabilityR
 from app.models.recipe import Recipe, RecipeAdditive, RegulatoryAssessment
 from app.models.regulation_requirement import RegulationRequirement
 from app.services import learning_memory_service, production_flow_service, traceability_service
+from app.services.compliance_dossier_service import build_compliance_dossier
 from app.services.packaging_service import _current_requirement_version
 from app.services.recycling_guidance_service import build_recycling_guidance
-from app.services.report_service import build_executive_summary
+from app.services.report_service import _benchmark_comparison_section, build_executive_summary
+from app.services.risk_service import compute_risk_score
 from app.services.scorecard_service import build_sustainability_scorecard
 
 
@@ -182,6 +184,19 @@ def _status_summary(
         ),
         "last_updated": passport.updated_at.isoformat(),
     }
+
+
+def _compliance_summary_for_sku(db: Session, sku) -> dict | None:
+    """Faz T.1e (Madde 31, madde 10) — `build_compliance_dossier()`
+    (Faz R.2) SKU-scoped'tur; DPP recipe-scoped olduğu için SKU
+    üzerinden köprülenir. SKU yoksa (tek seferlik talep) dürüstçe None."""
+    if sku is None:
+        return None
+    dossier = build_compliance_dossier(db, sku.id)
+    if dossier is None:
+        return None
+    tamam_sayisi = sum(1 for i in dossier["items"] if i["durum"] == "tamam")
+    return {"items": dossier["items"], "tamam_sayisi": tamam_sayisi, "toplam": len(dossier["items"])}
 
 
 _REGULATORY_DISCLAIMER = (
@@ -421,6 +436,18 @@ def build_passport_content(db: Session, passport: DigitalProductPassport, includ
             # Faz O.2 (Madde 19) — tam detay: karşılaştırma yüzdesi + veri
             # güveni kind'i dahil tüm 9 boyut.
             "sustainability_scorecard": scorecard["dimensions"],
+            # Faz T.1e (Madde 31, madde 6+11) — additive. Faz Q.1'in risk
+            # skoru (Faz R.3'ün tedarikçi kanıt radarı 8. bileşen olarak
+            # OTOMATIK dahil), REUSE.
+            "risk_skoru": compute_risk_score(db, recipe),
+            # Faz T.1e (Madde 31, madde 10) — additive. Faz R.2'nin
+            # uygunluk dosyası SKU-scoped'tur (recipe-scoped DEĞİL); SKU
+            # yoksa dürüstçe None (uydurulmaz, R.2'nin scope sınırı).
+            "kanit_tamamlanma_orani": _compliance_summary_for_sku(db, sku),
+            # Faz T.1e (Madde 31, madde 14) — additive. Faz N.2'nin
+            # benchmark karşılaştırması (`comparison` zaten hesaplı), REUSE
+            # — production_flow.py router'ındaki AYNI cross-module desen.
+            "sektore_gore_konum": _benchmark_comparison_section(db, packaging_request, comparison),
         }
 
     settings = get_settings()

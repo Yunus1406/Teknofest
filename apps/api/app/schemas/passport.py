@@ -162,6 +162,12 @@ class PassportAuthorizedOut(BaseModel):
     # Faz O.2 (Madde 19) — Sürdürülebilirlik Karnesi'nin tam detayı
     # (karşılaştırma yüzdesi + veri güveni kind'i dahil 9 boyut).
     sustainability_scorecard: list[dict] = []
+    # Faz T.1e (Madde 31) — additive. `risk_skoru`: Faz Q.1/R.3, gevşek
+    # dict (RiskScoreOut ile aynı şekil). `kanit_tamamlanma_orani`: Faz
+    # R.2, SKU yoksa None (uydurulmaz). `sektore_gore_konum`: Faz N.2.
+    risk_skoru: dict | None = None
+    kanit_tamamlanma_orani: dict | None = None
+    sektore_gore_konum: dict | None = None
 
 
 class DigitalProductPassportOut(BaseModel):

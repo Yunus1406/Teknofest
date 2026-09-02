@@ -11,7 +11,9 @@ import { StatTile } from "@/components/ui/StatTile";
 import { LayeredCompositionBar } from "@/components/visualizations/LayeredCompositionBar";
 import { DigitalTwinView } from "@/components/digital-twin/DigitalTwinView";
 import { LifecycleTimeline } from "@/components/lifecycle/LifecycleTimeline";
+import { ConversionStoryCard } from "@/components/story/ConversionStoryCard";
 import { SustainabilityScorecard } from "@/components/scorecard/SustainabilityScorecard";
+import { RiskScoreBadge } from "@/components/risk/RiskScoreBadge";
 import { aggregateToSegments } from "@/lib/composition-segments";
 import {
   carbonEfStatusLabel,
@@ -21,6 +23,8 @@ import {
   dataConfidenceTone,
   dataSourceLabel,
   dataSourceTone,
+  dossierDurumLabel,
+  dossierDurumTone,
   materialTypeLabel,
   materialTypeTone,
   physicalTestResultLabel,
@@ -66,7 +70,7 @@ export default function DigitalProductPassportPage() {
   // Faz O.1 (Madde 18) — Yetkili Alan içinde iki sekme: mevcut ticari detay
   // ile yeni Dijital İkiz görünümü AYNI Card içinde, ayrı bir route/istek
   // gerektirmeden geçiş yapar.
-  const [authorizedTab, setAuthorizedTab] = useState<"detay" | "dijital_ikiz" | "yasam_dongusu">("detay");
+  const [authorizedTab, setAuthorizedTab] = useState<"detay" | "dijital_ikiz" | "yasam_dongusu" | "donusum_hikayesi">("detay");
 
   const [showAuthorizedForm, setShowAuthorizedForm] = useState(false);
   const [authorizedKeyInput, setAuthorizedKeyInput] = useState("");
@@ -518,12 +522,21 @@ export default function DigitalProductPassportPage() {
               >
                 Yaşam Döngüsü
               </button>
+              <button
+                type="button"
+                onClick={() => setAuthorizedTab("donusum_hikayesi")}
+                className={`text-sm font-medium ${authorizedTab === "donusum_hikayesi" ? "text-petrol underline underline-offset-4" : "text-ink/50"}`}
+              >
+                Dönüşüm Hikâyesi
+              </button>
             </div>
 
             {authorizedTab === "dijital_ikiz" ? (
               <DigitalTwinView recipeId={passport.authorized.traceability.recipe.id} />
             ) : authorizedTab === "yasam_dongusu" ? (
               <LifecycleTimeline recipeId={passport.authorized.traceability.recipe.id} />
+            ) : authorizedTab === "donusum_hikayesi" ? (
+              <ConversionStoryCard recipeId={passport.authorized.traceability.recipe.id} />
             ) : (
               <>
             <div className="space-y-2">
@@ -619,6 +632,52 @@ export default function DigitalProductPassportPage() {
                     </li>
                   ))}
                 </ol>
+              </div>
+            )}
+
+            {/* Faz T.1e (Madde 31) — Üretim Öncesi Risk Skoru (Faz Q.1/R.3). */}
+            {passport.authorized.risk_skoru && (
+              <div className="mt-5 border-t border-ink/10 pt-4">
+                <CardTitle>Üretim Öncesi Risk Skoru</CardTitle>
+                <RiskScoreBadge risk={passport.authorized.risk_skoru} />
+              </div>
+            )}
+
+            {/* Faz T.1e (Madde 31) — Kanıt Tamamlanma Oranı (Faz R.2). SKU
+                yoksa dürüstçe gösterilmez (uydurulmaz). */}
+            {passport.authorized.kanit_tamamlanma_orani && (
+              <div className="mt-5 border-t border-ink/10 pt-4">
+                <CardTitle subtitle={`${passport.authorized.kanit_tamamlanma_orani.tamam_sayisi}/${passport.authorized.kanit_tamamlanma_orani.toplam} kanıt kalemi tamam.`}>
+                  Kanıt Tamamlanma Oranı
+                </CardTitle>
+                <div className="space-y-1.5">
+                  {passport.authorized.kanit_tamamlanma_orani.items.map((item) => (
+                    <div key={item.key} className="flex flex-wrap items-center gap-2 text-sm">
+                      <Badge tone={dossierDurumTone(item.durum)}>{dossierDurumLabel(item.durum)}</Badge>
+                      <span className="text-ink/70">{item.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Faz T.1e (Madde 31) — Sektöre Göre Konum (Faz N.2). */}
+            {passport.authorized.sektore_gore_konum?.available && (
+              <div className="mt-5 border-t border-ink/10 pt-4">
+                <CardTitle>Sektöre Göre Konum (Benchmark)</CardTitle>
+                <div className="space-y-1.5">
+                  {passport.authorized.sektore_gore_konum.items?.map((item) => (
+                    <div key={item.metric_name} className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="text-ink/70">{item.metric_label}</span>
+                      <span className="font-mono text-xs text-ink/50">
+                        {item.recete_degeri ?? "—"} / {item.benchmark_value} {item.benchmark_unit}
+                      </span>
+                      {item.fark_pct != null && (
+                        <Badge tone={item.fark_pct < 0 ? "pcr" : "warn"}>%{item.fark_pct}</Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
