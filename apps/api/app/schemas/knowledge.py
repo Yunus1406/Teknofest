@@ -230,6 +230,21 @@ class RegulationOut(BaseModel):
     applicable_packaging_types: list[str]
 
 
+class SupplierEvidenceSignalOut(BaseModel):
+    mevcut: bool
+    aciklama: str
+
+
+# Faz R.3 (Madde 28) — Tedarikçi ve Hammadde Risk Radarı (bkz.
+# app/services/supplier_risk_service.py). CoA/SDS AYRI izlenmiyor --
+# `uygunluk_belgeleri` sinyali bunları dürüstçe birleşik gösterir.
+class SupplierEvidenceRadarOut(BaseModel):
+    material_id: str
+    material_name: str
+    signals: dict[str, SupplierEvidenceSignalOut]
+    tamlik_pct: float
+
+
 class RegulationChangeImpactOut(BaseModel):
     """Faz L.4 (Madde 17) — bkz. app/services/regulation_impact_service.py."""
 

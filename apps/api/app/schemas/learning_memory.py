@@ -27,3 +27,15 @@ class CausalChainNodeOut(BaseModel):
 class ChangeOutcomeStatsOut(BaseModel):
     # {"degisiklik_yok": {"basarili": N, "revizyon_gerekti": N, "beklemede": N}, ...}
     buckets: dict[str, dict[str, int]]
+
+
+# Faz R.1 (Madde 26) — Ambalaj Yaşam Döngüsü Zaman Çizelgesi (bkz.
+# app/services/lifecycle_service.py). `event_type`: sartname_olusturuldu |
+# optimizasyon_calistirildi | recete_uretildi | recete_revize_edildi |
+# pilot_uretim | fiziksel_test | uretime_serbest_birakildi |
+# mevzuat_guncellendi.
+class LifecycleEventOut(BaseModel):
+    event_type: str
+    baslik: str
+    tarih: datetime
+    detay: dict

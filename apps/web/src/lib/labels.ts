@@ -346,6 +346,33 @@ export function evidenceStatusTone(v: string): Tone {
   }
 }
 
+// Faz R.2 (Madde 27) — Dijital Uygunluk Dosyası kalem durumları.
+export function dossierDurumLabel(v: string): string {
+  switch (v) {
+    case "tamam":
+      return "Tamam ✓";
+    case "kismi":
+      return "Kısmi ⚠";
+    case "eksik":
+      return "Eksik ✕";
+    default:
+      return v;
+  }
+}
+
+export function dossierDurumTone(v: string): Tone {
+  switch (v) {
+    case "tamam":
+      return "pcr";
+    case "kismi":
+      return "virgin";
+    case "eksik":
+      return "warn";
+    default:
+      return "neutral";
+  }
+}
+
 // Faz M.2 (Madde 12) — huni görselleştirmesinin yanındaki eleme nedeni
 // kategorileri (bkz. apps/api/app/constraint_engine/rules.py
 // REASON_CODE_CATEGORIES).
@@ -391,6 +418,36 @@ export function scorecardStatusLabel(v: string): string {
   return map[v] ?? v;
 }
 
+// Faz R.1 (Madde 26) — Ambalaj Yaşam Döngüsü Zaman Çizelgesi (bkz.
+// apps/api/app/services/lifecycle_service.py).
+export function lifecycleEventLabel(v: string): string {
+  const map: Record<string, string> = {
+    sartname_olusturuldu: "Teknik Şartname Oluşturuldu",
+    optimizasyon_calistirildi: "Optimizasyon Çalıştırıldı",
+    recete_uretildi: "Reçete Üretildi",
+    recete_revize_edildi: "Reçete Revize Edildi",
+    pilot_uretim: "Pilot Üretim",
+    fiziksel_test: "Fiziksel Test",
+    uretime_serbest_birakildi: "Üretime Serbest Bırakıldı",
+    mevzuat_guncellendi: "Mevzuat Güncellendi",
+  };
+  return map[v] ?? v;
+}
+
+export function lifecycleEventTone(v: string): Tone {
+  const map: Record<string, Tone> = {
+    sartname_olusturuldu: "neutral",
+    optimizasyon_calistirildi: "petrol",
+    recete_uretildi: "petrol",
+    recete_revize_edildi: "warn",
+    pilot_uretim: "virgin",
+    fiziksel_test: "virgin",
+    uretime_serbest_birakildi: "pcr",
+    mevzuat_guncellendi: "warn",
+  };
+  return map[v] ?? "neutral";
+}
+
 // Faz Q.1 (Madde 23) — Üretim Öncesi Risk Skoru (bkz. apps/api/app/
 // services/risk_service.py). Veri Güveni'nden (dataConfidenceLabel/Tone)
 // KASITLI OLARAK AYRI bir sözlük -- bu bir "veri ne kadar güvenilir"
@@ -431,6 +488,22 @@ export function riskComponentLabel(key: string): string {
     gecmis_uretim_benzerligi: "Geçmiş Üretim Benzerliği",
     teknik_performans: "Teknik Performans Tahmini",
     mevzuat_kanit_eksikleri: "Mevzuat/Kanıt Eksikleri",
+    // Faz R.3 (Madde 28) — additive 8. bileşen.
+    tedarikci_kanit_tamligi: "Tedarikçi Kanıt Tamlığı",
+  };
+  return map[key] ?? key;
+}
+
+// Faz R.3 (Madde 28) — Tedarikçi ve Hammadde Risk Radarı'nın 6 sinyalinin
+// kısa Türkçe başlığı (bkz. apps/api/app/services/supplier_risk_service.py).
+export function supplierEvidenceSignalLabel(key: string): string {
+  const map: Record<string, string> = {
+    teknik_veri: "Teknik Veri",
+    kaynak_tedarikci_kaniti: "Kaynak/Tedarikçi Kanıtı",
+    karbon_ef_kaynagi: "Karbon EF Kaynağı",
+    uygunluk_belgeleri: "Uygunluk Belgeleri (DoC/Kimyasal/CoA/SDS)",
+    lot_izlenebilirligi: "Lot İzlenebilirliği",
+    gida_temas_kaniti: "Gıda Temas Kanıtı",
   };
   return map[key] ?? key;
 }

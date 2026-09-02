@@ -445,6 +445,34 @@ export interface RegulationChangeImpactOut {
   affected_sku_codes: string[];
 }
 
+// Faz R.3 (Madde 28) — Tedarikçi ve Hammadde Risk Radarı. CoA/SDS AYRI
+// izlenmiyor -- `uygunluk_belgeleri` sinyali bunları dürüstçe birleşik gösterir.
+export interface SupplierEvidenceSignalOut {
+  mevcut: boolean;
+  aciklama: string;
+}
+
+export interface SupplierEvidenceRadarOut {
+  material_id: string;
+  material_name: string;
+  signals: Record<string, SupplierEvidenceSignalOut>;
+  tamlik_pct: number;
+}
+
+// Faz R.2 (Madde 27) — Dijital Uygunluk Dosyası. `durum`: "tamam"|"kismi"|"eksik".
+export interface ComplianceDossierItemOut {
+  key: string;
+  title: string;
+  durum: string;
+  aciklama: string;
+}
+
+export interface ComplianceDossierOut {
+  sku_id: string;
+  sku_code: string;
+  items: ComplianceDossierItemOut[];
+}
+
 export interface ChemicalRestrictionOut {
   id: string;
   substance_group: string;
@@ -931,6 +959,18 @@ export interface ScenarioResultOut {
 // Faz P.2 (Madde 21) — Otomatik Eko-Tasarım Önerileri (bkz. apps/api/app/
 // services/eco_design_service.py). Yeterli veri yoksa öneri türü hiç
 // üretilmez -- boş liste normaldir.
+// Faz R.1 (Madde 26) — Ambalaj Yaşam Döngüsü Zaman Çizelgesi (bkz.
+// apps/api/app/services/lifecycle_service.py). `event_type`:
+// sartname_olusturuldu | optimizasyon_calistirildi | recete_uretildi |
+// recete_revize_edildi | pilot_uretim | fiziksel_test |
+// uretime_serbest_birakildi | mevzuat_guncellendi.
+export interface LifecycleEventOut {
+  event_type: string;
+  baslik: string;
+  tarih: string;
+  detay: Record<string, unknown>;
+}
+
 export interface EcoDesignSuggestionOut {
   key: string;
   title: string;

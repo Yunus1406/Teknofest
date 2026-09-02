@@ -15,6 +15,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { NumberField, SelectField, TextField, TriStateField } from "@/components/ui/FormField";
+import { SupplierEvidenceBadge } from "@/components/risk/SupplierEvidenceBadge";
 
 type MaterialTab = "virgin" | "pcr" | "regranul";
 type Tab = MaterialTab | "additive";
@@ -419,6 +420,9 @@ export default function HammaddeKutuphanesiPage() {
                         ? ` · %${material.post_consumer_content_pct} post-consumer`
                         : ""}
                     </p>
+                    <div className="mt-2">
+                      <SupplierEvidenceBadge materialId={material.id} />
+                    </div>
                   </div>
                   <Button variant="secondary" onClick={() => setEditingId(material.id)}>
                     Düzenle

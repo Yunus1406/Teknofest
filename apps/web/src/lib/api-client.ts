@@ -5,6 +5,7 @@ import type {
   BenchmarkReferenceOut,
   CarbonEmissionFactorOut,
   ChemicalRestrictionOut,
+  ComplianceDossierOut,
   CompanyBenchmarkCreate,
   CompanyBenchmarkOut,
   CompanyCreate,
@@ -16,6 +17,7 @@ import type {
   DigitalProductPassportOut,
   DigitalTwinOut,
   EcoDesignSuggestionOut,
+  LifecycleEventOut,
   RiskScoreOut,
   ScenarioOverridesIn,
   ScenarioResultOut,
@@ -55,6 +57,7 @@ import type {
   RegulatoryAssessmentSummaryOut,
   SpecExtractionOut,
   SuggestedTestTargetOut,
+  SupplierEvidenceRadarOut,
 } from "./types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -104,11 +107,16 @@ export const api = {
     request<RegulationChangeImpactOut>(`/kb/regulations/${encodeURIComponent(code)}/change-impact`),
   listPolymers: () => request<PolymerOut[]>("/kb/polymers"),
   listMaterials: () => request<MaterialOut[]>("/kb/materials"),
+  // Faz R.3 (Madde 28)
+  getSupplierEvidenceRadar: (materialId: string) =>
+    request<SupplierEvidenceRadarOut>(`/materials/${materialId}/supplier-evidence-radar`),
   listAdditives: () => request<AdditiveOut[]>("/kb/additives"),
   listCarbonEmissionFactors: () => request<CarbonEmissionFactorOut[]>("/kb/carbon-emission-factors"),
   listProductionLines: () => request<ProductionLineOut[]>("/kb/production-lines"),
   listProductSkus: () => request<ProductSkuOut[]>("/product-skus"),
   getProductSkuDetail: (skuId: string) => request<ProductSkuDetailOut>(`/product-skus/${skuId}/detail`),
+  // Faz R.2 (Madde 27)
+  getComplianceDossier: (skuId: string) => request<ComplianceDossierOut>(`/product-skus/${skuId}/compliance-dossier`),
   createProductSku: (payload: ProductSkuCreate) =>
     request<ProductSkuOut>("/product-skus", { method: "POST", body: JSON.stringify(payload) }),
   updateProductSku: (skuId: string, payload: ProductSkuUpdate) =>
@@ -206,6 +214,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(overrides),
     }),
+
+  // Faz R.1 (Madde 26) — Ambalaj Yaşam Döngüsü Zaman Çizelgesi
+  getLifecycleTimeline: (recipeId: string) =>
+    request<LifecycleEventOut[]>(`/traceability/recipes/${recipeId}/lifecycle-timeline`),
 
   // Faz P.2 (Madde 21) — Otomatik Eko-Tasarım Önerileri
   getEcoDesignSuggestions: (recipeId: string) =>

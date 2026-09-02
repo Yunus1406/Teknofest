@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { StatTile } from "@/components/ui/StatTile";
 import { LayeredCompositionBar } from "@/components/visualizations/LayeredCompositionBar";
 import { DigitalTwinView } from "@/components/digital-twin/DigitalTwinView";
+import { LifecycleTimeline } from "@/components/lifecycle/LifecycleTimeline";
 import { SustainabilityScorecard } from "@/components/scorecard/SustainabilityScorecard";
 import { aggregateToSegments } from "@/lib/composition-segments";
 import {
@@ -65,7 +66,7 @@ export default function DigitalProductPassportPage() {
   // Faz O.1 (Madde 18) — Yetkili Alan içinde iki sekme: mevcut ticari detay
   // ile yeni Dijital İkiz görünümü AYNI Card içinde, ayrı bir route/istek
   // gerektirmeden geçiş yapar.
-  const [authorizedTab, setAuthorizedTab] = useState<"detay" | "dijital_ikiz">("detay");
+  const [authorizedTab, setAuthorizedTab] = useState<"detay" | "dijital_ikiz" | "yasam_dongusu">("detay");
 
   const [showAuthorizedForm, setShowAuthorizedForm] = useState(false);
   const [authorizedKeyInput, setAuthorizedKeyInput] = useState("");
@@ -499,10 +500,19 @@ export default function DigitalProductPassportPage() {
               >
                 Dijital İkiz
               </button>
+              <button
+                type="button"
+                onClick={() => setAuthorizedTab("yasam_dongusu")}
+                className={`text-sm font-medium ${authorizedTab === "yasam_dongusu" ? "text-petrol underline underline-offset-4" : "text-ink/50"}`}
+              >
+                Yaşam Döngüsü
+              </button>
             </div>
 
             {authorizedTab === "dijital_ikiz" ? (
               <DigitalTwinView recipeId={passport.authorized.traceability.recipe.id} />
+            ) : authorizedTab === "yasam_dongusu" ? (
+              <LifecycleTimeline recipeId={passport.authorized.traceability.recipe.id} />
             ) : (
               <>
             <div className="space-y-2">

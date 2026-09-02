@@ -6,7 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.models.product_sku import ProductSku
-from app.schemas.product_sku import ProductSkuCreate, ProductSkuDetailOut, ProductSkuOut, ProductSkuUpdate
+from app.schemas.product_sku import (
+    ComplianceDossierOut,
+    ProductSkuCreate,
+    ProductSkuDetailOut,
+    ProductSkuOut,
+    ProductSkuUpdate,
+)
+from app.services.compliance_dossier_service import build_compliance_dossier
 from app.services.traceability_service import build_recipe_traceability
 
 router = APIRouter(prefix="/product-skus", tags=["Ürün/SKU Kütüphanesi"])
@@ -35,6 +42,16 @@ def get_product_sku_detail(sku_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "SKU bulunamadı")
     trace = build_recipe_traceability(db, sku.current_recipe_id) if sku.current_recipe_id else None
     return ProductSkuDetailOut(**ProductSkuOut.model_validate(sku).model_dump(), traceability=trace)
+
+
+# --- Faz R.2 (Madde 27): Dijital Uygunluk Dosyası -------------------------
+
+@router.get("/{sku_id}/compliance-dossier", response_model=ComplianceDossierOut)
+def get_compliance_dossier(sku_id: str, db: Session = Depends(get_db)):
+    dossier = build_compliance_dossier(db, sku_id)
+    if dossier is None:
+        raise HTTPException(404, "SKU bulunamadı")
+    return dossier
 
 
 @router.post("", response_model=ProductSkuOut)

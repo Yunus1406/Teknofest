@@ -1,9 +1,15 @@
-"""Faz Q.1 (Madde 23) — Üretim Öncesi Risk Skoru. 7 bileşen, HER biri
-GERÇEK, zaten hesaplanan/1 sorguyla ulaşılabilir veriden türetilir; yeni
-bir ML/opak model KURULMAZ. Şeffaf: hangi bileşenin riski yükselttiği her
-zaman görünür (Faz P.3'ün açıklanabilirlik ilkesiyle tutarlı). Hiçbir şey
-persist edilmez -- Faz O/P'nin "compute-on-read" disipliniyle aynı, her
-istek DB'nin güncel halinden taze hesaplanır."""
+"""Faz Q.1 (Madde 23) — Üretim Öncesi Risk Skoru. 8 bileşen (Faz R.3'te
+tedarikçi kanıt tamlığı eklendi), HER biri GERÇEK, zaten hesaplanan/1
+sorguyla ulaşılabilir veriden türetilir; yeni bir ML/opak model KURULMAZ.
+Şeffaf: hangi bileşenin riski yükselttiği her zaman görünür (Faz P.3'ün
+açıklanabilirlik ilkesiyle tutarlı). Hiçbir şey persist edilmez -- Faz
+O/P'nin "compute-on-read" disipliniyle aynı, her istek DB'nin güncel
+halinden taze hesaplanır.
+
+Faz R.3 (Madde 28) — tedarikçi kanıt tamlığı SADECE bu dosyaya (görüntüleme
+katmanı) eklendi; `optimization/scorer.py::score_candidate()`'ın
+DEFAULT_WEIGHTS'i/aday SIRALAMASI/ELEME mantığı DEĞİŞTİRİLMEDİ (mevcut risk
+skoru mantığı GENİŞLETİLDİ, yeniden kurulmadı)."""
 from sqlalchemy.orm import Session
 
 from app.constraint_engine.types import RegulationSpec
@@ -17,6 +23,7 @@ from app.services.packaging_service import (
     match_infrastructure,
 )
 from app.services.scenario_service import _recipe_to_candidate
+from app.services.supplier_risk_service import build_supplier_evidence_radar
 
 
 def _component(deger, risk_katkisi: str, aciklama: str) -> dict:
@@ -115,6 +122,27 @@ def _mevzuat_kanit_bileseni(checklist: list[dict]) -> dict:
     return _component(len(eksik), risk, f"{len(eksik)} gıda teması kanıt kalemi eksik.")
 
 
+def _tedarikci_kanit_bileseni(recipe: Recipe) -> dict:
+    """Faz R.3 (Madde 28) — reçetenin TÜM katman malzemeleri için
+    `build_supplier_evidence_radar()` (REUSE, yeniden hesaplanmaz) çağrılır;
+    ortalama kanıt tamlığı düşükse risk yükselir."""
+    radars = [
+        build_supplier_evidence_radar(layer.material)
+        for layer in recipe.layers
+        if layer.material is not None
+    ]
+    if not radars:
+        return _component(None, "orta", "Reçetede malzeme bilgisi bulunamadı.")
+    ortalama_pct = round(sum(r["tamlik_pct"] for r in radars) / len(radars), 1)
+    if ortalama_pct < 40:
+        risk = "yuksek"
+    elif ortalama_pct < 80:
+        risk = "orta"
+    else:
+        risk = "dusuk"
+    return _component(ortalama_pct, risk, f"Hammadde tedarikçi kanıt tamlığı ortalaması %{ortalama_pct:.0f}.")
+
+
 _RISK_ORDER = {"dusuk": 0, "orta": 1, "yuksek": 2}
 
 
@@ -162,5 +190,6 @@ def compute_risk_score(db: Session, recipe: Recipe) -> dict:
         "gecmis_uretim_benzerligi": _gecmis_uretim_benzerligi_bileseni(evidence_count, tier),
         "teknik_performans": _teknik_performans_bileseni(score.breakdown["teknik_performans"]),
         "mevzuat_kanit_eksikleri": _mevzuat_kanit_bileseni(checklist),
+        "tedarikci_kanit_tamligi": _tedarikci_kanit_bileseni(recipe),
     }
     return {"genel_risk": _genel_risk(components), "bilesenler": components}

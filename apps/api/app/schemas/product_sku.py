@@ -70,3 +70,18 @@ class ProductSkuDetailOut(ProductSkuOut):
     DEĞİLDİR, sadece henüz üretim geçmişi olmadığı anlamına gelir."""
 
     traceability: RecipeTraceabilityOut | None = None
+
+
+# Faz R.2 (Madde 27) — Dijital Uygunluk Dosyası (bkz.
+# app/services/compliance_dossier_service.py). `durum`: "tamam"|"kismi"|"eksik".
+class ComplianceDossierItemOut(BaseModel):
+    key: str
+    title: str
+    durum: str
+    aciklama: str
+
+
+class ComplianceDossierOut(BaseModel):
+    sku_id: str
+    sku_code: str
+    items: list[ComplianceDossierItemOut]

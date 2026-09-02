@@ -310,6 +310,9 @@ export default function UrunPortfoyuPage() {
                   <Button variant="secondary" onClick={() => handleExpand(sku.id)}>
                     {expandedId === sku.id ? "Detayı Gizle" : "Üretim İzlenebilirliği"}
                   </Button>
+                  <Link href={`/uygunluk-dosyasi/${sku.id}`}>
+                    <Button variant="secondary">Uygunluk Dosyası</Button>
+                  </Link>
                   <Button variant="secondary" onClick={() => setEditingId(sku.id)}>
                     Düzenle
                   </Button>

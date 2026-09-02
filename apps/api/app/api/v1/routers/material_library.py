@@ -18,7 +18,9 @@ from app.schemas.knowledge import (
     MaterialCreate,
     MaterialOut,
     MaterialUpdate,
+    SupplierEvidenceRadarOut,
 )
+from app.services.supplier_risk_service import build_supplier_evidence_radar
 
 router = APIRouter(tags=["Hammadde Kütüphanesi"])
 
@@ -77,6 +79,16 @@ def update_material(material_id: str, payload: MaterialUpdate, db: Session = Dep
     db.commit()
     db.refresh(material)
     return material
+
+
+# --- Faz R.3 (Madde 28): Tedarikçi ve Hammadde Risk Radarı -----------------
+
+@router.get("/materials/{material_id}/supplier-evidence-radar", response_model=SupplierEvidenceRadarOut)
+def get_supplier_evidence_radar(material_id: str, db: Session = Depends(get_db)):
+    material = db.get(Material, material_id)
+    if material is None:
+        raise HTTPException(404, "Hammadde bulunamadı.")
+    return build_supplier_evidence_radar(material)
 
 
 @router.post("/additives", response_model=AdditiveOut)

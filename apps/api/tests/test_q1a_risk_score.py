@@ -149,4 +149,6 @@ def test_http_risk_score_endpoint(client, db_session):
     assert set(body["bilesenler"].keys()) == {
         "yeni_hammadde", "pcr_seviyesi", "kalinlik_azaltimi", "makine_uyumu",
         "gecmis_uretim_benzerligi", "teknik_performans", "mevzuat_kanit_eksikleri",
+        # Faz R.3 (Madde 28) — additive 8. bileşen.
+        "tedarikci_kanit_tamligi",
     }

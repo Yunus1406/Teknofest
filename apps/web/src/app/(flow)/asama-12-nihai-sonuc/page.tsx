@@ -13,6 +13,7 @@ import { StatTile } from "@/components/ui/StatTile";
 import { SustainabilityScorecard } from "@/components/scorecard/SustainabilityScorecard";
 import { EcoDesignSuggestions } from "@/components/eco-design/EcoDesignSuggestions";
 import { FinalistExplanation } from "@/components/explainability/FinalistExplanation";
+import { LifecycleTimeline } from "@/components/lifecycle/LifecycleTimeline";
 import {
   carbonEfStatusLabel,
   carbonEfStatusTone,
@@ -358,6 +359,15 @@ export default function Stage12Page() {
                 Neden Bu Reçeteyi Seçtin?
               </CardTitle>
               <FinalistExplanation bullets={result.aciklama_maddeleri} eliminated={result.notable_eliminated} />
+            </Card>
+          )}
+
+          {recipeId && (
+            <Card className="mb-8">
+              <CardTitle subtitle="Teknik şartnameden üretime serbest bırakmaya, mevcut olay kayıtlarından türetilen birleşik görünüm.">
+                Yaşam Döngüsü
+              </CardTitle>
+              <LifecycleTimeline recipeId={recipeId} />
             </Card>
           )}
 
