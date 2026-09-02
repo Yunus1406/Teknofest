@@ -19,6 +19,9 @@ class CausalChainNodeOut(BaseModel):
     gerceklesen_fire_kg: float | None = None
     gerceklesen_enerji_kwh: float | None = None
     physical_test_summary: dict
+    # Faz Q.0/Q.2 (Madde 24) — additive. "basarili" | "basarisiz" | "beklemede".
+    outcome: str
+    basarisizlik_nedeni: str | None = None
 
 
 class ChangeOutcomeStatsOut(BaseModel):

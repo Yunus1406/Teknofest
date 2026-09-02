@@ -40,7 +40,9 @@ def test_categorize_eliminations_unknown_reason_code_falls_into_diger():
 def test_categorize_eliminations_empty_list_returns_zero_counts():
     counts = categorize_eliminations([])
     assert sum(counts.values()) == 0
-    assert set(counts.keys()) == {"malzeme_uyumsuzlugu", "mevzuat", "makine_hat_kisiti", "diger"}
+    assert set(counts.keys()) == {
+        "malzeme_uyumsuzlugu", "mevzuat", "makine_hat_kisiti", "gecmis_basarisizlik", "diger",
+    }
 
 
 # --- Entegrasyon: run_optimization() gerçekten dolduruyor mu ---------------
@@ -84,7 +86,9 @@ def test_run_optimization_elimination_category_counts_sum_matches_eliminated_cou
 
     eliminated_count = result["generated_candidate_count"] - result["survived_constraint_engine_count"]
     counts = result["elimination_category_counts"]
-    assert set(counts.keys()) == {"malzeme_uyumsuzlugu", "mevzuat", "makine_hat_kisiti", "diger"}
+    assert set(counts.keys()) == {
+        "malzeme_uyumsuzlugu", "mevzuat", "makine_hat_kisiti", "gecmis_basarisizlik", "diger",
+    }
     assert sum(counts.values()) == eliminated_count
 
 

@@ -15,6 +15,13 @@ from app.constraint_engine.types import (
     RecipeCandidate,
 )
 
+# Faz Q.2 (Madde 25) — geçmişte AYNI hatta denenip fiziksel testi başarısız
+# olmuş bir kombinasyona (aynı malzeme kümesi + kalınlık ±%5) ne kadar
+# yakın olursa, o kombinasyonun tekrar başarısız olma riski o kadar yüksek
+# kabul edilir -- bu bir "kesin teknik kısıt" değil, geçmiş KANITA dayalı
+# bir tahmin, bu yüzden Tahmini Fiziksel Performans katmanında.
+_FAILED_RECIPE_THICKNESS_TOLERANCE_PCT = 5.0
+
 # Bilinen, birlikte geri dönüştürülmesi zor / uyumsuz polimer çiftleri
 # (PPWR Md.6 — geri dönüştürülebilirlik tasarımı bağlamında).
 INCOMPATIBLE_POLYMER_PAIRS: set[frozenset[str]] = {
@@ -218,6 +225,35 @@ def rule_ppwr_recyclability_multi_material(
     return None
 
 
+# --- Faz Q.2 (Madde 25): Başarısız Reçete Geçmişine Benzerlik ------------
+
+def rule_similar_to_failed_history(
+    candidate: RecipeCandidate, ctx: EvaluationContext
+) -> EvaluationResult | None:
+    if not ctx.failed_recipe_signatures:
+        return None
+    candidate_material_ids = frozenset(l.material.id for l in candidate.layers)
+    for sig in ctx.failed_recipe_signatures:
+        if candidate_material_ids != sig.material_ids:
+            continue
+        if sig.total_micron <= 0:
+            continue
+        sapma_pct = abs(candidate.total_micron - sig.total_micron) / sig.total_micron * 100
+        if sapma_pct <= _FAILED_RECIPE_THICKNESS_TOLERANCE_PCT:
+            return EvaluationResult(
+                tier=EvaluationTier.TAHMINI_FIZIKSEL_PERFORMANS,
+                verdict=EvaluationVerdict.ELENDI,
+                reason_code="gecmis_basarisizlik",
+                reason_text=(
+                    f"Bu kombinasyon (aynı hammaddeler, {candidate.total_micron:.0f}µm) "
+                    f"reçete {sig.recipe_id[:8]} sürüm {sig.version}'de aynı hatta başarısız "
+                    f"olmuştu: {sig.basarisizlik_nedeni}"
+                ),
+                data_confidence="orta",
+            )
+    return None
+
+
 # --- Faz K.7 (Madde 9): Reçete Matematiksel Tutarlılık Kontrolleri --------
 # Bu, ELENDİ/GEÇTİ tier'lı bir kural DEĞİL -- "iş kuralı" ihlali değil,
 # matematiksel bir İÇ TUTARSIZLIK (üretim mantığında bir hatayı işaret eder,
@@ -275,6 +311,9 @@ REASON_CODE_CATEGORIES: dict[str, str] = {
     "gida_temasi_uygun_degil": "mevzuat",
     "katki_gida_temasi_uygun_degil": "mevzuat",
     "uyumsuz_cok_polimer_yapisi": "mevzuat",
+    # Faz Q.2 (Madde 25) — kendi kategorisi (mevcut 4'ten AYRI, "diger"ye
+    # düşürülmez ki kullanıcı bu somut, kanıta dayalı nedeni net görsün).
+    "gecmis_basarisizlik": "gecmis_basarisizlik",
 }
 
 
@@ -288,7 +327,10 @@ def categorize_eliminations(
     bir aday BAŞINA tek kategori sayılır (ihlal başına değil), aksi halde
     toplam elenen aday sayısını aşar ve yanıltıcı olurdu (kullanıcının
     örneğindeki "294 eleme: 180+74+40" toplamı elenen sayısına eşittir)."""
-    counts: dict[str, int] = {"malzeme_uyumsuzlugu": 0, "mevzuat": 0, "makine_hat_kisiti": 0, "diger": 0}
+    counts: dict[str, int] = {
+        "malzeme_uyumsuzlugu": 0, "mevzuat": 0, "makine_hat_kisiti": 0,
+        "gecmis_basarisizlik": 0, "diger": 0,
+    }
     for _candidate, violations in eliminated:
         if not violations:
             continue
@@ -306,4 +348,5 @@ ALL_RULES = [
     rule_food_contact_layer_eligibility,
     rule_additive_dosage_and_food_contact,
     rule_ppwr_recyclability_multi_material,
+    rule_similar_to_failed_history,
 ]

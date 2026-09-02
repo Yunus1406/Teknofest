@@ -354,6 +354,10 @@ export function eliminationCategoryLabel(v: string): string {
     malzeme_uyumsuzlugu: "Malzeme Uyumsuzluğu",
     mevzuat: "Mevzuat",
     makine_hat_kisiti: "Makine/Hat Kısıtı",
+    // Faz Q.2 (Madde 25) — geçmişte AYNI hatta denenip fiziksel testi
+    // GERÇEKTEN başarısız olmuş bir kombinasyona benzerlik (bkz. backend
+    // constraint_engine/rules.py::rule_similar_to_failed_history).
+    gecmis_basarisizlik: "Geçmiş Başarısızlığa Benzerlik",
     diger: "Diğer",
   };
   return map[v] ?? v;
@@ -364,6 +368,7 @@ export function eliminationCategoryTone(v: string): Tone {
     malzeme_uyumsuzlugu: "virgin",
     mevzuat: "petrol",
     makine_hat_kisiti: "warn",
+    gecmis_basarisizlik: "warn",
     diger: "neutral",
   };
   return map[v] ?? "neutral";
@@ -384,6 +389,50 @@ export function scorecardStatusLabel(v: string): string {
     gida_temasi_yok: "Gıda Teması Yok — Gerekli Değil",
   };
   return map[v] ?? v;
+}
+
+// Faz Q.1 (Madde 23) — Üretim Öncesi Risk Skoru (bkz. apps/api/app/
+// services/risk_service.py). Veri Güveni'nden (dataConfidenceLabel/Tone)
+// KASITLI OLARAK AYRI bir sözlük -- bu bir "veri ne kadar güvenilir"
+// değil, "bu reçete üretime geçerse ne kadar risk taşıyor" göstergesi.
+export function riskLevelLabel(v: string): string {
+  switch (v) {
+    case "dusuk":
+      return "Düşük Risk";
+    case "orta":
+      return "Orta Risk";
+    case "yuksek":
+      return "Yüksek Risk";
+    default:
+      return v;
+  }
+}
+
+export function riskLevelTone(v: string): Tone {
+  switch (v) {
+    case "dusuk":
+      return "pcr";
+    case "orta":
+      return "virgin";
+    case "yuksek":
+      return "warn";
+    default:
+      return "neutral";
+  }
+}
+
+// Faz Q.1'in 7 risk bileşeninin kısa Türkçe başlığı.
+export function riskComponentLabel(key: string): string {
+  const map: Record<string, string> = {
+    yeni_hammadde: "Yeni Hammadde",
+    pcr_seviyesi: "PCR Seviyesi",
+    kalinlik_azaltimi: "Kalınlık Azaltımı",
+    makine_uyumu: "Makine Uyumu",
+    gecmis_uretim_benzerligi: "Geçmiş Üretim Benzerliği",
+    teknik_performans: "Teknik Performans Tahmini",
+    mevzuat_kanit_eksikleri: "Mevzuat/Kanıt Eksikleri",
+  };
+  return map[key] ?? key;
 }
 
 export function recyclabilityDimensionLabel(v: string): string {

@@ -121,10 +121,28 @@ class PackagingContext:
 
 
 @dataclass(frozen=True)
+class FailedRecipeSignature:
+    """Faz Q.2 (Madde 25) — geçmişte fiziksel testi BAŞARISIZ olmuş
+    (`Recipe.status == "revizyon_gerekli"`), AYNI hatta denenmiş bir
+    reçetenin GERÇEK kompozisyon imzası + başarısızlık nedeni. `material_ids`
+    bir küme (set) olarak karşılaştırılır -- katman sırası/index'i değil,
+    HANGİ malzemelerin kullanıldığı önemlidir."""
+
+    recipe_id: str
+    version: int
+    material_ids: frozenset[str]
+    total_micron: float
+    basarisizlik_nedeni: str
+
+
+@dataclass(frozen=True)
 class EvaluationContext:
     packaging: PackagingContext
     line: LineSpec
     regulations: list[RegulationSpec]
+    # Faz Q.2 (Madde 25) — additive, varsayılan boş liste. Mevcut hiçbir
+    # kural bu alanı okumaz/etkilenmez -- geriye dönük tam uyumlu.
+    failed_recipe_signatures: list[FailedRecipeSignature] = field(default_factory=list)
 
 
 # --- Sonuç tipi -------------------------------------------------------

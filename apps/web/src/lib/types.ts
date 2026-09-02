@@ -938,6 +938,20 @@ export interface EcoDesignSuggestionOut {
   veri_guveni_kind: string;
 }
 
+// Faz Q.1 (Madde 23) — Üretim Öncesi Risk Skoru (bkz. apps/api/app/
+// services/risk_service.py). `deger` bileşene göre number/number[]/
+// string[]/null olabilir; sadece görüntüleme amaçlı, hesaba katılmaz.
+export interface RiskComponentOut {
+  deger: number | string[] | null;
+  risk_katkisi: string;
+  aciklama: string;
+}
+
+export interface RiskScoreOut {
+  genel_risk: string;
+  bilesenler: Record<string, RiskComponentOut>;
+}
+
 export interface DashboardSummaryOut {
   active_cases: number;
   completed_cases: number;
@@ -1260,6 +1274,9 @@ export interface CausalChainNodeOut {
   gerceklesen_fire_kg: number | null;
   gerceklesen_enerji_kwh: number | null;
   physical_test_summary: { basarili: number; basarisiz: number; beklemede: number };
+  // Faz Q.0/Q.2 (Madde 24) — additive.
+  outcome: string;
+  basarisizlik_nedeni: string | null;
 }
 
 export interface PassportAuthorizedOut {

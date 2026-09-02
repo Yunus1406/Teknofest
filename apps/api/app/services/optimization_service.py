@@ -28,6 +28,7 @@ from app.optimization.candidate_generator import (
 from app.optimization.scorer import score_candidate
 from app.services.carbon import resolve_carbon_ef
 from app.services.common import canonical_packaging_category, preferred_polymer_codes
+from app.services.learning_memory_service import build_failed_recipe_signatures
 from app.services.packaging_service import match_infrastructure
 
 MAX_FINALISTS = 4
@@ -415,14 +416,20 @@ def run_optimization(
     )
     generation_breakdown = describe_candidate_generation(line_spec, layer_options, ratio_step_pct=ratio_step_pct)
 
+    canonical_category = canonical_packaging_category(packaging_request.packaging_type)
+    # Faz Q.2 (Madde 25) — bu hatta AYNI kategoride daha önce başarısız
+    # olmuş kombinasyonlar, kısıt motorunun bu koşuda kullanacağı bağlama
+    # eklenir (bkz. rule_similar_to_failed_history).
+    failed_recipe_signatures = build_failed_recipe_signatures(db, canonical_category, line.id)
     ctx = EvaluationContext(
         packaging=PackagingContext(
-            packaging_type=canonical_packaging_category(packaging_request.packaging_type),
+            packaging_type=canonical_category,
             food_contact=packaging_request.food_contact,
             target_volume_units=packaging_request.target_volume_units,
         ),
         line=line_spec,
         regulations=regulations,
+        failed_recipe_signatures=failed_recipe_signatures,
     )
     survivors, eliminated = filter_candidates(candidates, ctx)
     # Faz M.2 (Madde 12) — TÜM elenenlerin kategorik dağılımı (malzeme

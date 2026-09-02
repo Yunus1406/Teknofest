@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
-import type { PackagingRequestOut, ProductionLineOut, ProductionOrderSummaryOut, RecipeOut } from "@/lib/types";
+import type { PackagingRequestOut, ProductionLineOut, ProductionOrderSummaryOut, RecipeOut, RiskScoreOut } from "@/lib/types";
 import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { RiskScoreBadge } from "@/components/risk/RiskScoreBadge";
 import { LayerBreakdownTable } from "@/components/visualizations/LayerBreakdownTable";
 import { layerCompositionOutToTable } from "@/lib/composition-segments";
 import { useCaseStore } from "@/stores/case-store";
@@ -27,6 +28,8 @@ export default function Stage9Page() {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [risk, setRisk] = useState<RiskScoreOut | null>(null);
+
   const [summary, setSummary] = useState<ProductionOrderSummaryOut | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
@@ -40,6 +43,8 @@ export default function Stage9Page() {
         setLine(lines.find((l) => l.id === r.line_id) ?? null);
       })
       .catch((e) => setError(String(e)));
+    // Faz Q.1 (Madde 23) — üretim onayından ÖNCE risk skorunu göster.
+    api.getRiskScore(recipeId).then(setRisk).catch(() => setRisk(null));
   }, [recipeId, packagingRequestId]);
 
   useEffect(() => {
@@ -91,6 +96,16 @@ export default function Stage9Page() {
               <dd className="font-mono">{line?.layer_structure ?? "—"}</dd>
             </div>
           </dl>
+
+          {risk && (
+            <div className="mt-4 rounded-lg bg-ink/[0.03] p-3">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink/50">
+                Üretim Öncesi Risk Skoru
+              </p>
+              <RiskScoreBadge risk={risk} />
+            </div>
+          )}
+
           <label className="mt-4 block">
             <span className="mb-1 block text-xs font-medium text-ink/60">Üretim Miktarı (adet)</span>
             <input

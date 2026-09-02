@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
-import type { EcoDesignSuggestionOut, MaterialOut, OptimizationRunOut } from "@/lib/types";
+import type { EcoDesignSuggestionOut, MaterialOut, OptimizationRunOut, RiskScoreOut } from "@/lib/types";
 import { ActiveCaseSummary } from "@/components/layout/ActiveCaseSummary";
 import { StageHeader } from "@/components/layout/StageHeader";
 import { StageNav } from "@/components/layout/StageNav";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { EcoDesignSuggestions } from "@/components/eco-design/EcoDesignSuggestions";
 import { FinalistExplanation } from "@/components/explainability/FinalistExplanation";
+import { RiskScoreBadge } from "@/components/risk/RiskScoreBadge";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Meter } from "@/components/ui/Meter";
@@ -36,6 +37,7 @@ export default function Stage7Page() {
   const [run, setRun] = useState<OptimizationRunOut | null>(null);
   const [materials, setMaterials] = useState<MaterialOut[]>([]);
   const [ecoDesignByRecipeId, setEcoDesignByRecipeId] = useState<Record<string, EcoDesignSuggestionOut[]>>({});
+  const [riskByRecipeId, setRiskByRecipeId] = useState<Record<string, RiskScoreOut>>({});
   const [showEliminated, setShowEliminated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +54,14 @@ export default function Stage7Page() {
           byRecipeId[f.recipe.id] = lists[i];
         });
         setEcoDesignByRecipeId(byRecipeId);
+
+        // Faz Q.1 (Madde 23) — her finalist için üretim öncesi risk skoru.
+        const risks = await Promise.all(r.finalists.map((f) => api.getRiskScore(f.recipe.id)));
+        const riskByRecipe: Record<string, RiskScoreOut> = {};
+        r.finalists.forEach((f, i) => {
+          riskByRecipe[f.recipe.id] = risks[i];
+        });
+        setRiskByRecipeId(riskByRecipe);
       })
       .catch((e) => setError(String(e)));
   }, [optimizationRunId]);
@@ -99,6 +109,11 @@ export default function Stage7Page() {
                   <p className="mt-1 font-heading text-lg font-semibold text-ink">
                     Skor: <span className="font-mono">{f.score.toFixed(2)}</span>
                   </p>
+                  {riskByRecipeId[f.recipe.id] && (
+                    <div className="mt-2">
+                      <RiskScoreBadge risk={riskByRecipeId[f.recipe.id]} />
+                    </div>
+                  )}
                 </div>
                 <Button variant={isSelected ? "primary" : "secondary"} onClick={() => setRecipeId(f.recipe.id)}>
                   {isSelected ? "Seçildi ✓" : "Bu Reçeteyi Seç"}

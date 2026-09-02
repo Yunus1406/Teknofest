@@ -16,6 +16,7 @@ import type {
   DigitalProductPassportOut,
   DigitalTwinOut,
   EcoDesignSuggestionOut,
+  RiskScoreOut,
   ScenarioOverridesIn,
   ScenarioResultOut,
   FacilityOut,
@@ -209,6 +210,10 @@ export const api = {
   // Faz P.2 (Madde 21) — Otomatik Eko-Tasarım Önerileri
   getEcoDesignSuggestions: (recipeId: string) =>
     request<EcoDesignSuggestionOut[]>(`/production-flow/recipes/${recipeId}/eco-design-suggestions`),
+
+  // Faz Q.1 (Madde 23) — Üretim Öncesi Risk Skoru
+  getRiskScore: (recipeId: string) =>
+    request<RiskScoreOut>(`/production-flow/recipes/${recipeId}/risk-score`),
 
   // Faz C.1/C.2 — Dijital Ürün Pasaportu
   createOrGetPassport: (recipeId: string) =>

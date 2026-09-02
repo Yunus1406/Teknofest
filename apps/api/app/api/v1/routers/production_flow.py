@@ -18,6 +18,7 @@ from app.schemas.dashboard import (
     ComparisonOut,
     EcoDesignSuggestionOut,
     FinalResultOut,
+    RiskScoreOut,
     ScenarioOverridesIn,
     ScenarioResultOut,
 )
@@ -35,6 +36,7 @@ from app.schemas.recipe import RecipeOut
 from app.services import learning_memory_service, passport_service, pdf_service, production_flow_service, report_service
 from app.services.eco_design_service import build_eco_design_suggestions
 from app.services.explainability_service import build_finalist_explanation_bullets
+from app.services.risk_service import compute_risk_score
 from app.services.scenario_service import run_scenario
 from app.services.scorecard_service import build_sustainability_scorecard
 from app.services.test_targets import suggested_physical_test_targets
@@ -226,6 +228,17 @@ def get_eco_design_suggestions(recipe_id: str, db: Session = Depends(get_db)):
     RecipeLayer taşır (bkz. app/services/eco_design_service.py)."""
     recipe = _get_recipe_or_404(db, recipe_id)
     return build_eco_design_suggestions(db, recipe)
+
+
+# --- Faz Q.1 (Madde 23): Üretim Öncesi Risk Skoru ---------------------------
+
+@router.get("/recipes/{recipe_id}/risk-score", response_model=RiskScoreOut)
+def get_recipe_risk_score(recipe_id: str, db: Session = Depends(get_db)):
+    """Hem Dashboard 7'nin finalist (henüz doğrulanmamış) reçeteleri hem
+    Dashboard 9'un üretime aktarılacak reçetesi için çalışır (bkz.
+    app/services/risk_service.py)."""
+    recipe = _get_recipe_or_404(db, recipe_id)
+    return compute_risk_score(db, recipe)
 
 
 # --- Faz I.3: Gerçek Öğrenme Hafızası ---------------------------------------

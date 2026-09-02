@@ -154,3 +154,11 @@ class EcoDesignSuggestionOut(BaseModel):
     title: str
     detay_metni: str
     veri_guveni_kind: str
+
+
+# Faz Q.1 (Madde 23) — Üretim Öncesi Risk Skoru (bkz. app/services/
+# risk_service.py). `bilesenler` şeffaf -- hangi bileşenin riski
+# yükselttiği her zaman görünür, kara kutu skor YOK.
+class RiskScoreOut(BaseModel):
+    genel_risk: str
+    bilesenler: dict

@@ -577,6 +577,7 @@ export default function DigitalProductPassportPage() {
                         <Badge tone="petrol">V{node.version}</Badge>
                         <span className="text-ink/60">{node.status}</span>
                         {node.is_verified && <Badge tone="pcr">Doğrulandı</Badge>}
+                        {node.outcome === "basarisiz" && <Badge tone="warn">Başarısız</Badge>}
                         {node.line_name && <span className="font-mono text-xs text-ink/40">{node.line_name}</span>}
                       </div>
                       <p className="mt-1 text-xs text-ink/50">
@@ -591,6 +592,9 @@ export default function DigitalProductPassportPage() {
                         {node.physical_test_summary.basarili} geçti / {node.physical_test_summary.basarisiz} kaldı /{" "}
                         {node.physical_test_summary.beklemede} beklemede
                       </p>
+                      {node.basarisizlik_nedeni && (
+                        <p className="mt-1 text-xs text-warn">{node.basarisizlik_nedeni}</p>
+                      )}
                     </li>
                   ))}
                 </ol>

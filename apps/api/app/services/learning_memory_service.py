@@ -19,10 +19,12 @@ yok" gösterir -- bu bir hata değil, mevcut üretim akışının GERÇEK
 yansımasıdır."""
 from sqlalchemy.orm import Session
 
+from app.constraint_engine.types import FailedRecipeSignature
 from app.models.infrastructure import ProductionLine
 from app.models.production import PhysicalTest, ProductionOrder
 from app.models.recipe import Recipe
 from app.models.technical_reference import ProcessReference
+from app.services.common import canonical_packaging_category
 
 
 def diff_recipe_compositions(old: Recipe, new: Recipe) -> list[dict]:
@@ -101,6 +103,65 @@ def _target_process_parameters(db: Session, line: ProductionLine | None) -> list
     ]
 
 
+def _node_outcome_and_reason(node: Recipe, tests: list[PhysicalTest], physical_test_summary: dict) -> tuple[str, str | None]:
+    """Faz Q.0/Q.2 (Madde 24) düzeltmesi — `causal_chain_for_recipe()`'nin
+    her düğümüne (node) AÇIK bir başarı/başarısızlık durumu + nedeni
+    ekler. Önceden sadece ham `physical_test_summary` sayıları vardı,
+    "bu düğüm BAŞARISIZ OLDUĞU İÇİN yeni versiyon açıldı" diyen bir alan
+    yoktu. `_transition_outcome()` (aşağıda, `change_outcome_stats()` için
+    kullanılan AYRI bir sınıflandırma) burada KASITLI OLARAK reuse
+    edilmiyor -- o çocuk-merkezli/toplu istatistik için tasarlandı, bu
+    fonksiyon ise düğümün KENDİ gerçek `PhysicalTest` satırlarından
+    (result="basarisiz") doğrudan, kesin bir başarısızlık sinyali
+    kullanıyor -- daha güvenilir, dolaylı çıkarım gerektirmiyor."""
+    if physical_test_summary["basarisiz"] > 0:
+        failed = [t for t in tests if t.result == "basarisiz"]
+        parts = []
+        for t in failed:
+            if t.target_min is not None and t.target_max is not None:
+                parts.append(f"{t.test_type}: {t.value} {t.unit} (hedef {t.target_min}–{t.target_max} {t.unit})")
+            else:
+                parts.append(f"{t.test_type}: {t.value} {t.unit}")
+        return "basarisiz", "Fiziksel test başarısız — " + "; ".join(parts) + "."
+    if node.is_verified:
+        return "basarili", None
+    return "beklemede", None
+
+
+def build_failed_recipe_signatures(db: Session, canonical_packaging_type: str, line_id: str) -> list[FailedRecipeSignature]:
+    """Faz Q.2 (Madde 25) — AYNI hatta denenip fiziksel testi GERÇEKTEN
+    başarısız olmuş (`status="revizyon_gerekli"`), AYNI kanonik ambalaj
+    kategorisine ait reçetelerin kompozisyon imzasını + gerçek
+    başarısızlık nedenini toplar (bkz. `_node_outcome_and_reason`, aynı
+    hesap iki kez YAZILMAZ). Yeni bir optimizasyon koşusunda
+    `constraint_engine.rules.rule_similar_to_failed_history` bu imzalara
+    çok yakın adayları otomatik eler."""
+    failed = db.query(Recipe).filter(Recipe.line_id == line_id, Recipe.status == "revizyon_gerekli").all()
+    signatures: list[FailedRecipeSignature] = []
+    for r in failed:
+        if r.packaging_request is None or not r.total_micron:
+            continue
+        if canonical_packaging_category(r.packaging_request.packaging_type) != canonical_packaging_type:
+            continue
+        tests = db.query(PhysicalTest).filter_by(recipe_id=r.id).all()
+        physical_test_summary = {
+            "basarili": sum(1 for t in tests if t.result == "basarili"),
+            "basarisiz": sum(1 for t in tests if t.result == "basarisiz"),
+            "beklemede": sum(1 for t in tests if t.result == "beklemede"),
+        }
+        _, neden = _node_outcome_and_reason(r, tests, physical_test_summary)
+        if neden is None:
+            continue
+        material_ids = frozenset(l.material_id for l in r.layers)
+        signatures.append(
+            FailedRecipeSignature(
+                recipe_id=r.id, version=r.version, material_ids=material_ids,
+                total_micron=r.total_micron, basarisizlik_nedeni=neden,
+            )
+        )
+    return signatures
+
+
 def causal_chain_for_recipe(db: Session, recipe: Recipe) -> list[dict]:
     """`production_flow_service.version_history()`'nin zenginleştirilmiş
     hali -- onu DEĞİŞTİRMEZ, yanına eklenir. `parent_recipe_id` zincirini
@@ -133,6 +194,7 @@ def causal_chain_for_recipe(db: Session, recipe: Recipe) -> list[dict]:
             "beklemede": sum(1 for t in tests if t.result == "beklemede"),
         }
 
+        outcome, basarisizlik_nedeni = _node_outcome_and_reason(node, tests, physical_test_summary)
         result.append(
             {
                 "id": node.id,
@@ -146,6 +208,11 @@ def causal_chain_for_recipe(db: Session, recipe: Recipe) -> list[dict]:
                 "gerceklesen_fire_kg": fire_kg,
                 "gerceklesen_enerji_kwh": enerji_kwh,
                 "physical_test_summary": physical_test_summary,
+                # Faz Q.0/Q.2 (Madde 24) — additive. outcome: "basarili" |
+                # "basarisiz" | "beklemede". basarisizlik_nedeni SADECE
+                # outcome="basarisiz" iken dolu.
+                "outcome": outcome,
+                "basarisizlik_nedeni": basarisizlik_nedeni,
             }
         )
         previous = node
