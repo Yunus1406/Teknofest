@@ -127,3 +127,55 @@ def test_packaging_request_endpoints_roundtrip_review_fields(client, db_session)
     assert resp2.status_code == 200
     assert resp2.json()["target_thickness_micron"] == 550.0
     assert resp2.json()["physical_performance_notes"] == "Güncellenmiş not."
+
+
+# --- Mekanik Test Kabul Kriterleri -------------------------------------------
+
+def test_create_packaging_request_stores_mechanical_test_criteria(db_session):
+    req = create_packaging_request(
+        db_session,
+        {
+            "packaging_type": "plastik tabak", "usage_area": "test", "product": "test",
+            "target_market": "AB", "food_contact": True, "target_volume_units": 1000,
+            "dimensions": {}, "mechanical_test_criteria": {"tensile": {"min": 25.0, "max": None}},
+        },
+    )
+    assert req.mechanical_test_criteria == {"tensile": {"min": 25.0, "max": None}}
+
+
+def test_packaging_request_defaults_to_empty_mechanical_criteria(db_session):
+    req = create_packaging_request(
+        db_session,
+        {
+            "packaging_type": "plastik tabak", "usage_area": "test", "product": "test",
+            "target_market": "AB", "food_contact": True, "target_volume_units": 1000, "dimensions": {},
+        },
+    )
+    assert req.mechanical_test_criteria == {}
+
+
+def test_update_packaging_request_can_set_mechanical_test_criteria(db_session):
+    req = create_packaging_request(
+        db_session,
+        {
+            "packaging_type": "plastik tabak", "usage_area": "test", "product": "test",
+            "target_market": "AB", "food_contact": True, "target_volume_units": 1000, "dimensions": {},
+        },
+    )
+    updated = update_packaging_request(
+        db_session, req, {"mechanical_test_criteria": {"seal": {"min": 5.0, "max": 12.0}}}
+    )
+    assert updated.mechanical_test_criteria == {"seal": {"min": 5.0, "max": 12.0}}
+
+
+def test_mechanical_test_criteria_endpoint_roundtrip(client, db_session):
+    resp = client.post(
+        "/api/v1/packaging-flow/requests",
+        json={
+            "packaging_type": "plastik tabak", "usage_area": "yemek servisi", "product": "test",
+            "target_market": "AB", "food_contact": True, "target_volume_units": 1000,
+            "dimensions": {}, "mechanical_test_criteria": {"tensile": {"min": 25.0, "max": 40.0}},
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["mechanical_test_criteria"] == {"tensile": {"min": 25.0, "max": 40.0}}

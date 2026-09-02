@@ -134,6 +134,9 @@ class SuggestedTestTargetOut(BaseModel):
     suggested_min: float | None = None
     suggested_max: float | None = None
     suggestion_source: str | None = None
+    # Mekanik Test Kabul Kriterleri — "hesaplanan" (kalınlık/gramaj) /
+    # "kullanici_girisi" (Aşama 2'de girilen gerçek kriter) / None.
+    target_source: str | None = None
 
 
 class SustainabilityResultOut(BaseModel):

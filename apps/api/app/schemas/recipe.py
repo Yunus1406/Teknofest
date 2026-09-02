@@ -17,6 +17,9 @@ class PackagingRequestCreate(BaseModel):
     target_thickness_micron: float | None = None
     target_gsm: float | None = None
     physical_performance_notes: str | None = None
+    # Mekanik Test Kabul Kriterleri (bkz. app/models/recipe.py::
+    # PackagingRequest.mechanical_test_criteria).
+    mechanical_test_criteria: dict = {}
 
 
 class PackagingRequestOut(BaseModel):
@@ -32,6 +35,7 @@ class PackagingRequestOut(BaseModel):
     target_thickness_micron: float | None = None
     target_gsm: float | None = None
     physical_performance_notes: str | None = None
+    mechanical_test_criteria: dict = {}
     spec_file_name: str | None = None
     extracted_fields: dict
     status: str

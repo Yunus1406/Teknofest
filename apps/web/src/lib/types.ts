@@ -17,6 +17,11 @@ export interface PackagingRequestCreate {
   target_thickness_micron?: number | null;
   target_gsm?: number | null;
   physical_performance_notes?: string | null;
+  // Mekanik Test Kabul Kriterleri — Tensile/Elongation/Dart Impact/Tear/
+  // Seal için kullanıcının GERÇEKTEN girdiği geçme/kalma kriteri (bkz.
+  // apps/api/app/models/recipe.py::PackagingRequest.mechanical_test_
+  // criteria). Sadece doldurulan test tipi/uç bulunur.
+  mechanical_test_criteria?: Record<string, { min: number | null; max: number | null }>;
 }
 
 export interface PackagingRequestOut extends PackagingRequestCreate {
@@ -28,6 +33,7 @@ export interface PackagingRequestOut extends PackagingRequestCreate {
   target_thickness_micron: number | null;
   target_gsm: number | null;
   physical_performance_notes: string | null;
+  mechanical_test_criteria: Record<string, { min: number | null; max: number | null }>;
 }
 
 export interface ProductSkuOut {
@@ -839,6 +845,9 @@ export interface SuggestedTestTargetOut {
   suggested_min: number | null;
   suggested_max: number | null;
   suggestion_source: string | null;
+  // Mekanik Test Kabul Kriterleri — "hesaplanan" (kalınlık/gramaj) /
+  // "kullanici_girisi" (Aşama 2'de girilen gerçek kriter) / null.
+  target_source: string | null;
 }
 
 // Faz D.2 — basarili/basarisiz/beklemede. `passed` sadece geriye dönük

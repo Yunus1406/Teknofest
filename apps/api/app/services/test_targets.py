@@ -60,16 +60,30 @@ class SuggestedTestTarget:
     suggested_min: float | None = None
     suggested_max: float | None = None
     suggestion_source: str | None = None
+    # Faz — Mekanik Test Kabul Kriterleri. "hesaplanan" (kalınlık/gramaj,
+    # reçeteden türetilen) / "kullanici_girisi" (mekanik, Aşama 2'de
+    # kullanıcının girdiği GERÇEK kabul kriteri) / None (hedef yok).
+    # `DataSourceType`'ın (Faz H.5/I.4) MEVCUT 10 değerli kelime
+    # dağarcığını kullanır, yeni bir kavram icat edilmez.
+    target_source: str | None = None
 
 
 def suggested_physical_test_targets(
-    recipe: Recipe, mechanical_references: dict[str, MechanicalTestStandard] | None = None
+    recipe: Recipe,
+    mechanical_references: dict[str, MechanicalTestStandard] | None = None,
+    user_criteria: dict | None = None,
 ) -> list[SuggestedTestTarget]:
     """`mechanical_references` opsiyoneldir ve DB'den ÇAĞIRAN TARAFTA
     (bkz. app/api/v1/routers/production_flow.py) sorgulanıp geçirilir --
     bu fonksiyon kasıtlı olarak DB'ye dokunmaz (saf/test edilebilir kalır,
-    bkz. tests/test_test_targets.py)."""
+    bkz. tests/test_test_targets.py). `user_criteria` --
+    `PackagingRequest.mechanical_test_criteria`'nın kendisi (Aşama 2'de
+    kullanıcının GERÇEKTEN girdiği kabul kriteri, ör.
+    {"tensile": {"min": 25.0, "max": None}}) -- doluysa mekanik testler
+    için target_min/max artık None DEĞİL, gerçek bir geçme/kalma kriteri
+    olur; boşsa mevcut "elle girilmelidir" davranışı AYNEN korunur."""
     mechanical_references = mechanical_references or {}
+    user_criteria = user_criteria or {}
     targets: list[SuggestedTestTarget] = []
 
     if recipe.total_micron:
@@ -86,6 +100,7 @@ def suggested_physical_test_targets(
                 target_max=hi,
                 note=f"Reçetenin toplam kalınlığı ({nominal:.0f} µm) ±%{DEFAULT_TOLERANCE_PCT*100:.0f} — "
                 "müşteri toleransına göre daraltılabilir.",
+                target_source="hesaplanan",
             )
         )
 
@@ -105,6 +120,7 @@ def suggested_physical_test_targets(
                         "Alansal gramaj (g/m²) — ambalaj başına toplam ağırlık DEĞİL; "
                         "ambalaj başına ağırlık için Aşama 12'deki kütle dengesine bakın."
                     ),
+                    target_source="hesaplanan",
                 )
             )
 
@@ -140,18 +156,34 @@ def suggested_physical_test_targets(
                     f"aralığı{placeholder_note}: bu bir laboratuvar sonucu DEĞİLDİR, gerçek "
                     "geçme/kalma kriteri (hedef) kullanıcı tarafından girilmelidir."
                 )
+
+        # Kullanıcının Aşama 2'de GERÇEKTEN girdiği kabul kriteri varsa
+        # (bkz. PackagingRequest.mechanical_test_criteria) artık target_
+        # min/max None DEĞİL -- gerçek bir geçme/kalma kriteridir.
+        # suggested_min/max (F.6 referans önerisi, varsa) DEĞİŞMEDEN
+        # yanında kalır (çapraz kontrol için).
+        target_min = target_max = None
+        target_source = None
+        user_entry = user_criteria.get(test_type)
+        if user_entry and (user_entry.get("min") is not None or user_entry.get("max") is not None):
+            target_min = user_entry.get("min")
+            target_max = user_entry.get("max")
+            target_source = "kullanici_girisi"
+            note = "Kullanıcının Aşama 2'de girdiği kabul kriteri."
+
         targets.append(
             SuggestedTestTarget(
                 test_type=test_type,
                 unit=unit,
                 test_method=_TEST_METHODS[test_type],
                 nominal_value=None,
-                target_min=None,
-                target_max=None,
+                target_min=target_min,
+                target_max=target_max,
                 note=note,
                 suggested_min=suggested_min,
                 suggested_max=suggested_max,
                 suggestion_source=suggestion_source,
+                target_source=target_source,
             )
         )
 

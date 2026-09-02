@@ -25,6 +25,14 @@ class PackagingRequest(Base, IdMixin, TimestampMixin):
     target_gsm: Mapped[float | None] = mapped_column(Float, nullable=True)
     physical_performance_notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
+    # Mekanik Test Kabul Kriterleri — Tensile/Elongation/Dart Impact/Tear/
+    # Seal için kullanıcının GERÇEKTEN girdiği geçme/kalma kriteri (bkz.
+    # app/services/test_targets.py modül docstring'i, Faz D.2 disiplini:
+    # bilgi tabanında malzeme mekanik verisi olmadığından hedef ASLA
+    # uydurulmaz). Şekil: {"tensile": {"min":.., "max":..}, ...} — sadece
+    # kullanıcının doldurduğu test tipi/uç bulunur.
+    mechanical_test_criteria: Mapped[dict] = mapped_column(default=dict)
+
     spec_file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     extracted_fields: Mapped[dict] = mapped_column(default=dict)
     # LLM tabanlı şartname çıkarımının çıktısı + kullanıcı tarafından düzeltilen alanlar

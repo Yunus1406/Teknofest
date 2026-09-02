@@ -24,9 +24,75 @@ const emptyForm: PackagingRequestCreate = {
   target_thickness_micron: null,
   target_gsm: null,
   physical_performance_notes: null,
+  mechanical_test_criteria: {},
 };
 
 type Step = "form" | "review";
+
+type MechanicalCriteria = Record<string, { min: number | null; max: number | null }>;
+
+const MECHANICAL_TEST_ROWS: { key: string; label: string; unit: string }[] = [
+  { key: "tensile", label: "Tensile (Çekme Dayanımı)", unit: "MPa" },
+  { key: "elongation", label: "Elongation (Uzama)", unit: "%" },
+  { key: "dart_impact", label: "Dart Impact (Düşürme Darbesi)", unit: "J" },
+  { key: "tear", label: "Tear (Yırtılma)", unit: "N" },
+  { key: "seal", label: "Seal (Kaynak Dayanımı)", unit: "N/15mm" },
+];
+
+/** Aşama 11'in "gerçek geçme/kalma kriteri kullanıcı tarafından
+ * girilmelidir" dediği mekanik testler için TEK giriş noktası (bkz.
+ * apps/api/app/services/test_targets.py). Boş bırakılan uç/satır dict'e
+ * hiç eklenmez -- uydurma bir sıfır değeri YOK. */
+function MechanicalCriteriaFields({
+  value,
+  onChange,
+}: {
+  value: MechanicalCriteria;
+  onChange: (v: MechanicalCriteria) => void;
+}) {
+  function setBound(testType: string, bound: "min" | "max", raw: string) {
+    const parsed = raw === "" ? null : Number(raw);
+    const current = value[testType] ?? { min: null, max: null };
+    const next = { ...current, [bound]: parsed };
+    const updated = { ...value };
+    if (next.min === null && next.max === null) {
+      delete updated[testType];
+    } else {
+      updated[testType] = next;
+    }
+    onChange(updated);
+  }
+
+  return (
+    <div className="space-y-2">
+      {MECHANICAL_TEST_ROWS.map((row) => {
+        const entry = value[row.key];
+        return (
+          <div key={row.key} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 text-sm">
+            <span className="text-ink/70">{row.label}</span>
+            <input
+              type="number"
+              step="any"
+              className="input w-24"
+              placeholder="min"
+              value={entry?.min ?? ""}
+              onChange={(e) => setBound(row.key, "min", e.target.value)}
+            />
+            <input
+              type="number"
+              step="any"
+              className="input w-24"
+              placeholder="max"
+              value={entry?.max ?? ""}
+              onChange={(e) => setBound(row.key, "max", e.target.value)}
+            />
+            <span className="font-mono text-xs text-ink/40">{row.unit}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /** Bir alanın yanına, o alan LLM tarafından çıkarıldıysa güven rozetini
  * ekler -- Faz G.1: "Çıkarılan Bilgileri Kontrol Edin" ekranında her alanın
@@ -225,6 +291,19 @@ export default function Stage2Page() {
                 />
               </ReviewField>
             </div>
+            <div className="md:col-span-2">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink/40">
+                Mekanik Test Kabul Kriterleri (opsiyonel)
+              </p>
+              <p className="mb-2 text-xs text-ink/50">
+                Aşama 11&apos;de bu testler için hedef otomatik hesaplanamıyor — laboratuvar/şartname referans
+                değerini burada girerseniz gerçek geçme/kalma kriteri olarak kullanılır.
+              </p>
+              <MechanicalCriteriaFields
+                value={form.mechanical_test_criteria ?? {}}
+                onChange={(v) => setForm({ ...form, mechanical_test_criteria: v })}
+              />
+            </div>
           </div>
 
           {error && <p className="mt-4 text-sm text-warn">{error}</p>}
@@ -399,6 +478,19 @@ export default function Stage2Page() {
                 placeholder="örn. -18°C dondurucuya dayanıklı olmalı, sıcak dolum yapılacak..."
               />
             </Field>
+          </div>
+          <div className="md:col-span-2">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink/40">
+              Mekanik Test Kabul Kriterleri (opsiyonel)
+            </p>
+            <p className="mb-2 text-xs text-ink/50">
+              Aşama 11&apos;de bu testler için hedef otomatik hesaplanamıyor — laboratuvar/şartname referans
+              değerini burada girerseniz gerçek geçme/kalma kriteri olarak kullanılır.
+            </p>
+            <MechanicalCriteriaFields
+              value={form.mechanical_test_criteria ?? {}}
+              onChange={(v) => setForm({ ...form, mechanical_test_criteria: v })}
+            />
           </div>
 
           {error && <p className="md:col-span-2 text-sm text-warn">{error}</p>}

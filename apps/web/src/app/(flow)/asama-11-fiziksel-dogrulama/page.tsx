@@ -128,11 +128,13 @@ export default function Stage11Page() {
                   </span>
                 </div>
                 {(() => {
-                  // Faz I.4 — hedef aralığın kaynağına göre güven: F.6
-                  // mekanik test standardından öneri varsa Sistem Referansı
-                  // (Düşük); yoksa ama hedef reçetenin kendi kalınlığından
-                  // türetildiyse Hesaplanan (Orta); hiçbiri yoksa rozet yok.
-                  const kind = s?.suggestion_source ? "sistem_referansi" : t.target_min !== null ? "hesaplanan" : null;
+                  // Faz I.4 — hedef aralığının GERÇEK kaynağı: backend'in
+                  // `target_source`'u (Mekanik Test Kabul Kriterleri) varsa
+                  // önce o kullanılır ("kullanici_girisi" → Yüksek); yoksa
+                  // F.6 referans önerisi varsa Sistem Referansı (Düşük);
+                  // hiçbiri yoksa rozet yok. Kullanıcı girdisi artık asla
+                  // "Hesaplanan" diye yanlış etiketlenmez.
+                  const kind = s?.target_source ?? (s?.suggestion_source ? "sistem_referansi" : null);
                   const level = dataConfidenceFromSourceKind(kind);
                   if (!level) return null;
                   return (

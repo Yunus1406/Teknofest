@@ -137,7 +137,11 @@ def get_suggested_test_targets(recipe_id: str, db: Session = Depends(get_db)):
     mechanical_references: dict[str, MechanicalTestStandard] = {}
     for row in db.query(MechanicalTestStandard).filter(MechanicalTestStandard.packaging_category.is_(None)).all():
         mechanical_references[row.test_type] = row
-    return suggested_physical_test_targets(recipe, mechanical_references)
+    # Mekanik Test Kabul Kriterleri — Aşama 2'de kullanıcının GERÇEKTEN
+    # girdiği kriter (varsa), bkz. app/models/recipe.py::PackagingRequest.
+    # mechanical_test_criteria.
+    user_criteria = recipe.packaging_request.mechanical_test_criteria if recipe.packaging_request else None
+    return suggested_physical_test_targets(recipe, mechanical_references, user_criteria)
 
 
 class PhysicalVerificationResultOut(BaseModel):

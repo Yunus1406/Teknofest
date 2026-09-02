@@ -48,6 +48,7 @@ def update_packaging_request(db: Session, req: PackagingRequest, data: dict) -> 
         "target_thickness_micron",
         "target_gsm",
         "physical_performance_notes",
+        "mechanical_test_criteria",
     ):
         if field in data:
             setattr(req, field, data[field])

@@ -60,3 +60,70 @@ def test_mechanical_tests_never_fabricate_numeric_targets():
             assert t.target_max is None
             assert t.nominal_value is None
             assert t.test_method  # yöntem referansı yine de verilmeli
+            assert t.target_source is None
+
+
+# --- Mekanik Test Kabul Kriterleri (Aşama 2'de kullanıcı girişi) -----------
+
+def test_user_criteria_becomes_real_target_not_just_a_suggestion():
+    recipe = _recipe(total_micron=70.0)
+    user_criteria = {"tensile": {"min": 25.0, "max": 40.0}}
+
+    targets = suggested_physical_test_targets(recipe, user_criteria=user_criteria)
+    tensile = next(t for t in targets if t.test_type == "tensile")
+
+    assert tensile.target_min == 25.0
+    assert tensile.target_max == 40.0
+    assert tensile.target_source == "kullanici_girisi"
+    assert "Aşama 2" in tensile.note
+
+
+def test_user_criteria_with_only_min_still_applies():
+    recipe = _recipe(total_micron=70.0)
+    user_criteria = {"seal": {"min": 5.0, "max": None}}
+
+    targets = suggested_physical_test_targets(recipe, user_criteria=user_criteria)
+    seal = next(t for t in targets if t.test_type == "seal")
+
+    assert seal.target_min == 5.0
+    assert seal.target_max is None
+    assert seal.target_source == "kullanici_girisi"
+
+
+def test_untouched_mechanical_tests_keep_honest_manual_entry_note():
+    """Kullanıcı sadece tensile'ı doldurduysa, diğer mekanik testler
+    (ör. elongation) hâlâ dürüstçe 'elle girilmelidir' kalmalı -- kısmi
+    kullanıcı girişi diğer testlere sızmamalı."""
+    recipe = _recipe(total_micron=70.0)
+    user_criteria = {"tensile": {"min": 25.0, "max": None}}
+
+    targets = suggested_physical_test_targets(recipe, user_criteria=user_criteria)
+    elongation = next(t for t in targets if t.test_type == "elongation")
+
+    assert elongation.target_min is None
+    assert elongation.target_max is None
+    assert elongation.target_source is None
+    assert "elle girilmelidir" in elongation.note
+
+
+def test_thickness_and_gramaj_targets_are_tagged_as_calculated():
+    recipe = _recipe(total_micron=70.0)
+
+    targets = suggested_physical_test_targets(recipe)
+    kalinlik = next(t for t in targets if t.test_type == "kalinlik")
+    gramaj = next(t for t in targets if t.test_type == "gramaj")
+
+    assert kalinlik.target_source == "hesaplanan"
+    assert gramaj.target_source == "hesaplanan"
+
+
+def test_no_user_criteria_preserves_existing_honest_behavior():
+    """user_criteria hiç verilmezse (None) mevcut davranış birebir korunur
+    -- geriye dönük uyumluluk."""
+    recipe = _recipe(total_micron=70.0)
+
+    targets = suggested_physical_test_targets(recipe, user_criteria=None)
+    for t in targets:
+        if t.test_type in ("tensile", "elongation", "dart_impact", "tear", "seal"):
+            assert t.target_min is None
+            assert t.target_source is None
