@@ -316,7 +316,7 @@ REÇETE OS modüler bir yazılım mimarisiyle geliştirilmiştir.
 
 Detaylı teknik mimari için:
 
-docs/architecture.md
+[Mimari Dokümantasyonuna Git](./docs/architecture.md)
 
 ---
 
